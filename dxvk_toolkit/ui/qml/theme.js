@@ -5,8 +5,10 @@ var bg = "#141619"
 var surface = "#1b1e23"
 var surfaceAlt = "#20242b"
 var surfaceHover = "#262b34"
-var border = "#2c313a"
+var border = "#2c313a"          // interactive outlines (inputs, focus)
+var borderSubtle = "#232830"    // barely visible dividers
 var borderStrong = "#3a4150"
+var surfaceRaised = "#22262e"   // cards sitting on the page background
 var text = "#e7e9ec"
 var textMuted = "#98a2b3"
 var textDim = "#6f7885"
@@ -40,7 +42,7 @@ var radius = radiusCard
 var radiusSmall = radiusControl
 var cardWidth = 168
 var cardHeight = 252
-var cardFooter = 54
+var cardFooter = 58
 // Spacing follows a 4 px base grid: 4 / 8 / 12 / 16 / 24 / 32.
 // Every margin, padding and gap in the interface uses one of these.
 var space1 = 4

@@ -47,11 +47,11 @@ Item {
     Rectangle {
         id: frame
         anchors.fill: parent
-        radius: Th.radius
-        color: hover.hovered ? Th.surfaceHover : Th.surface
-        border.width: card.selected ? 2 : 1
-        border.color: card.selected ? Th.accent
-                                   : (hover.hovered ? Th.borderStrong : Th.border)
+        radius: Th.radiusCard
+        color: hover.hovered ? Th.surfaceHover : Th.surfaceRaised
+        // 不再常驻 1px 描边：靠表面色区分卡片与背景，只在与交互态出现描边
+        border.width: card.selected || hover.hovered ? 1 : 0
+        border.color: card.selected ? Th.accent : Th.borderStrong
         clip: true
         transformOrigin: Item.Center
         scale: hover.hovered ? 1.035 : 1.0
@@ -94,17 +94,17 @@ Item {
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top
-                anchors.margins: 8
+                anchors.margins: Th.space2
                 radius: Th.radiusMicro
-                color: "#cc000000"
-                width: platformText.implicitWidth + 12
-                height: platformText.implicitHeight + 6
+                color: "#b3000000"
+                width: platformText.implicitWidth + Th.space3
+                height: platformText.implicitHeight + Th.space1
                 Text {
                     id: platformText
                     anchors.centerIn: parent
                     text: card.platformLabel
-                    color: "#e7e9ec"
-                    font.pixelSize: 10
+                    color: "#f0f2f5"
+                    font.pixelSize: Th.fontMicro
                 }
             }
         }
@@ -120,11 +120,13 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: 8
+                anchors.leftMargin: Th.space2
+                anchors.rightMargin: Th.space2
+                anchors.topMargin: Th.space2
                 anchors.bottomMargin: 0
                 text: card.title
-                color: Th.text
-                font.pixelSize: 12
+                color: hover.hovered ? Th.text : "#d7dbe2"
+                font.pixelSize: Th.fontBody
                 elide: Text.ElideRight
                 maximumLineCount: 2
                 wrapMode: Text.WordWrap
@@ -134,12 +136,12 @@ Item {
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: 8
+                anchors.leftMargin: Th.space2
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 8
+                anchors.bottomMargin: Th.space2
                 text: card.subtitle
                 color: Th.textDim
-                font.pixelSize: 10
+                font.pixelSize: Th.fontCaption
                 elide: Text.ElideRight
                 width: parent.width - badge.width - 26
             }
