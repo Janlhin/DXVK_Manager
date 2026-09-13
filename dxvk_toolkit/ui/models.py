@@ -333,7 +333,8 @@ class GameListModel(QAbstractListModel):
             self.dataChanged.emit(model_index, model_index)
 
     def keys(self) -> list[str]:
-        return [row["key"] for row in self._rows]
+        """Keys of the games currently shown (section headings excluded)."""
+        return [row["key"] for row in self._rows if row.get("key")]
 
     def key_at(self, index: int) -> str:
         if 0 <= index < len(self._rows):

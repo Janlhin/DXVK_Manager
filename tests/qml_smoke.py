@@ -125,13 +125,21 @@ def main() -> int:
     grid = window.findChild(QObject, "gameGrid")
     check(grid is not None, "grid view found")
     if grid is not None:
-        # Off-screen the view populates on its own schedule; wait for it
-        # instead of guessing a sleep duration.
+        # The wall is a Flow inside a Flickable (headings span the row), so it
+        # has no count property: compare the cards actually created instead.
         deadline = time.time() + 30
-        while time.time() < deadline and grid.property("count") == 0:
+        # Count the card components the wall built. Their QML class name
+        # carries a suffix, so match on the prefix.
+        games = bridge.model.rowCount()
+        created = 0
+        while time.time() < deadline:
+            created = sum(1 for obj in window.findChildren(QObject)
+                          if obj.metaObject().className().startswith("GameCard"))
+            if created >= games:
+                break
             pump(app, 0.2)
-        check(grid.property("count") == rows, "grid shows every model row",
-              f"count={grid.property('count')} model={rows}")
+        check(created >= games, "wall created every row",
+              f"cards={created} model={games}")
         rendered = window.grabWindow()
         check(not rendered.isNull() and rendered.width() > 0,
               "scene renders off screen",

@@ -364,6 +364,7 @@ Item {
 
                 Flow {
                     id: flow
+                    objectName: "gameWall"
                     x: Th.pad
                     y: Th.pad
                     width: wall.width - Th.pad * 2
