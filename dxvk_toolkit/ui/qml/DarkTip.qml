@@ -5,6 +5,10 @@ import "theme.js" as Th
 // A tool tip we control. The built-in ToolTip is drawn by the Qt Quick
 // Controls style and ignored the application palette, so it stayed a glaring
 // white box in the middle of a dark window.
+//
+// The opaque surface is the contentItem itself rather than Popup.background:
+// the background rectangle was never stretched to the popup, so the page text
+// showed straight through the tip.
 Popup {
     id: tip
     objectName: "darkTip"
@@ -18,32 +22,31 @@ Popup {
     dim: false
     modal: false
 
-    // Measuring the text against the popup's own implicit size was a binding
-    // loop. The text is given a width first; everything else follows from it.
-    readonly property real textWidth: Math.min(maxTipWidth,
-                                               Math.max(200, tipText.contentWidth + Th.space3))
-
-    contentItem: Text {
-        id: tipText
-        width: tip.textWidth
-        leftPadding: Th.space3
-        topPadding: Th.space2
-        text: tip.body
-        color: Th.text
-        font.pixelSize: Th.fontSmall
-        lineHeight: Th.lineHeight
-        wrapMode: Text.WordWrap
-    }
-
-    implicitWidth: tipText.width
-    implicitHeight: tipText.height
-    width: implicitWidth
-    height: implicitHeight
-
-    background: Rectangle {
+    contentItem: Rectangle {
+        id: tipBox
         color: Th.surfaceAlt
         radius: Th.radiusControl
         border.width: 1
         border.color: Th.borderStrong
+
+        // The text is measured unwrapped, then clamped: assigning a width does
+        // not feed back into implicitWidth, so there is no binding loop.
+        readonly property real lineWidth: Math.min(tip.maxTipWidth,
+                                                   Math.max(220, tipText.implicitWidth))
+
+        implicitWidth: lineWidth + Th.space5
+        implicitHeight: tipText.implicitHeight + Th.space3
+
+        Text {
+            id: tipText
+            x: Th.space3
+            y: Th.space2
+            width: tipBox.lineWidth
+            text: tip.body
+            color: Th.text
+            font.pixelSize: Th.fontSmall
+            lineHeight: Th.lineHeight
+            wrapMode: Text.WordWrap
+        }
     }
 }
