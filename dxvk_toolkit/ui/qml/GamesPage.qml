@@ -555,7 +555,11 @@ Item {
             id: detail
             objectName: "gameDetails"
             Layout.fillWidth: true
-            Layout.preferredHeight: detail.gameKey !== "" ? 100 : 0
+            // Sized by its content: a fixed height left a blank line under
+            // the last row of text.
+            Layout.preferredHeight: detail.gameKey !== ""
+                                   ? detailBody.implicitHeight + Th.space5
+                                   : 0
             visible: detail.gameKey !== ""
             color: Th.surface
 
@@ -569,13 +573,16 @@ Item {
             property string statusKind: "muted"
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 4
+                id: detailBody
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Th.space3
+                spacing: Th.space1
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Th.space2
 
                     Text {
                         text: detail.name

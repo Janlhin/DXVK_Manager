@@ -72,6 +72,19 @@ def main() -> int:
         pump(0.2)
     pump(6)                                # let detection and covers settle
 
+    # Fill the details panel with a sample so it shows up in the capture.
+    detail = window.findChild(QObject, "gameDetails")
+    if detail is not None:
+        detail.setProperty("gameKey", "sample")
+        detail.setProperty("name", "Call of Duty: Modern Warfare")
+        detail.setProperty("path", r"D:\SteamLibrary\steamapps\common\Call of Duty Modern Warfare")
+        detail.setProperty("platform", "Steam")
+        detail.setProperty("direct3d", "Direct3D 12")
+        detail.setProperty("arch", "x64")
+        detail.setProperty("statusText", "未安装")
+        detail.setProperty("statusKind", "muted")
+        pump(1.0)
+
     for index, name in ((0, "games-grid"), (1, "versions"), (2, "config"), (3, "settings")):
         window.setProperty("currentPage", index)
         pump(1.5)

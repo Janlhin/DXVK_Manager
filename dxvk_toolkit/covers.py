@@ -118,12 +118,29 @@ def source_urls(game: Any) -> list[str]:
     return urls
 
 
+_IMAGE_MAGIC = (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"RIFF", b"GIF8")
+
+
+def _is_image(path: Path) -> bool:
+    """A cover must actually be an image.
+
+    A missing asset host answers with an HTML error page; saving that as .jpg
+    produced "Error decoding" spam and a broken card.
+    """
+    try:
+        with path.open("rb") as handle:
+            head = handle.read(16)
+    except OSError:
+        return False
+    return any(head.startswith(magic) for magic in _IMAGE_MAGIC)
+
+
 def download_cover(key: str, urls: Sequence[str], timeout: float = 25.0) -> bool:
     """Fetch the first working URL into the cache. Returns True on success."""
     if not urls:
         return False
     target = original_path(key)
-    if target.is_file() and target.stat().st_size > 1024:
+    if target.is_file() and target.stat().st_size > 1024 and _is_image(target):
         return True
     for url in urls:
         try:
@@ -131,8 +148,15 @@ def download_cover(key: str, urls: Sequence[str], timeout: float = 25.0) -> bool
         except Exception as exc:  # noqa: BLE001 - artwork is optional
             log.debug("cover download failed (%s): %s", url, exc)
             continue
-        if target.is_file() and target.stat().st_size > 1024:
+        if target.is_file() and target.stat().st_size > 1024 and _is_image(target):
             return True
+        # Not an image: drop it so the next run retries a different host.
+        if target.is_file() and not _is_image(target):
+            log.debug("cover at %s is not an image, discarding", url)
+            try:
+                target.unlink()
+            except OSError:
+                pass
     return False
 
 

@@ -142,11 +142,23 @@ class GameListModel(QAbstractListModel):
                 "clean": len(self._all_rows) - patched}
 
     def set_patched(self, key: str, patched: bool) -> None:
+        """Record whether DXVK is installed.
+
+        Only a filter that depends on this flips the view, and when it does the
+        model is reset properly: changing _rows without telling the view left
+        the view holding stale indexes, which crashed the app on the next click.
+        """
         index = self.find(key)
         if index < 0:
             return
+        if self._all_rows[index]["patched"] == bool(patched):
+            return
         self._all_rows[index]["patched"] = bool(patched)
-        self._apply_filter()
+        if self._dxtk != "all":
+            self.beginResetModel()
+            self._apply_filter()
+            self.endResetModel()
+            self.countChanged.emit()
 
     def platform_options(self) -> list[dict[str, Any]]:
         """Filter chips with counts, built from the full library."""
@@ -171,6 +183,14 @@ class GameListModel(QAbstractListModel):
         return options if len(options) > 2 else []
 
     def find(self, key: str) -> int:
+        """Index into the full library (headers are not in that list)."""
+        for index, row in enumerate(self._all_rows):
+            if row["key"] == key:
+                return index
+        return -1
+
+    def view_index(self, key: str) -> int:
+        """Row index inside the filtered view, or -1 when it is not shown."""
         for index, row in enumerate(self._rows):
             if row["key"] == key:
                 return index
@@ -178,15 +198,17 @@ class GameListModel(QAbstractListModel):
 
     def row(self, key: str) -> dict[str, Any] | None:
         index = self.find(key)
-        return self._rows[index] if index >= 0 else None
+        return self._all_rows[index] if index >= 0 else None
 
     def update(self, key: str, **fields: Any) -> None:
         index = self.find(key)
         if index < 0:
             return
-        self._rows[index].update(fields)
-        model_index = self.index(index, 0)
-        self.dataChanged.emit(model_index, model_index)
+        self._all_rows[index].update(fields)
+        visible = self.view_index(key)
+        if visible >= 0:
+            model_index = self.index(visible, 0)
+            self.dataChanged.emit(model_index, model_index)
 
     def keys(self) -> list[str]:
         return [row["key"] for row in self._rows]
