@@ -40,11 +40,12 @@ var space4 = 16
 var space5 = 24
 var space6 = 32
 
-// Corner radius: controls 6, badges 6, cards 10, dialogs 12.
+// One corner radius for everything. Mixing rounded and square corners was
+// the most obvious inconsistency in the interface.
 var radiusControl = 6
 var radiusMicro = 6
-var radiusCard = 10
-var radiusPanel = 12
+var radiusCard = 6
+var radiusPanel = 6
 var radiusHairline = 1
 
 var radius = radiusCard

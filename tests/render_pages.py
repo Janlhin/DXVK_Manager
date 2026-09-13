@@ -67,6 +67,10 @@ def main() -> int:
             time.sleep(0.02)
 
     pump(4)
+    grid_page = window.findChild(QObject, "gamesPage")
+    if grid_page is not None:
+        grid_page.setProperty("viewMode", "grid")   # do not inherit the last run
+    pump(0.6)
     deadline = time.time() + 30
     while time.time() < deadline and bridge.model.rowCount() == 0:
         pump(0.2)

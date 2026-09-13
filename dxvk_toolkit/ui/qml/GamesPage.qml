@@ -307,21 +307,24 @@ Item {
                 onHeightChanged: page.requestVisible()
                 onWidthChanged: page.requestVisible()
 
+                // Wheel scrolling, by rows: Qt's default 60 px per notch
+                // crawls on a wall of 330 px cells.
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: function (wheel) {
+                        var step = grid.cellHeight * 1.5
+                        var delta = wheel.pixelDelta.y !== 0
+                                  ? wheel.pixelDelta.y * 2
+                                  : (wheel.angleDelta.y / 120) * step
+                        var limit = Math.max(0, grid.contentHeight - grid.height)
+                        grid.contentY = Math.max(0, Math.min(limit, grid.contentY - delta))
+                        wheel.accepted = true
+                    }
+                }
+
+
             // Qt's default wheel step (60 px) crawls on a wall of cards; this
             // scrolls by rows instead, and still honours touchpad pixel deltas.
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: function (event) {
-                    var step = grid.cellHeight * 1.8
-                    var delta = event.pixelDelta.y !== 0
-                              ? event.pixelDelta.y * 2
-                              : (event.angleDelta.y / 120) * step
-                    var limit = Math.max(0, grid.contentHeight - VIEW.height)
-                    VIEW.contentY = Math.max(0, Math.min(limit, VIEW.contentY - delta))
-                    event.accepted = true
-                }
-            }
-
                 // Values come from the model object explicitly: declaring
                 // "required property coverUrl" here collided with the property
                 // GameCard already declares, so the model value was dropped and
@@ -380,8 +383,8 @@ Item {
                     var delta = event.pixelDelta.y !== 0
                               ? event.pixelDelta.y * 2
                               : (event.angleDelta.y / 120) * step
-                    var limit = Math.max(0, gameList.contentHeight - VIEW.height)
-                    VIEW.contentY = Math.max(0, Math.min(limit, VIEW.contentY - delta))
+                    var limit = Math.max(0, gameList.contentHeight - gameList.height)
+                    gameList.contentY = Math.max(0, Math.min(limit, gameList.contentY - delta))
                     event.accepted = true
                 }
             }
@@ -440,61 +443,63 @@ Item {
                         }
                     }
 
-                    Row {
+                    // Columns line up across rows and the name absorbs the
+                    // slack; fixed widths left half the row empty on a wide
+                    // window.
+                    RowLayout {
                         anchors.left: thumb.right
-                        anchors.leftMargin: 12
+                        anchors.leftMargin: Th.space3
                         anchors.right: parent.right
                         anchors.rightMargin: Th.pad
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 12
+                        spacing: Th.space4
 
                         Text {
-                            width: Math.max(160, gameRow.width - 560)
+                            Layout.fillWidth: true
                             text: gameRow.name
                             color: Th.text
                             font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
-                            anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
-                            width: 90
+                            Layout.preferredWidth: 80
                             text: gameRow.platformLabel
                             color: Th.textMuted
                             font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
-                            anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
-                            width: 110
+                            Layout.preferredWidth: 120
                             text: gameRow.direct3d === ""
                                   ? "识别中…"
                                   : (gameRow.direct3d === "Unknown" ? "未知" : gameRow.direct3d)
                             color: Th.textMuted
                             font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
-                            anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
-                            width: 60
+                            Layout.preferredWidth: 56
                             text: gameRow.arch !== "" ? gameRow.arch : "—"
                             color: Th.textMuted
                             font.pixelSize: Th.fontBody
-                            anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
+                            implicitWidth: rowStatus.implicitWidth + Th.space3
+                            implicitHeight: rowStatus.implicitHeight + Th.space2
+                            Layout.alignment: Qt.AlignVCenter
                             radius: Th.radiusMicro
                             color: Th.statusBg(gameRow.statusKind)
-                            width: rowStatus.implicitWidth + 12
-                            height: rowStatus.implicitHeight + 6
+                            border.width: 1
+                            border.color: Th.borderSubtle
 
                             Text {
                                 id: rowStatus
-                                anchors.centerIn: parent
+                                x: (parent.width - width) / 2
+                                y: (parent.height - height) / 2
                                 text: gameRow.statusText
                                 color: Th.statusColor(gameRow.statusKind)
                                 font.pixelSize: Th.fontCaption
@@ -582,7 +587,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: Th.space2
+                    spacing: Th.space3
 
                     Text {
                         text: detail.name
@@ -592,14 +597,25 @@ Item {
                         elide: Text.ElideRight
                         Layout.maximumWidth: 420
                     }
+                    // A status chip: without a stroke and real padding the
+                    // label read as part of the game title.
+                    // Sized via implicitWidth/implicitHeight and positioned with
+                    // x/y: centring the label with anchors while the parent's
+                    // width depended on the label's implicit width was a binding
+                    // loop, and Qt broke it - the chip collapsed to 12 px.
                     Rectangle {
+                        implicitWidth: statusLabel.implicitWidth + Th.space3
+                        implicitHeight: statusLabel.implicitHeight + Th.space2
                         radius: Th.radiusMicro
                         color: Th.statusBg(detail.statusKind)
-                        width: statusLabel.implicitWidth + 12
-                        height: statusLabel.implicitHeight + 5
+                        border.width: 1
+                        border.color: detail.statusKind === "ok" ? Th.ok
+                                      : (detail.statusKind === "warn" ? Th.warn
+                                         : (detail.statusKind === "error" ? Th.error : Th.border))
                         Text {
                             id: statusLabel
-                            anchors.centerIn: parent
+                            x: (parent.width - width) / 2
+                            y: (parent.height - height) / 2
                             text: detail.statusText
                             color: Th.statusColor(detail.statusKind)
                             font.pixelSize: Th.fontCaption

@@ -155,11 +155,12 @@ Item {
                 anchors.bottomMargin: Th.space2 - 2
                 radius: Th.radiusMicro
                 color: Th.statusBg(card.statusKind)
-                width: badgeText.implicitWidth + Th.space2
-                height: badgeText.implicitHeight + 4
+                implicitWidth: badgeText.implicitWidth + Th.space2
+                implicitHeight: badgeText.implicitHeight + Th.space1
                 Text {
                     id: badgeText
-                    anchors.centerIn: parent
+                    x: (parent.width - width) / 2
+                    y: (parent.height - height) / 2
                     text: card.statusText
                     color: Th.statusColor(card.statusKind)
                     font.pixelSize: Th.fontMicro

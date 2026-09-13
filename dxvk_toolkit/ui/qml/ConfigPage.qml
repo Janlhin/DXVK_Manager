@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import "theme.js" as Th
 
-// One column of settings-style rows, capped at a readable measure. The
-// generated file lives in a dialog: as a permanent right-hand pane it wasted
-// half the window and squeezed the option list into two-line rows.
+// Options on the left, the generated file on the right. The preview pane is
+// part of the page (it was removed once and immediately missed): it shows the
+// live result while options are ticked, and exports from its own buttons.
 Item {
     id: page
     objectName: "configPage"
@@ -17,7 +17,9 @@ Item {
         return (saved === "advanced" || saved === "full") ? saved : "simple"
     }
 
-    readonly property real maxWidth: 920
+    // The option column keeps a readable measure; the preview takes the rest.
+    readonly property real maxOptionWidth: 860
+    readonly property real previewWidth: Math.max(360, Math.min(480, width * 0.32))
 
     function setMode(value) {
         page.mode = value
@@ -32,19 +34,47 @@ Item {
         page.previewDirty = false
     }
 
-    function openPreview() {
-        page.refreshPreview()
-        previewDialog.open()
-    }
-
     Timer {
-        interval: 280
+        interval: 300
         repeat: false
         running: page.previewDirty
         onTriggered: page.refreshPreview()
     }
 
     Component.onCompleted: bridge.loadConfig()
+
+    // The catalogue arrives asynchronously; without this the preview showed
+    // "no reference file loaded" until the first option was ticked.
+    Connections {
+        target: configModel
+        function onModelReset() { page.previewDirty = true }
+        function onRowsInserted() { page.previewDirty = true }
+    }
+
+    // --- custom tool tip --------------------------------------------------
+    Timer {
+        id: tipTimer
+        property string body: ""
+        property var row: null
+        interval: 420
+        repeat: false
+        onTriggered: {
+            optionTip.body = body
+            optionTip.open()
+            optionTip.reposition(row, 0)
+        }
+    }
+
+    DarkTip {
+        id: optionTip
+        function reposition(row, offsetY) {
+            if (!row)
+                return
+            var point = row.mapToItem(page, 0, offsetY + 24)
+            x = Math.max(Th.space4, Math.min(point.x + 48, page.width - width - Th.space4))
+            y = Math.max(Th.space4, Math.min(point.y, page.height - height - Th.space4))
+        }
+    }
 
     // --- toolbar ---------------------------------------------------------
     Rectangle {
@@ -57,7 +87,7 @@ Item {
 
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: Math.max(Th.pad, (page.width - page.maxWidth) / 2)
+            anchors.leftMargin: Th.pad
             anchors.verticalCenter: parent.verticalCenter
             spacing: Th.space2
 
@@ -68,7 +98,7 @@ Item {
                 placeholderText: "搜索选项…"
                 color: Th.text
                 placeholderTextColor: Th.textDim
-                font.pixelSize: Th.fontBody
+                font.pixelSize: Th.fontSmall
                 background: Rectangle {
                     radius: Th.radiusControl
                     color: Th.surfaceAlt
@@ -97,14 +127,14 @@ Item {
                     onClicked: page.setMode(modelData.value)
                     background: Rectangle {
                         radius: Th.radiusControl
-                        color: parent.checked ? Th.primary
+                        color: parent.checked ? Th.accentDark
                              : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     contentItem: Text {
                         text: parent.text
-                        color: parent.checked ? Th.primaryText : Th.textMuted
-                        font.pixelSize: Th.fontBody
+                        color: parent.checked ? "#ffffff" : Th.textMuted
+                        font.pixelSize: Th.fontSmall
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -124,26 +154,7 @@ Item {
                 contentItem: Text {
                     text: parent.text
                     color: Th.text
-                    font.pixelSize: Th.fontBody
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
-
-            Button {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "预览并导出…"
-                padding: 6
-                onClicked: page.openPreview()
-                background: Rectangle {
-                    radius: Th.radiusControl
-                    color: parent.hovered ? Th.primaryHover : Th.primary
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: Th.primaryText
-                    font.pixelSize: Th.fontBody
+                    font.pixelSize: Th.fontSmall
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -152,7 +163,7 @@ Item {
 
         Text {
             anchors.right: parent.right
-            anchors.rightMargin: Math.max(Th.pad, (page.width - page.maxWidth) / 2)
+            anchors.rightMargin: Th.pad
             anchors.verticalCenter: parent.verticalCenter
             text: page.importMessage !== ""
                   ? page.importMessage
@@ -160,7 +171,7 @@ Item {
             color: page.importMessage !== "" ? Th.ok : Th.textMuted
             font.pixelSize: Th.fontCaption
             elide: Text.ElideRight
-            width: Math.min(320, page.width * 0.25)
+            width: Math.min(360, page.width * 0.3)
             horizontalAlignment: Text.AlignRight
         }
     }
@@ -174,14 +185,14 @@ Item {
         color: Th.borderSubtle
     }
 
-    // --- options ---------------------------------------------------------
+    // --- option list ------------------------------------------------------
     ListView {
         id: optionList
         objectName: "optionList"
         anchors.top: toolbarLine.bottom
         anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(page.width, page.maxWidth)
+        anchors.left: parent.left
+        anchors.right: divider.left
         clip: true
         model: configModel
         boundsBehavior: Flickable.StopAtBounds
@@ -204,13 +215,14 @@ Item {
 
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: function (event) {
-                var delta = event.pixelDelta.y !== 0
-                          ? event.pixelDelta.y * 2
-                          : (event.angleDelta.y / 120) * 52 * 3
+            onWheel: function (wheel) {
+                var step = 58 * 3
+                var delta = wheel.pixelDelta.y !== 0
+                          ? wheel.pixelDelta.y * 2
+                          : (wheel.angleDelta.y / 120) * step
                 var limit = Math.max(0, optionList.contentHeight - optionList.height)
                 optionList.contentY = Math.max(0, Math.min(limit, optionList.contentY - delta))
-                event.accepted = true
+                wheel.accepted = true
             }
         }
 
@@ -227,7 +239,7 @@ Item {
             required property bool isBoolean
             required property string value
 
-            width: optionList.width
+            width: Math.min(optionList.width, page.maxOptionWidth)
             height: optionRow.rowKind === "header" ? 40 : 58
             color: optionRow.rowKind === "header"
                    ? Th.surface
@@ -241,10 +253,21 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.NoButton
-                ToolTip.visible: containsMouse && optionRow.rowKind !== "header"
-                                 && optionRow.description !== ""
-                ToolTip.text: optionRow.description
-                ToolTip.delay: 400
+                onEntered: {
+                    if (optionRow.rowKind === "header" || optionRow.description === "")
+                        return
+                    tipTimer.body = optionRow.description
+                    tipTimer.row = optionRow
+                    tipTimer.restart()
+                }
+                onExited: {
+                    tipTimer.stop()
+                    optionTip.close()
+                }
+                onPositionChanged: {
+                    if (optionTip.visible)
+                        optionTip.reposition(optionRow, mouse.y)
+                }
             }
 
             Text {
@@ -269,7 +292,7 @@ Item {
                 anchors.rightMargin: Th.space3
                 height: 2
                 color: Th.accent
-                opacity: 0.55
+                opacity: 0.5
             }
 
             CheckBox {
@@ -288,10 +311,10 @@ Item {
                     x: check.leftPadding
                     y: check.height / 2 - height / 2
                     radius: Th.radiusMicro
-                    color: check.checked ? Th.primary : Th.surfaceAlt
+                    color: check.checked ? Th.accentDark : Th.surfaceAlt
                     border.width: 1
                     border.color: check.checked
-                                  ? Th.primaryHover
+                                  ? Th.accent
                                   : (check.hovered ? Th.borderStrong : Th.border)
 
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -300,7 +323,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "✓"
-                        color: Th.primaryText
+                        color: "#ffffff"
                         font.pixelSize: Th.fontCaption
                         font.bold: true
                         visible: check.checked
@@ -330,7 +353,7 @@ Item {
                     width: parent.width
                     visible: text !== ""
                     text: optionRow.summary
-                    color: Th.textDim
+                    color: Th.textMuted
                     font.pixelSize: Th.fontCaption
                     elide: Text.ElideRight
                 }
@@ -347,7 +370,7 @@ Item {
                 placeholderText: optionRow.example
                 color: optionRow.optionEnabled ? Th.text : Th.textMuted
                 placeholderTextColor: Th.textDim
-                font.pixelSize: Th.fontBody
+                font.pixelSize: Th.fontSmall
                 background: Rectangle {
                     radius: Th.radiusControl
                     color: Th.surfaceAlt
@@ -363,39 +386,45 @@ Item {
         }
     }
 
-    // --- preview dialog ---------------------------------------------------
-    Dialog {
-        id: previewDialog
-        objectName: "previewDialog"
-        modal: true
-        anchors.centerIn: parent
-        width: Math.min(page.width - 80, 760)
-        height: Math.min(page.height - 80, 620)
-        padding: 0
+    Rectangle {
+        id: divider
+        anchors.right: preview.left
+        anchors.top: toolbarLine.bottom
+        anchors.bottom: parent.bottom
+        width: 1
+        color: Th.borderSubtle
+    }
 
-        background: Rectangle {
-            color: Th.surface
-            radius: Th.radiusPanel
-            border.width: 1
-            border.color: Th.borderStrong
-        }
+    // --- preview ----------------------------------------------------------
+    Item {
+        id: preview
+        objectName: "previewPane"
+        anchors.right: parent.right
+        anchors.top: toolbarLine.bottom
+        anchors.bottom: parent.bottom
+        width: page.previewWidth
 
-        header: Item {
+        Rectangle {
+            id: previewBar
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             height: 52
+            color: Th.surface
 
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "dxvk.conf（已选 " + page.selectedCount + " 项）"
+                text: "dxvk.conf 预览"
                 color: Th.text
-                font.pixelSize: Th.fontTitle
+                font.pixelSize: Th.fontSubtitle
                 font.bold: true
             }
 
             Row {
                 anchors.right: parent.right
-                anchors.rightMargin: Th.space4
+                anchors.rightMargin: Th.space3
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Th.space2
 
@@ -411,7 +440,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: Th.text
-                        font.pixelSize: Th.fontBody
+                        font.pixelSize: Th.fontCaption
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -429,25 +458,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: Th.primaryText
-                        font.pixelSize: Th.fontBody
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-
-                Button {
-                    text: "关闭"
-                    padding: 6
-                    onClicked: previewDialog.close()
-                    background: Rectangle {
-                        radius: Th.radiusControl
-                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: Th.textMuted
-                        font.pixelSize: Th.fontBody
+                        font.pixelSize: Th.fontCaption
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -455,17 +466,36 @@ Item {
             }
         }
 
-        // A scrim behind the dialog, otherwise the page shows through.
-        Overlay.modal: Rectangle { color: "#99000000" }
+        Rectangle {
+            id: previewLine
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: previewBar.bottom
+            height: 1
+            color: Th.borderSubtle
+        }
 
-        contentItem: Item {
-            Rectangle {
-                anchors.fill: parent
-                color: Th.surface
-            }
+        Text {
+            id: previewHint
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: Th.space3
+            height: 32
+            text: "和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。"
+            color: Th.textDim
+            font.pixelSize: Th.fontCaption
+            wrapMode: Text.WordWrap
+        }
 
-            Flickable {
-            anchors.fill: parent
+        Flickable {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: previewLine.bottom
+            anchors.bottom: previewHint.top
+            anchors.leftMargin: Th.space3
+            anchors.rightMargin: Th.space3
+            anchors.topMargin: Th.space2
             clip: true
             contentWidth: previewArea.paintedWidth
             contentHeight: previewArea.paintedHeight
@@ -473,28 +503,14 @@ Item {
 
             TextArea {
                 id: previewArea
-                width: previewDialog.width - Th.space5
+                width: preview.width - Th.space5
                 readOnly: true
                 wrapMode: TextArea.NoWrap
                 color: Th.text
                 font.family: "Consolas"
-                font.pixelSize: Th.fontBody
+                font.pixelSize: Th.fontCaption
                 selectByMouse: true
                 background: Rectangle { color: Th.surface }
-            }
-            }
-        }
-
-        footer: Item {
-            height: 40
-
-            Text {
-                anchors.left: parent.left
-                anchors.leftMargin: Th.space4
-                anchors.verticalCenter: parent.verticalCenter
-                text: "放在游戏 exe 同级目录即可生效。"
-                color: Th.textDim
-                font.pixelSize: Th.fontCaption
             }
         }
     }
