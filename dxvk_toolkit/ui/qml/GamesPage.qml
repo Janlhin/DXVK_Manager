@@ -123,156 +123,154 @@ Item {
             Layout.preferredHeight: 52
             color: Th.surface
 
+            // Two groups of mutually exclusive buttons used to sit side by side
+            // with the same 4 px gap, so five buttons read as one control.
+            // Each group now lives in its own track, and the tracks are spaced.
+            component Track: Rectangle {
+                id: track
+                default property alias content: trackRow.data
+                implicitWidth: trackRow.implicitWidth + Th.space1
+                implicitHeight: trackRow.implicitHeight + Th.space1
+                radius: Th.radiusControl
+                color: Th.surfaceAlt
+                border.width: 1
+                border.color: Th.borderSubtle
+
+                Row {
+                    id: trackRow
+                    anchors.centerIn: parent
+                    spacing: 2
+                }
+            }
+
+            component Segment: Button {
+                padding: 6
+                checkable: true
+                background: Rectangle {
+                    radius: Th.radiusControl - 2
+                    color: parent.checked ? Th.accentDark
+                         : (parent.hovered ? Th.surfaceHover : "transparent")
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: parent.checked ? "#ffffff" : Th.textMuted
+                    font.pixelSize: Th.fontSmall
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Th.pad
                 anchors.rightMargin: Th.pad
-                spacing: 8
+                spacing: Th.space3
 
                 TextField {
                     id: search
                     Layout.preferredWidth: 200
+                    Layout.alignment: Qt.AlignVCenter
                     placeholderText: "搜索游戏…"
                     color: Th.text
                     placeholderTextColor: Th.textDim
+                    font.pixelSize: Th.fontSmall
                     background: Rectangle {
-                        radius: Th.radiusSmall
+                        radius: Th.radiusControl
                         color: Th.surfaceAlt
+                        border.width: 1
                         border.color: search.activeFocus ? Th.accent : Th.border
                         Behavior on border.color { ColorAnimation { duration: 120 } }
                     }
                     onTextChanged: bridge.setFilter(text, page.filterPlatform, page.dxtkFilter)
                 }
 
-                Repeater {
-                    model: page.platformOptions
-                    delegate: Button {
-                        text: modelData.label + " " + modelData.count
-                        checkable: true
-                        checked: page.filterPlatform === modelData.value
-                        onClicked: {
-                            page.filterPlatform = modelData.value
-                            bridge.setFilter(search.text, page.filterPlatform, page.dxtkFilter)
-                        }
-                        background: Rectangle {
-                            radius: Th.radiusSmall
-                            color: parent.checked ? Th.accentDark
-                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
+                // --- platform --------------------------------------------------
+                Track {
+                    Layout.alignment: Qt.AlignVCenter
+                    Repeater {
+                        model: page.platformOptions
+                        delegate: Segment {
+                            text: modelData.label + " " + modelData.count
+                            checked: page.filterPlatform === modelData.value
+                            onClicked: {
+                                page.filterPlatform = modelData.value
+                                bridge.setFilter(search.text, page.filterPlatform, page.dxtkFilter)
+                            }
                         }
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // --- DXVK state filter ------------------------------------
-                Row {
+                // --- DXVK state ------------------------------------------------
+                Track {
                     Layout.alignment: Qt.AlignVCenter
-                    spacing: 4
-
                     Repeater {
                         model: [
                             { value: "all", label: "全部" },
                             { value: "patched", label: "已装 DXVK" },
                             { value: "clean", label: "未装" }
                         ]
-                        delegate: Button {
+                        delegate: Segment {
                             text: modelData.label + " " + page.dxtkCount(modelData.value)
-                            checkable: true
                             checked: page.dxtkFilter === modelData.value
                             onClicked: page.setDxtkFilter(modelData.value)
-                            background: Rectangle {
-                                radius: Th.radiusSmall
-                                color: parent.checked ? Th.accentDark
-                                     : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                            }
-                            contentItem: Text {
-                                text: parent.text
-                                color: parent.checked ? "#ffffff" : Th.textMuted
-                                font.pixelSize: Th.fontBody
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
                         }
                     }
                 }
 
-                // --- view switch ------------------------------------------
-                Row {
+                // --- view mode ------------------------------------------------
+                Track {
                     Layout.alignment: Qt.AlignVCenter
-                    spacing: 4
-
-                    Button {
+                    Segment {
                         text: "卡片"
-                        checkable: true
                         checked: page.viewMode === "grid"
                         onClicked: page.setViewMode("grid")
-                        background: Rectangle {
-                            radius: Th.radiusSmall
-                            color: parent.checked ? Th.accentDark
-                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
                     }
-
-                    Button {
+                    Segment {
                         text: "列表"
-                        checkable: true
                         checked: page.viewMode === "list"
                         onClicked: page.setViewMode("list")
-                        background: Rectangle {
-                            radius: Th.radiusSmall
-                            color: parent.checked ? Th.accentDark
-                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
                     }
                 }
 
                 Button {
+                    Layout.alignment: Qt.AlignVCenter
                     text: "添加文件夹…"
+                    padding: 6
                     onClicked: bridge.addManualGame()
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                                            Behavior on color { ColorAnimation { duration: 120 } } }
-                    contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.text
+                        font.pixelSize: Th.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
 
                 Button {
+                    Layout.alignment: Qt.AlignVCenter
                     text: "扫描"
-                    padding: 8
+                    padding: 6
                     onClicked: { bridge.scanGames(); page.selectedKey = "" }
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.hovered ? Th.primaryHover : Th.primary
-                                            Behavior on color { ColorAnimation { duration: 120 } } }
-                    contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.primaryHover : Th.primary
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.primaryText
+                        font.pixelSize: Th.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
         }

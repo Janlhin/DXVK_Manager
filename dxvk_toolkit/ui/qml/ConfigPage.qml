@@ -44,12 +44,11 @@ Item {
     Component.onCompleted: bridge.loadConfig()
 
     // The catalogue arrives asynchronously; without this the preview showed
-    // "no reference file loaded" until the first option was ticked.
-    Connections {
-        target: configModel
-        function onModelReset() { page.previewDirty = true }
-        function onRowsInserted() { page.previewDirty = true }
-    }
+    // "no reference file loaded" until the first option was ticked. A property
+    // binding is used because QML cannot see a QAbstractListModel's
+    // modelReset signal through Connections.
+    readonly property int catalogueSize: configModel.count
+    onCatalogueSizeChanged: page.previewDirty = true
 
     // --- custom tool tip --------------------------------------------------
     Timer {
