@@ -326,90 +326,100 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            GridView {
-                id: grid
+            // A Flow inside a Flickable rather than a GridView: headings have
+            // to span the full width, which uniform grid cells cannot do.
+            Flickable {
+                id: wall
                 objectName: "gameGrid"
                 anchors.fill: parent
                 visible: page.viewMode === "grid"
                 clip: true
-                cellWidth: page.gridCellWidth(width)
-                cellHeight: Th.cardHeight + Th.cardFooter + Th.gap
-                topMargin: Th.pad
-                bottomMargin: Th.pad
-                leftMargin: Th.pad
-                rightMargin: Th.pad
-                cacheBuffer: 800
+                contentWidth: width
+                contentHeight: flow.height + Th.pad * 2
                 boundsBehavior: Flickable.StopAtBounds
-                model: gameModel
                 ScrollBar.vertical: SlimBar {}
 
-                add: Transition {
-                    NumberAnimation { property: "opacity"; from: 0; to: 1
-                                      duration: 200; easing.type: Easing.OutCubic }
-                }
                 onContentYChanged: page.requestVisible()
                 onHeightChanged: page.requestVisible()
                 onWidthChanged: page.requestVisible()
 
-                // A click that lands on no card closes the details bar.
-                TapHandler {
-                    onTapped: function (event) {
-                        var hit = grid.itemAt(event.position.x + grid.contentX,
-                                              event.position.y + grid.contentY)
-                        if (hit === null)
-                            page.clearSelection()
-                    }
-                }
-
-                // Wheel scrolling, by rows: Qt's default 60 px per notch
-                // crawls on a wall of 330 px cells.
                 WheelHandler {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     onWheel: function (wheel) {
-                        var step = grid.cellHeight * 1.5
+                        var step = (Th.cardHeight + Th.cardFooter + Th.gap) * 0.9
                         var delta = wheel.pixelDelta.y !== 0
                                   ? wheel.pixelDelta.y * 2
                                   : (wheel.angleDelta.y / 120) * step
-                        var limit = Math.max(0, grid.contentHeight - grid.height)
-                        grid.contentY = Math.max(0, Math.min(limit, grid.contentY - delta))
+                        var limit = Math.max(0, wall.contentHeight - wall.height)
+                        wall.contentY = Math.max(0, Math.min(limit, wall.contentY - delta))
                         wheel.accepted = true
                     }
                 }
 
-
-            // Qt's default wheel step (60 px) crawls on a wall of cards; this
-            // scrolls by rows instead, and still honours touchpad pixel deltas.
-                // Values come from the model object explicitly: declaring
-                // "required property coverUrl" here collided with the property
-                // GameCard already declares, so the model value was dropped and
-                // covers never appeared on the cards.
-                // The card keeps its own size and is centred inside the cell.
-                delegate: Item {
-                    width: grid.cellWidth
-                    height: grid.cellHeight
-
-                GameCard {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    gameKey: model.gameKey
-                    title: model.name
-                    platform: model.platform
-                    platformLabel: model.platformLabel
-                    statusText: model.statusText
-                    statusKind: model.statusKind
-                    coverUrl: model.coverUrl
-                    selected: page.selectedKey === model.gameKey
-                    // The card is only 168 px wide, so it shows the Direct3D
-                    // family; the architecture lives in the details panel.
-                    subtitle: (model.direct3d === "" ? "识别中…"
-                               : (model.direct3d === "Unknown" ? "Direct3D 未知" : model.direct3d))
-
-                    onActivated: page.selectGame(model.gameKey, model.name, model.installPath,
-                                                 model.platformLabel, model.direct3d,
-                                                 model.arch, model.statusText, model.statusKind)
-                    onOpened: page.openDetail(model.gameKey, model.name, model.installPath,
-                                              model.platformLabel, model.direct3d, model.arch,
-                                              model.statusText, model.statusKind, model.coverUrl)
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    onClicked: page.clearSelection()
                 }
+
+                Flow {
+                    id: flow
+                    x: Th.pad
+                    y: Th.pad
+                    width: wall.width - Th.pad * 2
+                    spacing: Th.gap
+
+                    Repeater {
+                        model: gameModel
+
+                        delegate: Item {
+                            // Headings take the whole line, cards take a cell.
+                            readonly property bool isHeader: model.gameKind === "header"
+                            width: isHeader ? flow.width : Th.cardWidth
+                            height: isHeader ? 44 : Th.cardHeight + Th.cardFooter
+
+                            Rectangle {
+                                visible: parent.isHeader
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 1
+                                color: Th.borderSubtle
+                            }
+
+                            Text {
+                                visible: parent.isHeader
+                                anchors.left: parent.left
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: Th.space2
+                                text: parent.isHeader ? model.name : ""
+                                color: Th.text
+                                font.pixelSize: Th.fontTitle
+                                font.bold: true
+                            }
+
+                            GameCard {
+                                visible: !parent.isHeader
+                                gameKey: model.gameKey
+                                title: model.name
+                                platform: model.platform
+                                platformLabel: model.platformLabel
+                                subtitle: (model.direct3d === "" ? "识别中…"
+                                           : (model.direct3d === "Unknown" ? "Direct3D 未知" : model.direct3d))
+                                statusText: model.statusText
+                                statusKind: model.statusKind
+                                coverUrl: model.coverUrl
+                                selected: page.selectedKey === model.gameKey
+
+                                onActivated: page.selectGame(model.gameKey, model.name, model.installPath,
+                                                             model.platformLabel, model.direct3d,
+                                                             model.arch, model.statusText, model.statusKind)
+                                onOpened: page.openDetail(model.gameKey, model.name, model.installPath,
+                                                          model.platformLabel, model.direct3d, model.arch,
+                                                          model.statusText, model.statusKind, model.coverUrl)
+                            }
+                        }
+                    }
                 }
             }
 

@@ -62,6 +62,7 @@ class GameListModel(QAbstractListModel):
             self.PathRole: b"installPath",
             self.AppIdRole: b"appId",
             self.SubtitleRole: b"subtitle",
+            self.GameKindRole: b"gameKind",
         }
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
@@ -175,7 +176,7 @@ class GameListModel(QAbstractListModel):
             parts.append("64 64位")
         elif arch == "x32":
             parts.append("32 32位")
-        parts.extend(SLANG.get((row.get("name") or "").lower(), ()))
+        parts.extend(GameListModel.SLANG.get((row.get("name") or "").lower(), ()))
         return " ".join(parts).lower()
 
     def _apply_filter(self) -> None:
@@ -423,7 +424,6 @@ class ConfigListModel(QAbstractListModel):
             self.IsBooleanRole: "isBoolean",
             self.SummaryRole: "summary",
             self.KindRole: "kind",
-            self.GameKindRole: "gameKind",
             self.BuildRole: "build",
         }
         field = mapping.get(role)
