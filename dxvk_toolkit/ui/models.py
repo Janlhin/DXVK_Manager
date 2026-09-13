@@ -250,6 +250,7 @@ class ConfigListModel(QAbstractListModel):
     IsBooleanRole = Qt.UserRole + 9
     SummaryRole = Qt.UserRole + 10
     KindRole = Qt.UserRole + 11
+    BuildRole = Qt.UserRole + 12
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -279,6 +280,7 @@ class ConfigListModel(QAbstractListModel):
             self.IsBooleanRole: b"isBoolean",
             self.SummaryRole: b"summary",
             self.KindRole: b"rowKind",
+            self.BuildRole: b"build",
         }
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
@@ -300,6 +302,7 @@ class ConfigListModel(QAbstractListModel):
             self.IsBooleanRole: "isBoolean",
             self.SummaryRole: "summary",
             self.KindRole: "kind",
+            self.BuildRole: "build",
         }
         field = mapping.get(role)
         return row.get(field) if field else None
@@ -325,6 +328,7 @@ class ConfigListModel(QAbstractListModel):
                         group.key, group.members[0].section if group.members else ""
                     ),
                     "kind": "option",
+                    "build": confspec.build_of(group.key),
                 }
             )
         self._apply_filter()

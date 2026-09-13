@@ -75,6 +75,35 @@ LEGACY_KEYS = (
     "forceVsDecl",
 )
 
+# Options that exist only in the DXVK-GPLAsync fork. Source: the fork's patch
+# set (dxvk.enableAsync, dxvk.gplAsyncCache) plus its README; upstream's
+# dxvk.conf does not contain them, which is why the catalogue used to list
+# enableAsync in BASIC_KEYS yet never show it.
+GPLASYNC_ONLY: dict[str, dict[str, str]] = {
+    "enableAsync": {
+        "label": "异步着色器编译",
+        "summary": "GPLAsync 专有：在后台线程编译着色器，减少首次进入新场景的卡顿；"
+                   "代价是可能出现贴图短暂弹出。官方 DXVK 无此选项。",
+        "example": "True",
+        "section": "dxvk",
+        "tier": "simple",
+    },
+    "gplAsyncCache": {
+        "label": "状态缓存配合 GPL",
+        "summary": "GPLAsync 专有：让状态缓存与图形管线库配合工作；"
+                   "该分支 v2.7-1 起已移除，仅旧版本需要。",
+        "example": "True",
+        "section": "dxvk",
+        "tier": "advanced",
+    },
+}
+
+
+def build_of(key: str) -> str:
+    """Which build an option belongs to: "gplasync" or "both"."""
+    return "gplasync" if key in GPLASYNC_ONLY else "both"
+
+
 MODES = ("simple", "advanced", "full")
 
 # "simple" mode groups by what an option is FOR, not by which section it lives
@@ -156,10 +185,18 @@ def documentation_overrides() -> dict[str, str]:
                         _OVERRIDES = {str(k): str(v) for k, v in loaded.items()}
             except (OSError, ValueError):
                 _OVERRIDES = {}
+    # The fork's extra options are not in upstream's conf, so their text comes
+    # from GPLASYNC_ONLY rather than from the bundled file.
+    for key, item in GPLASYNC_ONLY.items():
+        _OVERRIDES.setdefault(key, item["summary"])
     return _OVERRIDES
 
 
 _LABELS: dict[str, str] | None = None
+
+
+def _fork_labels() -> dict[str, str]:
+    return {key: item["label"] for key, item in GPLASYNC_ONLY.items()}
 
 
 def label_overrides() -> dict[str, str]:
@@ -177,6 +214,8 @@ def label_overrides() -> dict[str, str]:
                         _LABELS = {str(k): str(v) for k, v in labels.items()}
             except (OSError, ValueError):
                 _LABELS = {}
+    for key, item in GPLASYNC_ONLY.items():
+        _LABELS.setdefault(key, item["label"])
     return _LABELS
 
 
@@ -560,15 +599,32 @@ def consolidate(ordered: Sequence[Member]) -> list[OptionGroup]:
     return groups
 
 
+_FORK_CONF = """
+[dxvk]
+# GPLAsync 专有选项（官方 dxvk.conf 中不存在）
+# dxvk.enableAsync = True
+# dxvk.gplAsyncCache = True
+"""
+
+
+def _fork_groups(existing: list["OptionGroup"]) -> list["OptionGroup"]:
+    """Option groups that only the GPLAsync fork provides."""
+    known = {group.key for group in existing}
+    parsed = consolidate(parse_conf_text(_FORK_CONF)[1])
+    return [group for group in parsed if group.key not in known]
+
+
 def build_model(text: str, *, source: str = "", path: Path | None = None) -> ConfModel:
     sections, ordered, section_order = parse_conf_text(text)
+    groups = consolidate(ordered)
+    groups.extend(_fork_groups(groups))
     return ConfModel(
         source=source,
         source_path=path,
         sections=sections,
         ordered=ordered,
         section_order=section_order,
-        groups=consolidate(ordered),
+        groups=groups,
     )
 
 

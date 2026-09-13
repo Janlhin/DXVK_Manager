@@ -251,6 +251,7 @@ Item {
             required property bool optionEnabled
             required property bool isBoolean
             required property string value
+            required property string build
 
             width: Math.min(optionList.width, page.maxOptionWidth)
             height: optionRow.rowKind === "header" ? 40 : 58
@@ -353,13 +354,41 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 1
 
-                Text {
+                Row {
                     width: parent.width
-                    text: optionRow.label + (optionRow.isBoolean ? "   · 开关" : "")
-                    color: optionRow.optionEnabled ? Th.text : Th.textMuted
-                    font.pixelSize: Th.fontSubtitle
-                    font.bold: true
-                    elide: Text.ElideRight
+                    spacing: Th.space2
+
+                    Text {
+                        text: optionRow.label + (optionRow.isBoolean ? "   · 开关" : "")
+                        color: optionRow.optionEnabled ? Th.text : Th.textMuted
+                        font.pixelSize: Th.fontSubtitle
+                        font.bold: true
+                        elide: Text.ElideRight
+                        width: Math.min(implicitWidth, parent.width - forkBadge.width - Th.space2)
+                    }
+
+                    // Only the GPLAsync fork provides this option; upstream
+                    // dxvk.conf does not contain it at all.
+                    Rectangle {
+                        id: forkBadge
+                        visible: optionRow.build === "gplasync"
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: Th.radiusMicro
+                        color: Th.statusBg("warn")
+                        border.width: 1
+                        border.color: Th.warn
+                        implicitWidth: forkLabel.implicitWidth + Th.space2
+                        implicitHeight: forkLabel.implicitHeight + Th.space1
+
+                        Text {
+                            id: forkLabel
+                            x: (parent.width - width) / 2
+                            y: (parent.height - height) / 2
+                            text: "GPLAsync 专有"
+                            color: Th.warn
+                            font.pixelSize: Th.fontMicro
+                        }
+                    }
                 }
 
                 Text {

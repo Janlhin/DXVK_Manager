@@ -54,6 +54,7 @@ class Release:
     date: str = ""
     size: int = 0
     file_name: str = ""
+    notes: str = ""
 
     @property
     def sort_key(self) -> tuple[int, ...]:
@@ -68,7 +69,50 @@ class Release:
             "date": self.date,
             "size": self.size,
             "file_name": self.file_name,
+            "notes": self.notes,
+            "summary": self.summary,
+            "kindZh": self.kind_zh,
         }
+
+    @property
+    def summary(self) -> str:
+        """One line describing the release.
+
+        Headings like "Feature support" say nothing on their own, so the first
+        sentence long enough to be prose wins; a heading is only used when the
+        notes contain nothing better.
+        """
+        heading = ""
+        for line in self.notes.splitlines():
+            stripped = line.strip(" -*#\t")
+            if not stripped:
+                continue
+            if not heading and len(stripped) >= 4:
+                heading = stripped
+            if len(stripped) >= 40:
+                return stripped[:200]
+        return heading[:120]
+
+    @property
+    def kind_zh(self) -> str:
+        """Chinese category derived from the notes (keyword based, never invented)."""
+        # Only the opening paragraph decides: keywords deeper in the body
+        # ("this fixes ...", "in case of a hang ...") describe consequences, not
+        # the nature of the release.
+        lowered = self.notes.lower()[:320]
+        table = (
+            (("maintenance release",), "维护版本"),
+            (("shader compiler", "dxbc", "dxil", "dxc", "shader cache"), "着色器编译"),
+            (("hang", "deadlock", "vk_error_device_lost", "device lost"), "卡死与死锁"),
+            (("support for", "added", "new feature", "introduces"), "新功能"),
+            (("bug fix", "bugfix", "fixes", "fixed", "regression"), "问题修复"),
+            (("performance", "faster", "speed"), "性能"),
+            (("improvement",), "改进"),
+        )
+        for keys, label in table:
+            if any(key in lowered for key in keys):
+                return label
+        return "版本更新"
 
 
 def _dxvk_asset(release: dict[str, Any]) -> dict[str, Any] | None:
@@ -86,6 +130,30 @@ def _dxvk_asset(release: dict[str, Any]) -> dict[str, Any] | None:
             return asset
     return None
 
+
+_MD_LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
+_MD_MARKS = re.compile("[" + chr(96) + "*_>#]+")
+
+
+def clean_notes(body: Any, limit: int = 1200) -> str:
+    """Turn a release body into readable plain text.
+
+    GitHub release notes are markdown with links and headings; the interface
+    shows them as a plain blurb, so the markup is stripped here once.
+    """
+    if not body:
+        return ""
+    value = str(body).replace("\r\n", "\n")
+    value = _MD_LINK.sub(r"\1", value)
+    value = re.sub(r"<[^>]+>", "", value)
+    value = _MD_MARKS.sub("", value)
+    lines = [line.rstrip() for line in value.splitlines()]
+    out: list[str] = []
+    for line in lines:
+        if not line.strip() and out and not out[-1].strip():
+            continue
+        out.append(line)
+    return "\n".join(out).strip()[:limit]
 
 def download_candidates(url: str) -> list[str]:
     """URLs to try for a release asset, best first.
@@ -169,6 +237,7 @@ def cached_releases(kind: str) -> list[Release]:
                     date=str(item.get("date") or ""),
                     size=int(item.get("size") or 0),
                     file_name=str(item.get("file_name") or ""),
+                    notes=str(item.get("notes") or ""),
                 )
             )
     releases.sort(key=lambda r: r.sort_key, reverse=True)
@@ -249,6 +318,7 @@ def fetch_dxvk_releases(pages: int = 2, *, allow_network: bool = True) -> list[R
                             date=str(entry.get("published_at") or "")[:10],
                             size=int(asset.get("size") or 0),
                             file_name=str(asset.get("name") or ""),
+                            notes=clean_notes(entry.get("body")),
                         )
                     )
                 if len(payload) < 100:

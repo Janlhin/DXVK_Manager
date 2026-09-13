@@ -34,6 +34,9 @@ Item {
                     label: r.label,
                     date: r.date,
                     size: r.size,
+                    summary: r.summary || "",
+                    notes: r.notes || "",
+                    kindZh: r.kindZh || "",
                     installed: (payload.installed || []).indexOf(
                         page.kind === "gplasync" ? r.version.replace(/^v/, "") : r.version) !== -1
                 })
@@ -53,6 +56,21 @@ Item {
     }
 
     Component.onCompleted: bridge.loadLocalVersions()
+
+    DarkTip {
+        id: versionTip
+        property var row: null
+        function show(target) {
+            if (!target || target.notes === "")
+                return
+            body = target.kindZh + " · " + target.version + "\n\n" + target.notes
+            open()
+            var point = target.mapToItem(page, target.width * 0.25, target.height)
+            x = Math.max(Th.space4, Math.min(point.x, page.width - width - Th.space4))
+            y = Math.max(Th.space4, Math.min(point.y + Th.space1, page.height - height - Th.space4))
+        }
+        function hide() { close() }
+    }
 
     ColumnLayout {
         id: column
@@ -185,45 +203,92 @@ Item {
             }
 
             delegate: Rectangle {
+                id: versionRow
                 required property string version
                 required property string label
                 required property string date
                 required property int size
                 required property bool installed
+                required property string summary
+                required property string notes
+                required property string kindZh
+
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                    onEntered: versionTip.show(versionRow)
+                    onExited: versionTip.hide()
+                }
 
                 width: list.width
-                height: 52
+                height: 64
                 color: index % 2 === 0 ? Th.surface : Th.surfaceAlt
 
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Th.pad
                     anchors.rightMargin: Th.pad
-                    spacing: 12
+                    spacing: Th.space3
 
-                    Text {
-                        text: version
-                        color: Th.text
-                        font.pixelSize: Th.fontBody
-                        font.bold: true
-                        Layout.preferredWidth: 120
+                    // Version and what changed in it: the upstream release
+                    // notes, summarised by the source layer.
+                    Column {
+                        Layout.preferredWidth: 320
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 1
+
+                        Row {
+                            spacing: Th.space2
+                            Text {
+                                text: version
+                                color: Th.text
+                                font.pixelSize: Th.fontBody
+                                font.bold: true
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: versionRow.kindZh !== ""
+                                radius: Th.radiusMicro
+                                color: Th.surfaceHover
+                                implicitWidth: kindLabel.implicitWidth + Th.space2
+                                implicitHeight: kindLabel.implicitHeight + 2
+                                Text {
+                                    id: kindLabel
+                                    x: (parent.width - width) / 2
+                                    y: (parent.height - height) / 2
+                                    text: versionRow.kindZh
+                                    color: Th.textMuted
+                                    font.pixelSize: Th.fontMicro
+                                }
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: versionRow.summary !== "" ? versionRow.summary : "（官方未提供说明）"
+                            color: Th.textDim
+                            font.pixelSize: Th.fontCaption
+                            elide: Text.ElideRight
+                        }
                     }
+
                     Text {
                         text: date ? date : "-"
                         color: Th.textMuted
-                        font.pixelSize: Th.fontBody
-                        Layout.preferredWidth: 110
+                        font.pixelSize: Th.fontSmall
+                        Layout.preferredWidth: 100
                     }
                     Text {
                         text: size ? (size / 1048576).toFixed(1) + " MB" : "-"
                         color: Th.textMuted
-                        font.pixelSize: Th.fontBody
-                        Layout.preferredWidth: 90
+                        font.pixelSize: Th.fontSmall
+                        Layout.preferredWidth: 80
                     }
                     Text {
                         text: installed ? "已下载" : ""
                         color: Th.ok
-                        font.pixelSize: Th.fontBody
+                        font.pixelSize: Th.fontSmall
                     }
 
                     Item { Layout.fillWidth: true }

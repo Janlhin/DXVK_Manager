@@ -89,6 +89,14 @@ def main() -> int:
         detail.setProperty("statusKind", "muted")
         pump(1.0)
 
+    # The version list is fetched on demand; trigger it so the page has rows.
+    window.setProperty("currentPage", 1)
+    bridge.loadVersions("dxvk")
+    deadline = time.time() + 40
+    while time.time() < deadline and (window.findChild(QObject, "releaseModel").property("count") or 0) == 0:
+        pump(0.5)
+    pump(2.0)
+
     for index, name in ((0, "games-grid"), (1, "versions"), (2, "config"), (3, "settings")):
         window.setProperty("currentPage", index)
         pump(1.5)
