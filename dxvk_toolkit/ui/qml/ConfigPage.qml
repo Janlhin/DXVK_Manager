@@ -17,9 +17,25 @@ Item {
         return (saved === "advanced" || saved === "full") ? saved : "simple"
     }
 
-    // The option column keeps a readable measure; the preview takes the rest.
+    // The option column keeps a readable measure; the preview takes the rest
+    // and can be dragged wider from the divider.
     readonly property real maxOptionWidth: 860
-    readonly property real previewWidth: Math.max(360, Math.min(480, width * 0.32))
+    property real previewWidth: 560
+
+    function clampPreview(value) {
+        var lower = 360
+        var upper = Math.max(lower, page.width - 520)
+        return Math.max(lower, Math.min(value, upper))
+    }
+
+    Component.onCompleted: {
+        bridge.loadConfig()
+        var saved = bridge.getSetting("config_preview_width")
+        page.previewWidth = page.clampPreview(
+            (typeof saved === "number" && saved > 300) ? saved : page.width * 0.45)
+    }
+
+    onWidthChanged: page.previewWidth = page.clampPreview(page.previewWidth)
 
     function setMode(value) {
         page.mode = value
@@ -40,8 +56,6 @@ Item {
         running: page.previewDirty
         onTriggered: page.refreshPreview()
     }
-
-    Component.onCompleted: bridge.loadConfig()
 
     // The catalogue arrives asynchronously; without this the preview showed
     // "no reference file loaded" until the first option was ticked. A property
@@ -391,7 +405,33 @@ Item {
         anchors.top: toolbarLine.bottom
         anchors.bottom: parent.bottom
         width: 1
-        color: Th.borderSubtle
+        color: dividerDrag.containsMouse || dividerDrag.pressed ? Th.accent : Th.borderSubtle
+        Behavior on color { ColorAnimation { duration: 120 } }
+
+        // Grab area wider than the 1 px line; dragging moves the split.
+        MouseArea {
+            id: dividerDrag
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: -5
+            anchors.rightMargin: -5
+            hoverEnabled: true
+            cursorShape: Qt.SplitHCursor
+            preventStealing: true
+
+            onPositionChanged: function (mouse) {
+                if (!pressed)
+                    return
+                // Measured in page coordinates: the handle itself moves while
+                // dragging, so its own local x would feed back on itself.
+                var pointer = mapToItem(page, mouse.x, mouse.y).x
+                page.previewWidth = page.clampPreview(page.width - pointer)
+            }
+            onReleased: bridge.setSetting("config_preview_width",
+                                          Math.round(page.previewWidth))
+        }
     }
 
     // --- preview ----------------------------------------------------------
@@ -507,7 +547,7 @@ Item {
                 wrapMode: TextArea.NoWrap
                 color: Th.text
                 font.family: "Consolas"
-                font.pixelSize: Th.fontCaption
+                font.pixelSize: Th.fontSmall
                 selectByMouse: true
                 background: Rectangle { color: Th.surface }
             }
