@@ -1,0 +1,299 @@
+"""Core self-tests: parser, Steam manifests, installer round trip.
+
+Run with:  python -m unittest discover -s tests -v
+Or simply: python tests/test_core.py
+"""
+
+from __future__ import annotations
+
+import os
+import struct
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+# Keep every test away from the real user profile.
+_TMP_ROOT = Path(tempfile.mkdtemp(prefix="dxvk-toolkit-tests-"))
+os.environ["DXVK_MANAGER_HOME"] = str(_TMP_ROOT)
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dxvk_toolkit import confbuild, confspec, installer, sources, steam  # noqa: E402
+from dxvk_toolkit.paths import asset_path  # noqa: E402
+from dxvk_toolkit.util import pe_machine  # noqa: E402
+
+
+def make_fake_pe(path: Path, machine: int) -> None:
+    """Write a minimal but structurally valid PE image header."""
+    buffer = bytearray(0x200)
+    buffer[0:2] = b"MZ"
+    struct.pack_into("<I", buffer, 0x3C, 0x80)
+    buffer[0x80:0x84] = b"PE\0\0"
+    struct.pack_into("<H", buffer, 0x84, machine)
+    path.write_bytes(bytes(buffer))
+
+
+def make_dxvk_dll(path: Path, text: str = "DXVK: v2.7.1") -> None:
+    path.write_bytes(b"\x00" * 128 + text.encode() + b"\x00" * 128)
+
+
+class ConfSpecTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.conf = asset_path("dxvk.conf")
+        self.assertTrue(self.conf.is_file(), "bundled reference dxvk.conf is missing")
+        self.model = confspec.load_model(self.conf)
+
+    def test_sections_and_keys(self) -> None:
+        self.assertGreaterEqual(self.model.option_count, 60)
+        for section in ("dxvk", "dxgi", "d3d9", "d3d11"):
+            self.assertIn(section, self.model.sections)
+        self.assertEqual(self.model.section_order[0], "dxvk")
+
+    def test_types_inferred(self) -> None:
+        by_key = {group.key: group for group in self.model.groups}
+        self.assertEqual(by_key["hud"].type, "string")
+        self.assertEqual(by_key["maxFrameRate"].type, "number")
+        self.assertEqual(by_key["enableHDR"].type, "boolean")
+
+    def test_basic_filter_keeps_touched_options(self) -> None:
+        basic = self.model.filter(basic_only=True)
+        self.assertTrue(basic)
+        self.assertTrue(all(g.key in confspec.BASIC_KEYS for g in basic))
+        saved = self.model.filter(basic_only=True, current={"deviceFilter": "NVIDIA"})
+        self.assertIn("deviceFilter", [g.key for g in saved])
+
+    def test_search(self) -> None:
+        found = [group.key for group in self.model.filter("frame rate")]
+        self.assertIn("maxFrameRate", found)
+
+    def test_build_conf(self) -> None:
+        values = {"hud": "fps,frametimes", "maxFrameRate": "60", "enableHDR": True}
+        text = confbuild.build_conf(
+            self.model.groups, values, section_order=self.model.section_order
+        )
+        self.assertIn('dxvk.hud = "fps,frametimes"', text)
+        self.assertIn("dxvk.maxFrameRate = 60", text)
+        self.assertIn("dxgi.maxFrameRate = 60", text)  # alias written everywhere
+        self.assertIn("enableHDR = True", text)  # key exists only in the dxgi section
+        self.assertIn("# [dxvk]", text)
+        # maxFrameRate exists in dxvk, dxgi and d3d9: every line must be written.
+        self.assertIn("d3d9.maxFrameRate = 60", text)
+        self.assertNotIn("d3d9.samplerAnisotropy", text)  # untouched options stay out
+
+    def test_quoting_escapes(self) -> None:
+        text = confbuild.build_conf(
+            self.model.groups,
+            {"hud": 'say "hi"'},
+            section_order=self.model.section_order,
+        )
+        self.assertIn(r'dxvk.hud = "say \"hi\""', text)
+
+    def test_boolean_false_is_omitted(self) -> None:
+        text = confbuild.build_conf(
+            self.model.groups, {"enableHDR": False}, section_order=self.model.section_order
+        )
+        self.assertNotIn("enableHDR", text)
+
+    def test_bare_reference_values_stay_bare(self) -> None:
+        # The reference writes some string options unquoted (Auto, 12_1); the
+        # generated file should look the same, but values with spaces must be
+        # quoted because DXVK stops at the first unquoted space.
+        text = confbuild.build_conf(
+            self.model.groups,
+            {"maxFeatureLevel": "12_1", "latencySleep": "Auto", "deviceFilter": "0x10DE:0x1B81"},
+            section_order=self.model.section_order,
+        )
+        self.assertIn("d3d11.maxFeatureLevel = 12_1", text)
+        self.assertIn("dxvk.latencySleep = Auto", text)
+        self.assertIn('dxvk.deviceFilter = "0x10DE:0x1B81"', text)
+
+    def test_bare_value_with_space_is_quoted(self) -> None:
+        text = confbuild.build_conf(
+            self.model.groups, {"latencySleep": "Low latency"}, section_order=self.model.section_order
+        )
+        self.assertIn('dxvk.latencySleep = "Low latency"', text)
+
+    def test_import_round_trip(self) -> None:
+        values = {
+            "hud": "fps,frametimes",
+            "maxFrameRate": "60",
+            "maxFeatureLevel": "12_1",
+            "enableHDR": True,
+        }
+        text = confbuild.build_conf(
+            self.model.groups, values, section_order=self.model.section_order
+        )
+        parsed, unknown = confspec.parse_config_values(text, self.model)
+        self.assertEqual(parsed.get("hud"), "fps,frametimes")
+        self.assertEqual(parsed.get("maxFrameRate"), "60")
+        self.assertEqual(parsed.get("maxFeatureLevel"), "12_1")
+        self.assertIs(parsed.get("enableHDR"), True)
+        self.assertEqual(unknown, [])
+
+    def test_import_skips_comments_headers_and_unknowns(self) -> None:
+        text = (
+            "# [dxvk]\n"
+            '# dxvk.hud = "fps"\n'
+            "[dxvk]\n"
+            'dxvk.hud = "frametimes"\n'
+            "dxvk.maxFrameRate = 60\n"
+            "not.ours = 1\n"
+            "; comment\n"
+            "garbage line\n"
+        )
+        parsed, unknown = confspec.parse_config_values(text, self.model)
+        self.assertEqual(parsed.get("hud"), "frametimes")
+        self.assertEqual(parsed.get("maxFrameRate"), "60")
+        self.assertNotIn("hud_unused", parsed)
+        self.assertIn("not.ours", unknown)
+
+    def test_import_ignores_false_booleans(self) -> None:
+        parsed, _unknown = confspec.parse_config_values(
+            "dxgi.enableHDR = False\n", self.model
+        )
+        self.assertNotIn("enableHDR", parsed)
+
+    def test_parser_handles_commented_keys(self) -> None:
+        model = confspec.build_model(
+            "# Some option\n# more docs\n# dxvk.hud = \"fps\"\n\nd3d9.maxFrameRate = 0\n"
+        )
+        self.assertEqual(len(model.groups), 2)
+        hud = model.groups[0]
+        self.assertEqual(hud.key, "hud")
+        self.assertEqual(hud.type, "string")
+        self.assertIn("more docs", hud.description())
+        self.assertEqual(model.groups[1].type, "number")
+
+    def test_alias_consolidation(self) -> None:
+        model = confspec.build_model("[dxvk]\ndxvk.syncInterval = 1\n[dxgi]\ndxgi.syncInterval = 1\n")
+        self.assertEqual(len(model.groups), 1)
+        self.assertEqual(len(model.groups[0].members), 2)
+
+
+class SteamTests(unittest.TestCase):
+    def test_keyvalues_parser(self) -> None:
+        text = '"AppState"\n{\n\t"appid"\t\t"377000"\n\t"name"\t\t"Test Game"\n\t"installdir"\t\t"TestGame"\n\t"StateFlags"\t\t"4"\n}\n'
+        data = steam.parse_keyvalues(text)
+        self.assertEqual(data["AppState"]["appid"], "377000")
+        self.assertEqual(data["AppState"]["StateFlags"], "4")
+
+    def test_scan_library(self) -> None:
+        # Isolate from the machine's real Steam installation.
+        original_root = steam.steam_root
+        steam.steam_root = lambda: None  # type: ignore[assignment]
+        try:
+            self._scan_library_fixture()
+        finally:
+            steam.steam_root = original_root  # type: ignore[assignment]
+
+    def _scan_library_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            library = Path(tmp)
+            steamapps = library / "steamapps"
+            (steamapps / "common" / "TestGame").mkdir(parents=True)
+            (steamapps / "appmanifest_377000.acf").write_text(
+                '"AppState"\n{\n"appid"\t\t"377000"\n"name"\t\t"Test Game"\n'
+                '"installdir"\t\t"TestGame"\n"StateFlags"\t\t"4"\n"SizeOnDisk"\t\t"1234"\n}\n',
+                encoding="utf-8",
+            )
+            games = steam.scan_steam_games([str(library)])
+            self.assertEqual(len(games), 1)
+            game = games[0]
+            self.assertEqual(game.appid, "377000")
+            self.assertEqual(game.name, "Test Game")
+            self.assertTrue(game.install_dir.is_dir())
+            self.assertTrue(game.is_fully_installed)
+
+    def test_direct3d_guess(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "d3d11.dll").write_bytes(b"x")
+            (root / "dxgi.dll").write_bytes(b"x")
+            self.assertEqual(steam.guess_direct3d(root), "Direct3D 11")
+
+
+class InstallerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.game = base / "game"
+        self.game.mkdir()
+        self.cache = base / "cache"
+        (self.cache / "v2.7.1").mkdir(parents=True)
+        for arch in ("x32", "x64"):
+            folder = self.cache / "v2.7.1" / arch
+            folder.mkdir()
+            for dll in ("d3d9.dll", "d3d11.dll", "dxgi.dll"):
+                make_dxvk_dll(folder / dll, f"DXVK {arch}")
+        # Point the cache at our fixture.
+        os.environ["DXVK_MANAGER_HOME"] = str(base / "home")
+        self._real_cache = sources.cache_dir
+        sources.cache_dir = lambda kind="dxvk": self.cache  # type: ignore[assignment]
+
+    def tearDown(self) -> None:
+        sources.cache_dir = self._real_cache  # type: ignore[assignment]
+        os.environ["DXVK_MANAGER_HOME"] = str(_TMP_ROOT)
+        self.tmp.cleanup()
+
+    def test_dll_plan(self) -> None:
+        self.assertEqual(installer.dlls_for_direct3d("Direct3D 9").required, ["d3d9.dll"])
+        self.assertEqual(
+            installer.dlls_for_direct3d("Direct3D 10").required,
+            ["dxgi.dll", "d3d11.dll", "d3d10core.dll"],
+        )
+        self.assertIn("d3d11.dll", installer.dlls_for_direct3d("Unknown").required)
+
+    def test_arch_from_pe(self) -> None:
+        exe = self.game / "game.exe"
+        make_fake_pe(exe, 0x014C)
+        self.assertEqual(pe_machine(exe), "x32")
+        self.assertEqual(installer.choose_arch(self.game), "x32")
+        make_fake_pe(exe, 0x8664)
+        self.assertEqual(installer.choose_arch(self.game), "x64")
+
+    def test_install_inspect_restore(self) -> None:
+        make_fake_pe(self.game / "game.exe", 0x8664)
+        (self.game / "d3d11.dll").write_bytes(b"original-d3d11")
+        (self.game / "dxgi.dll").write_bytes(b"original-dxgi")
+
+        result = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertTrue(result.success, result.message)
+        self.assertEqual(sorted(result.copied), ["d3d11.dll", "dxgi.dll"])
+        self.assertTrue((self.game / "d3d11.dll.bkp").is_file())
+        self.assertIn(b"DXVK", (self.game / "d3d11.dll").read_bytes())
+
+        status = installer.inspect(self.game)
+        self.assertTrue(status.patched)
+        self.assertTrue(status.backuped)
+        self.assertEqual(status.version, "v2.7.1")
+        self.assertEqual(sorted(status.dxvk_files), ["d3d11.dll", "dxgi.dll"])
+
+        restored = installer.restore(self.game)
+        self.assertTrue(restored.success, restored.message)
+        self.assertEqual(sorted(restored.restored), ["d3d11.dll", "dxgi.dll"])
+        self.assertEqual((self.game / "d3d11.dll").read_bytes(), b"original-d3d11")
+        self.assertFalse((self.game / "d3d11.dll.bkp").exists())
+
+    def test_write_conf(self) -> None:
+        path = installer.write_conf(self.game, "dxvk.hud = \"fps\"\n")
+        self.assertTrue(path.is_file())
+        self.assertIn("fps", installer.read_conf(self.game))
+        self.assertTrue(installer.inspect(self.game).conf_present)
+
+
+def main() -> int:
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite(
+        [
+            loader.loadTestsFromTestCase(ConfSpecTests),
+            loader.loadTestsFromTestCase(SteamTests),
+            loader.loadTestsFromTestCase(InstallerTests),
+        ]
+    )
+    runner = unittest.TextTestRunner(verbosity=2)
+    return 0 if runner.run(suite).wasSuccessful() else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
