@@ -36,6 +36,7 @@ class GameListModel(QAbstractListModel):
     PathRole = Qt.UserRole + 10
     AppIdRole = Qt.UserRole + 11
     SubtitleRole = Qt.UserRole + 12
+    GameKindRole = Qt.UserRole + 13
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -44,6 +45,7 @@ class GameListModel(QAbstractListModel):
         self._search = ""
         self._platform = ""
         self._dxtk = "all"          # all | patched | clean
+        self._grouped = False       # the "all" view is split by DXVK state
 
     # -- Qt API ----------------------------------------------------------
     def roleNames(self) -> dict[int, bytes]:  # noqa: N802 - Qt naming
@@ -82,17 +84,52 @@ class GameListModel(QAbstractListModel):
             self.PathRole: "installPath",
             self.AppIdRole: "appId",
             self.SubtitleRole: "subtitle",
+            self.GameKindRole: "gameKind",
         }
         field = mapping.get(role)
         return row.get(field) if field else None
 
     # -- helpers used by the bridge --------------------------------------
+    # Colloquial names players actually search for. Only entries that are not
+    # obvious from the English title are worth listing.
+    SLANG: dict[str, tuple[str, ...]] = {
+        "pubg: battlegrounds": ("吃鸡", "绝地求生"),
+        "playerunknown's battlegrounds": ("吃鸡",),
+        "the elder scrolls v: skyrim": ("老滚", "上古卷轴"),
+        "the elder scrolls v: skyrim special edition": ("老滚", "上古卷轴"),
+        "grand theft auto v": ("gta5", "给他爱"),
+        "grand theft auto v enhanced": ("gta5", "给他爱"),
+        "red dead redemption 2": ("大表哥", "荒野大镖客"),
+        "counter-strike 2": ("cs2", "反恐精英"),
+        "the witcher 3: wild hunt": ("巫师3", "巫师"),
+        "cyberpunk 2077": ("赛博朋克",),
+        "elden ring": ("老头环", "艾尔登法环"),
+        "black myth: wukong": ("黑神话", "悟空"),
+        "dave the diver": ("潜水员戴夫",),
+        "baldur's gate 3": ("博德之门", "bg3"),
+        "resident evil 4": ("生化危机",),
+        "monster hunter: world": ("怪物猎人", "mhw"),
+        "monster hunter wilds": ("怪物猎人", "mhwilds"),
+        "hollow knight": ("空洞骑士",),
+        "stardew valley": ("星露谷",),
+        "terraria": ("泰拉瑞亚",),
+        "it takes two": ("双人成行",),
+        "a plague tale: requiem": ("瘟疫传说",),
+        "metro 2033 redux": ("地铁",),
+        "metro: last light redux": ("地铁",),
+        "assetto corsa": ("神力科莎",),
+        "ace combat 7: skies unknown": ("皇牌空战",),
+        "crysis remastered": ("孤岛危机",),
+        "clair obscur: expedition 33": ("光与影", "33号远征队"),
+    }
+
     def set_games(self, games: Iterable[steam.Game]) -> None:
         self.beginResetModel()
         self._all_rows = [
             {
                 "key": game.key,
                 "name": game.name,
+                "nameZh": "",
                 "platform": game.source,
                 "platformLabel": game.platform_label,
                 "direct3d": "",
@@ -112,19 +149,68 @@ class GameListModel(QAbstractListModel):
         self.endResetModel()
         self.countChanged.emit()
 
+    @staticmethod
+    def search_text(row: dict[str, Any]) -> str:
+        """Everything a game can be found by.
+
+        People type "dx12", "d3d11", "巫师3" or the store name in Chinese, none
+        of which appear literally in the manifest, so the row carries a widened
+        haystack instead of matching the name alone.
+        """
+        parts = [
+            row["name"],
+            row.get("nameZh") or "",
+            row.get("appId") or "",
+            row.get("platformLabel") or "",
+            row.get("installPath") or "",
+            row.get("direct3d") or "",
+            row.get("arch") or "",
+        ]
+        api = (row.get("direct3d") or "").lower()
+        for number in ("9", "10", "11", "12"):
+            if number in api:
+                parts.append(f"dx{number} d3d{number} direct3d{number}")
+        arch = (row.get("arch") or "").lower()
+        if arch == "x64":
+            parts.append("64 64位")
+        elif arch == "x32":
+            parts.append("32 32位")
+        parts.extend(SLANG.get((row.get("name") or "").lower(), ()))
+        return " ".join(parts).lower()
+
     def _apply_filter(self) -> None:
         needle = self._search.strip().lower()
         platform = self._platform
         dxtk = self._dxtk
-        self._rows = [
+        selected = [
             row
             for row in self._all_rows
-            if (not needle or needle in f"{row['name']} {row['appId']}".lower())
+            if (not needle or needle in self.search_text(row))
             and (not platform or row["platform"] == platform)
             and (dxtk == "all"
                  or (dxtk == "patched" and row["patched"])
                  or (dxtk == "clean" and not row["patched"]))
         ]
+        # Under "all" the wall is split into headings, the way DLSS Swapper
+        # separates Steam / Epic / manually added games.  A specific filter
+        # already says what is shown, so headings would only add noise.
+        if dxtk == "all" and selected:
+            installed = [row for row in selected if row["patched"]]
+            missing = [row for row in selected if not row["patched"]]
+            rows: list[dict[str, Any]] = []
+            if installed:
+                rows.append({"key": "", "gameKind": "header", "rowKind": "header",
+                             "name": f"已装 DXVK · {len(installed)}"})
+                rows.extend(installed)
+            if missing:
+                rows.append({"key": "", "gameKind": "header", "rowKind": "header",
+                             "name": f"未安装 · {len(missing)}"})
+                rows.extend(missing)
+            self._rows = rows
+            self._grouped = bool(installed and missing)
+            return
+        self._rows = selected
+        self._grouped = False
 
     def apply_filter(self, search: str = "", platform: str = "", dxtk: str = "all") -> None:
         self._search = search or ""
@@ -141,6 +227,22 @@ class GameListModel(QAbstractListModel):
         return {"all": len(self._all_rows), "patched": patched,
                 "clean": len(self._all_rows) - patched}
 
+    def apply_patched_bulk(self, items: list[tuple[str, bool]]) -> None:
+        """Set the installed flag for many games with a single view rebuild."""
+        changed = False
+        for key, patched in items:
+            index = self.find(key)
+            if index < 0:
+                continue
+            if self._all_rows[index]["patched"] != bool(patched):
+                self._all_rows[index]["patched"] = bool(patched)
+                changed = True
+        if changed:
+            self.beginResetModel()
+            self._apply_filter()
+            self.endResetModel()
+            self.countChanged.emit()
+
     def set_patched(self, key: str, patched: bool) -> None:
         """Record whether DXVK is installed.
 
@@ -154,7 +256,26 @@ class GameListModel(QAbstractListModel):
         if self._all_rows[index]["patched"] == bool(patched):
             return
         self._all_rows[index]["patched"] = bool(patched)
-        if self._dxtk != "all":
+        # The "all" view splits into 已装 / 未安装 headings, so a state change
+        # moves the card between sections and the view must be rebuilt.
+        if self._dxtk != "all" or self._grouped:
+            self.beginResetModel()
+            self._apply_filter()
+            self.endResetModel()
+            self.countChanged.emit()
+
+    def set_name_zh(self, key: str, name: str) -> None:
+        """Attach the localized store name and re-run the filter if needed."""
+        index = self.find(key)
+        if index < 0 or not name:
+            return
+        self._all_rows[index]["nameZh"] = name
+        visible = self.view_index(key)
+        if visible >= 0:
+            model_index = self.index(visible, 0)
+            self.dataChanged.emit(model_index, model_index)
+        if self._search:
+            # A Chinese query may now match this game.
             self.beginResetModel()
             self._apply_filter()
             self.endResetModel()
@@ -302,6 +423,7 @@ class ConfigListModel(QAbstractListModel):
             self.IsBooleanRole: "isBoolean",
             self.SummaryRole: "summary",
             self.KindRole: "kind",
+            self.GameKindRole: "gameKind",
             self.BuildRole: "build",
         }
         field = mapping.get(role)

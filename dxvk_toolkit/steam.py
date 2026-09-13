@@ -8,12 +8,15 @@ as first-class citizens because the config generator is useful for them too.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
+from . import net
+from .paths import data_root
 from .util import iter_executables, log
 
 # Direct3D runtime DLLs a game might ship or that DXVK can replace.
@@ -510,7 +513,6 @@ _DETECT_CACHE: dict[str, dict[str, str]] | None = None
 
 
 def _detect_cache_file() -> Path:
-    from .paths import data_root
 
     folder = data_root() / "cache"
     folder.mkdir(parents=True, exist_ok=True)
@@ -583,3 +585,54 @@ def has_backups(game_dir: str | os.PathLike[str]) -> bool:
         return any(child.suffix.lower() == _BACKUP_SUFFIX for child in root.iterdir())
     except OSError:
         return False
+
+
+# --- Chinese store names -------------------------------------------------
+# The Steam manifest only carries the English name, so searching for
+# 巫师3 finds nothing. The store API knows the localized name; it is
+# fetched once per game and kept on disk.
+
+_NAMES: dict[str, str] | None = None
+
+
+def _names_file() -> Path:
+    return data_root() / "steam-names.json"
+
+
+def load_names() -> dict[str, str]:
+    """Cached appid -> localized name, loaded once."""
+    global _NAMES
+    if _NAMES is None:
+        try:
+            raw = json.loads(_names_file().read_text(encoding="utf-8"))
+            _NAMES = {str(k): str(v) for k, v in raw.items()} if isinstance(raw, dict) else {}
+        except (OSError, ValueError):
+            _NAMES = {}
+    return _NAMES
+
+
+def save_names() -> None:
+    if _NAMES is None:
+        return
+    try:
+        _names_file().write_text(json.dumps(_NAMES, ensure_ascii=False, indent=1),
+                                 encoding="utf-8")
+    except OSError as exc:
+        log.debug("could not save localized names: %s", exc)
+
+
+def fetch_chinese_name(appid: str, timeout: float = 6.0) -> str:
+    """Localized name for one app, or an empty string."""
+    if not appid:
+        return ""
+    url = ("https://store.steampowered.com/api/appdetails?appids="
+           f"{appid}&l=schinese&filters=basic")
+    try:
+        payload = net.get_json(url, timeout=timeout, retries=1)
+    except (net.NetworkError, ValueError) as exc:
+        log.debug("name lookup failed for %s: %s", appid, exc)
+        return ""
+    entry = payload.get(str(appid)) if isinstance(payload, dict) else None
+    if isinstance(entry, dict) and entry.get("success"):
+        return str((entry.get("data") or {}).get("name") or "")
+    return ""

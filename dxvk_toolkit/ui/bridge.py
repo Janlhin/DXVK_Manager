@@ -8,6 +8,7 @@ the network.
 from __future__ import annotations
 
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -26,7 +27,9 @@ class Bridge(QObject):
     statusMessage = Signal(str, str)          # text, kind (info/ok/warn/error)
     progressChanged = Signal(float, str)      # 0..1 (negative = hide), label
     gamesReady = Signal(int)                  # row count, after a scan
-    statusesReady = Signal("QVariantList")    # list of (key, text, kind)
+    statusesReady = Signal("QVariantList")
+    # Localized (Chinese) store name for one game.
+    nameZhReady = Signal(str, str)    # list of (key, text, kind)
     detected = Signal(str, str, str)          # key, direct3d, arch
     coverReady = Signal(str, str)             # key, file url
     # QVariantMap matters: a bare Python dict arrives in QML as an opaque
@@ -49,6 +52,9 @@ class Bridge(QObject):
         # Two pools: identification must not queue behind cover downloads.
         self._pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="qml-worker")
         self._detect_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="qml-detect")
+        # Name lookups hit the Steam store: keep them off the detection pool so
+        # a slow network never delays the library scan.
+        self._name_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="qml-names")
         self._games: dict[str, steam.Game] = {}
         self._urls: dict[str, list[str]] = {}
         self._cover_pending: set[str] = set()
@@ -60,6 +66,7 @@ class Bridge(QObject):
         # them on the interface thread because the bridge lives there.
         self.statusesReady.connect(self._apply_statuses)
         self.detected.connect(self._apply_detected)
+        self.nameZhReady.connect(self._apply_name_zh)
         self.coverReady.connect(self._apply_cover)
         self.taskFinished.connect(self._run_callback)
 
@@ -102,6 +109,7 @@ class Bridge(QObject):
             self.gamesReady.emit(len(games))
             self.statusMessage.emit(f"发现 {len(games)} 款游戏", "ok")
             self._start_bulk_detection(games)
+            self._start_name_lookup(games)
             self._set_busy(False)
 
         self._submit(work, done, "扫描游戏库失败")
@@ -624,9 +632,56 @@ class Bridge(QObject):
             self.statusMessage.emit("已复制到剪贴板", "ok")
 
     # -- internals -------------------------------------------------------
+    @Slot(str, str)
+    def _apply_name_zh(self, key: str, name: str) -> None:
+        self.model.set_name_zh(key, name)
+
     @Slot(str, str, str)
     def _apply_detected(self, key: str, direct3d: str, arch: str) -> None:
         self.model.update(key, direct3d=direct3d, arch=arch)
+
+    def _start_name_lookup(self, games: Any) -> None:
+        """Attach Chinese store names so the search box understands them.
+
+        Names are fetched once per game and cached on disk; games already in
+        the cache are applied straight away without touching the network.
+        """
+        cached = steam.load_names()
+        missing = []
+        for game in games:
+            appid = str(game.appid or "")
+            if not appid:
+                continue
+            name = cached.get(appid)
+            if name:
+                self.nameZhReady.emit(game.key, name)
+            else:
+                missing.append((game, appid))
+        if not missing:
+            return
+
+        def work() -> int:
+            names = steam.load_names()
+            done = 0
+            for index, (game, appid) in enumerate(missing):
+                name = steam.fetch_chinese_name(appid)
+                if name:
+                    names[appid] = name
+                    self.nameZhReady.emit(game.key, name)
+                    done += 1
+                if index % 10 == 9:
+                    steam.save_names()          # keep progress if we stop early
+                    self.statusMessage.emit(
+                        f"正在补齐中文名 {index + 1}/{len(missing)}", "muted")
+                time.sleep(0.12)                # the store rate limits bursts
+            steam.save_names()
+            return done
+
+        def finished(count: Any) -> None:
+            if count:
+                self.statusMessage.emit(f"已补齐 {count} 个中文名", "ok")
+
+        self._submit(work, finished, None, quiet=True, pool=self._name_pool)
 
     def _start_bulk_detection(self, games: Any) -> None:
         """Identify every game once, off the interface thread.
@@ -672,12 +727,17 @@ class Bridge(QObject):
             log.warning("bridge callback failed: %s", exc)
 
     def _apply_statuses(self, items: Any) -> None:
+        parsed: list[tuple[str, str, str]] = []
         for item in items or []:
             try:
                 key, text, kind = item
             except (TypeError, ValueError):
                 continue
-            self.model.set_patched(key, kind == "ok")
+            parsed.append((key, text, kind))
+        # Flags in one batch first: the wall is split into 已装 / 未安装
+        # sections, and regrouping per game would rebuild the view 48 times.
+        self.model.apply_patched_bulk([(k, kind == "ok") for k, _text, kind in parsed])
+        for key, text, kind in parsed:
             self.model.update(key, statusText=text, statusKind=kind)
             if kind == "ok":
                 self._patched.add(key)
@@ -712,3 +772,4 @@ class Bridge(QObject):
     def shutdown(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
         self._detect_pool.shutdown(wait=False, cancel_futures=True)
+        self._name_pool.shutdown(wait=False, cancel_futures=True)
