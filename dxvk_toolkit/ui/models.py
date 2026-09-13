@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from ..paths import settings
+
 from PySide6.QtCore import Property, QAbstractListModel, QModelIndex, Qt, Signal, Slot
 
 from .. import confspec, covers, installer, steam
