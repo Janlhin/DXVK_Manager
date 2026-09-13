@@ -335,6 +335,7 @@ delegate: Rectangle {
                 }
             }
         }
+    }
     Rectangle {
         id: divider
         anchors.left: optionList.right
