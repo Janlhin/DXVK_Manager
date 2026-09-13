@@ -5,6 +5,14 @@ import "theme.js" as Th
 
 Item {
     id: page
+    objectName: "gamesPage"
+
+    Shortcut {
+        sequence: "Esc"
+        onActivated: page.clearSelection()
+    }
+
+    onVisibleChanged: if (!visible) page.clearSelection()
 
     property string selectedKey: ""
     property string filterPlatform: ""
@@ -18,6 +26,16 @@ Item {
 
     function dxtkCount(value) {
         return page.dxtkCounts[value] !== undefined ? page.dxtkCounts[value] : 0
+    }
+
+    // The details bar used to stay until another game was picked. It now
+    // closes on a click in empty space, a right click, Esc, or leaving the page.
+    function clearSelection() {
+        if (page.selectedKey === "" && detail.gameKey === "")
+            return
+        page.selectedKey = ""
+        detail.gameKey = ""
+        detail.name = ""
     }
 
     function setDxtkFilter(value) {
@@ -122,6 +140,13 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 52
             color: Th.surface
+
+            // Sits behind the controls: a click that misses every button counts
+            // as "clicked somewhere else" and closes the details bar.
+            MouseArea {
+                anchors.fill: parent
+                onClicked: page.clearSelection()
+            }
 
             // Two groups of mutually exclusive buttons used to sit side by side
             // with the same 4 px gap, so five buttons read as one control.
@@ -305,6 +330,16 @@ Item {
                 onHeightChanged: page.requestVisible()
                 onWidthChanged: page.requestVisible()
 
+                // A click that lands on no card closes the details bar.
+                TapHandler {
+                    onTapped: function (event) {
+                        var hit = grid.itemAt(event.position.x + grid.contentX,
+                                              event.position.y + grid.contentY)
+                        if (hit === null)
+                            page.clearSelection()
+                    }
+                }
+
                 // Wheel scrolling, by rows: Qt's default 60 px per notch
                 // crawls on a wall of 330 px cells.
                 WheelHandler {
@@ -358,6 +393,15 @@ Item {
             ListView {
                 id: gameList
                 objectName: "gameList"
+
+                TapHandler {
+                    onTapped: function (event) {
+                        var hit = gameList.itemAt(event.position.x + gameList.contentX,
+                                                  event.position.y + gameList.contentY)
+                        if (hit === null)
+                            page.clearSelection()
+                    }
+                }
                 anchors.fill: parent
                 visible: page.viewMode === "list"
                 clip: true
@@ -550,6 +594,15 @@ Item {
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
+            }
+
+            // Right click anywhere in the list also closes the details bar.
+            // The overlay accepts no button but the right one, so it never
+            // interferes with clicking, hovering or scrolling the games.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: page.clearSelection()
             }
         }
 
