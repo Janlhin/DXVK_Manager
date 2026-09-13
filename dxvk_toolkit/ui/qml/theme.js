@@ -1,50 +1,38 @@
 .pragma library
-// Shared palette. Every QML file imports this as: import "theme.js" as Th
+// Palette and scales, taken from GitHub's Primer dark theme - the same values
+// the reference report page uses:
+//   --bg #0d1117  --card #161b22  --border #30363d
+//   --text #c9d1d9  --text-muted #8b949e  --accent #58a6ff
+//   status: #3fb950 ok / #d29922 warn / #f85149 error
+// Type follows that page as well: a comfortable base size with generous
+// leading, instead of the cramped 12 px the interface started with.
 
-var bg = "#141619"
-var surface = "#1b1e23"
-var surfaceAlt = "#20242b"
-var surfaceHover = "#262b34"
-var border = "#2c313a"          // interactive outlines (inputs, focus)
-var borderSubtle = "#232830"    // barely visible dividers
-var borderStrong = "#3a4150"
-var surfaceRaised = "#22262e"   // cards sitting on the page background
-var text = "#e7e9ec"
-var textMuted = "#98a2b3"
-var textDim = "#6f7885"
-var accent = "#5b8cff"
-var accentHover = "#7aa2ff"
-var accentDark = "#3c63c9"
-var ok = "#3ecf8e"
-var warn = "#e2b341"
-var error = "#e5686a"
+var bg = "#0d1117"
+var surface = "#161b22"
+var surfaceAlt = "#1c2128"
+var surfaceHover = "#21262d"
+var surfaceRaised = "#161b22"
+var border = "#30363d"
+var borderSubtle = "#21262d"
+var borderStrong = "#484f58"
+var text = "#e6edf3"
+var textMuted = "#8b949e"
+var textDim = "#6e7681"
+var accent = "#58a6ff"
+var accentHover = "#79c0ff"
+var accentDark = "#1f6feb"
+var ok = "#3fb950"
+var warn = "#d29922"
+var error = "#f85149"
+var gold = "#d29922"
 
-// Filled buttons: a deep blue with light text reads as a button without
-// glaring against the dark interface.
-var primary = "#33549f"
-var primaryHover = "#3f66bd"
-var primaryText = "#e6ecfb"
+// Filled buttons: a solid accent with dark text is unreadable at this size,
+// so primary actions use the accent colour itself with white text.
+var primary = "#1f6feb"
+var primaryHover = "#388bfd"
+var primaryText = "#ffffff"
 
-// Corner radius, aligned with the Fluent token scale
-// (borderRadiusSmall 2 / Medium 4 / XLarge 8 / 2XLarge 12):
-//   control   buttons, inputs, selects, chips   -> 4
-//   micro     badges, checkboxes, thumbnails    -> 4
-//   card      cards, list containers            -> 8
-//   panel     dialogs, big surfaces             -> 12
-var radiusControl = 4
-var radiusMicro = 4
-var radiusCard = 8
-var radiusPanel = 12
-var radiusHairline = 1
-
-// Older files refer to these names.
-var radius = radiusCard
-var radiusSmall = radiusControl
-var cardWidth = 168
-var cardHeight = 252
-var cardFooter = 58
-// Spacing follows a 4 px base grid: 4 / 8 / 12 / 16 / 24 / 32.
-// Every margin, padding and gap in the interface uses one of these.
+// 4 px spacing grid.
 var space1 = 4
 var space2 = 8
 var space3 = 12
@@ -52,23 +40,33 @@ var space4 = 16
 var space5 = 24
 var space6 = 32
 
-var gap = 16
-var pad = 16
+// Corner radius: controls 6, badges 6, cards 10, dialogs 12.
+var radiusControl = 6
+var radiusMicro = 6
+var radiusCard = 10
+var radiusPanel = 12
+var radiusHairline = 1
 
-// Type scale, chosen to match how the interface actually reads:
-//   micro    badges, units, cover initials label
-//   caption  secondary text, hints, field labels
-//   body     default UI text (the most common size)
-//   subtitle tab labels, card titles, section headers
-//   title    page and dialog headings
-//   heading  brand / large numbers
-var fontMicro = 10
-var fontCaption = 11
-var fontBody = 12
+var radius = radiusCard
+var radiusSmall = radiusControl
+
+// Type scale: body 15, list rows 14, captions 12-13, headings 17-20.
+var fontMicro = 11
+var fontCaption = 12
+var fontSmall = 13
+var fontBody = 15
 var fontSubtitle = 14
-var fontTitle = 16
+var fontTitle = 17
 var fontHeading = 20
 var fontDisplay = 40
+
+var lineHeight = 1.5
+
+var gap = 16
+var pad = 16
+var cardWidth = 168
+var cardHeight = 252
+var cardFooter = 62
 
 function platformColor(platform) {
     switch ((platform || "").toLowerCase()) {
@@ -96,9 +94,9 @@ function statusColor(kind) {
 
 function statusBg(kind) {
     switch (kind) {
-    case "ok": return "#1d3a2c"
-    case "warn": return "#3a3320"
-    case "error": return "#3a2426"
+    case "ok": return "rgba(63,185,80,0.15)"
+    case "warn": return "rgba(210,153,34,0.15)"
+    case "error": return "rgba(248,81,73,0.15)"
     default: return surfaceAlt
     }
 }

@@ -341,10 +341,10 @@ Item {
                     statusKind: model.statusKind
                     coverUrl: model.coverUrl
                     selected: page.selectedKey === model.gameKey
-                    subtitle: (model.direct3d && model.direct3d !== "Unknown" && model.direct3d !== ""
-                               ? model.direct3d : "") +
-                              (model.arch ? (model.direct3d && model.direct3d !== "Unknown" &&
-                                             model.direct3d !== "" ? " · " : "") + model.arch : "")
+                    // The card is only 168 px wide, so it shows the Direct3D
+                    // family; the architecture lives in the details panel.
+                    subtitle: (model.direct3d === "" ? "识别中…"
+                               : (model.direct3d === "Unknown" ? "Direct3D 未知" : model.direct3d))
 
                     onActivated: page.selectGame(model.gameKey, model.name, model.installPath,
                                                  model.platformLabel, model.direct3d,

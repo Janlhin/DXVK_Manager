@@ -2,8 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import "theme.js" as Th
 
-// Layout uses plain anchors on purpose: a view that is a direct child of a
-// QtQuick Layout never populated its delegates here, while anchored views do.
+// One column of settings-style rows, capped at a readable measure. The
+// generated file lives in a dialog: as a permanent right-hand pane it wasted
+// half the window and squeezed the option list into two-line rows.
 Item {
     id: page
     objectName: "configPage"
@@ -16,6 +17,8 @@ Item {
         return (saved === "advanced" || saved === "full") ? saved : "simple"
     }
 
+    readonly property real maxWidth: 920
+
     function setMode(value) {
         page.mode = value
         bridge.setSetting("config_mode", value)
@@ -27,6 +30,11 @@ Item {
         previewArea.text = bridge.previewConfig()
         page.selectedCount = bridge.selectedOptionCount()
         page.previewDirty = false
+    }
+
+    function openPreview() {
+        page.refreshPreview()
+        previewDialog.open()
     }
 
     Timer {
@@ -49,19 +57,22 @@ Item {
 
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: Th.pad
+            anchors.leftMargin: Math.max(Th.pad, (page.width - page.maxWidth) / 2)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+            spacing: Th.space2
 
             TextField {
                 id: search
                 width: 220
+                anchors.verticalCenter: parent.verticalCenter
                 placeholderText: "搜索选项…"
                 color: Th.text
                 placeholderTextColor: Th.textDim
+                font.pixelSize: Th.fontBody
                 background: Rectangle {
-                    radius: Th.radiusSmall
+                    radius: Th.radiusControl
                     color: Th.surfaceAlt
+                    border.width: 1
                     border.color: search.activeFocus ? Th.accent : Th.border
                     Behavior on border.color { ColorAnimation { duration: 120 } }
                 }
@@ -71,34 +82,31 @@ Item {
                 }
             }
 
-            Row {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
-
-                Repeater {
-                    model: [
-                        { value: "simple", label: "简单" },
-                        { value: "advanced", label: "进阶" },
-                        { value: "full", label: "完全" }
-                    ]
-                    delegate: Button {
-                        text: modelData.label
-                        checkable: true
-                        checked: page.mode === modelData.value
-                        onClicked: page.setMode(modelData.value)
-                        background: Rectangle {
-                            radius: Th.radiusSmall
-                            color: parent.checked ? Th.accentDark
-                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
+            Repeater {
+                model: [
+                    { value: "simple", label: "简单" },
+                    { value: "advanced", label: "进阶" },
+                    { value: "full", label: "完全" }
+                ]
+                delegate: Button {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: modelData.label
+                    padding: 6
+                    checkable: true
+                    checked: page.mode === modelData.value
+                    onClicked: page.setMode(modelData.value)
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.checked ? Th.primary
+                             : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt)
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.checked ? Th.primaryText : Th.textMuted
+                        font.pixelSize: Th.fontBody
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
             }
@@ -106,9 +114,10 @@ Item {
             Button {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "导入 dxvk.conf…"
+                padding: 6
                 onClicked: page.importMessage = bridge.importConfig()
                 background: Rectangle {
-                    radius: Th.radiusSmall
+                    radius: Th.radiusControl
                     color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
@@ -120,17 +129,39 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                 }
             }
+
+            Button {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "预览并导出…"
+                padding: 6
+                onClicked: page.openPreview()
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: parent.hovered ? Th.primaryHover : Th.primary
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: Th.primaryText
+                    font.pixelSize: Th.fontBody
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
         }
 
         Text {
             anchors.right: parent.right
-            anchors.rightMargin: Th.pad
+            anchors.rightMargin: Math.max(Th.pad, (page.width - page.maxWidth) / 2)
             anchors.verticalCenter: parent.verticalCenter
             text: page.importMessage !== ""
                   ? page.importMessage
-                  : "共 " + configModel.count + " 项，已选 " + page.selectedCount
-            color: page.importMessage !== "" ? Th.ok : Th.textDim
+                  : "共 " + configModel.optionCount + " 项，已选 " + page.selectedCount
+            color: page.importMessage !== "" ? Th.ok : Th.textMuted
             font.pixelSize: Th.fontCaption
+            elide: Text.ElideRight
+            width: Math.min(320, page.width * 0.25)
+            horizontalAlignment: Text.AlignRight
         }
     }
 
@@ -140,17 +171,17 @@ Item {
         anchors.right: parent.right
         anchors.top: toolbar.bottom
         height: 1
-        color: Th.border
+        color: Th.borderSubtle
     }
 
-    // --- option list -----------------------------------------------------
+    // --- options ---------------------------------------------------------
     ListView {
         id: optionList
         objectName: "optionList"
-        anchors.left: parent.left
         anchors.top: toolbarLine.bottom
         anchors.bottom: parent.bottom
-        width: Math.round(page.width * 0.56)
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(page.width, page.maxWidth)
         clip: true
         model: configModel
         boundsBehavior: Flickable.StopAtBounds
@@ -168,7 +199,7 @@ Item {
 
         add: Transition {
             NumberAnimation { property: "opacity"; from: 0; to: 1
-                              duration: 180; easing.type: Easing.OutCubic }
+                              duration: 160; easing.type: Easing.OutCubic }
         }
 
         WheelHandler {
@@ -176,14 +207,14 @@ Item {
             onWheel: function (event) {
                 var delta = event.pixelDelta.y !== 0
                           ? event.pixelDelta.y * 2
-                          : (event.angleDelta.y / 120) * 46 * 3
+                          : (event.angleDelta.y / 120) * 52 * 3
                 var limit = Math.max(0, optionList.contentHeight - optionList.height)
                 optionList.contentY = Math.max(0, Math.min(limit, optionList.contentY - delta))
                 event.accepted = true
             }
         }
 
-delegate: Rectangle {
+        delegate: Rectangle {
             id: optionRow
             required property int index
             required property string rowKind
@@ -197,13 +228,11 @@ delegate: Rectangle {
             required property string value
 
             width: optionList.width
-            height: optionRow.rowKind === "header"
-                    ? 32
-                    : (optionRow.summary !== "" ? 64 : 44)
+            height: optionRow.rowKind === "header" ? 40 : 58
             color: optionRow.rowKind === "header"
-                   ? Th.surfaceAlt
+                   ? Th.surface
                    : (rowHover.containsMouse ? Th.surfaceHover
-                                             : (index % 2 === 0 ? Th.bg : Th.surface))
+                                             : (index % 2 === 0 ? Th.bg : Th.surfaceRaised))
 
             Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -218,20 +247,31 @@ delegate: Rectangle {
                 ToolTip.delay: 400
             }
 
-            // --- section header -------------------------------------------
             Text {
                 visible: optionRow.rowKind === "header"
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.bottom: headerLine.top
+                anchors.bottomMargin: Th.space1
                 text: optionRow.label
-                color: Th.textMuted
-                font.pixelSize: Th.fontCaption
+                color: Th.text
+                font.pixelSize: Th.fontSubtitle
                 font.bold: true
-                font.letterSpacing: 0.5
             }
 
-            // --- control, pinned to the right edge like a settings row -----
+            Rectangle {
+                id: headerLine
+                visible: optionRow.rowKind === "header"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: Th.space3
+                anchors.rightMargin: Th.space3
+                height: 2
+                color: Th.accent
+                opacity: 0.55
+            }
+
             CheckBox {
                 id: check
                 visible: optionRow.rowKind !== "header"
@@ -268,7 +308,6 @@ delegate: Rectangle {
                 }
             }
 
-            // --- text block -------------------------------------------------
             Column {
                 visible: optionRow.rowKind !== "header"
                 anchors.left: parent.left
@@ -276,40 +315,27 @@ delegate: Rectangle {
                 anchors.right: valueField.visible ? valueField.left : parent.right
                 anchors.rightMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
+                spacing: 1
 
-                Row {
+                Text {
                     width: parent.width
-                    spacing: Th.space2
-
-                    Text {
-                        text: optionRow.label
-                        color: optionRow.optionEnabled ? Th.text : Th.textMuted
-                        font.pixelSize: Th.fontBody
-                        font.bold: optionRow.optionEnabled
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: optionRow.isBoolean
-                        text: "开关"
-                        color: Th.textDim
-                        font.pixelSize: Th.fontMicro
-                    }
+                    text: optionRow.label + (optionRow.isBoolean ? "   · 开关" : "")
+                    color: optionRow.optionEnabled ? Th.text : Th.textMuted
+                    font.pixelSize: Th.fontSubtitle
+                    font.bold: true
+                    elide: Text.ElideRight
                 }
 
                 Text {
                     width: parent.width
                     visible: text !== ""
                     text: optionRow.summary
-                    color: Th.textMuted
+                    color: Th.textDim
                     font.pixelSize: Th.fontCaption
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
                     elide: Text.ElideRight
                 }
             }
 
-            // --- value field, at the right end of the row -------------------
             TextField {
                 id: valueField
                 width: 120
@@ -319,9 +345,9 @@ delegate: Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 text: optionRow.value
                 placeholderText: optionRow.example
-                color: optionRow.optionEnabled ? Th.text : Th.textDim
+                color: optionRow.optionEnabled ? Th.text : Th.textMuted
                 placeholderTextColor: Th.textDim
-                font.pixelSize: Th.fontCaption
+                font.pixelSize: Th.fontBody
                 background: Rectangle {
                     radius: Th.radiusControl
                     color: Th.surfaceAlt
@@ -336,44 +362,40 @@ delegate: Rectangle {
             }
         }
     }
-    Rectangle {
-        id: divider
-        anchors.left: optionList.right
-        anchors.top: toolbarLine.bottom
-        anchors.bottom: parent.bottom
-        width: 1
-        color: Th.border
-    }
 
-    // --- preview ---------------------------------------------------------
-    Item {
-        id: previewPane
-        anchors.left: divider.right
-        anchors.right: parent.right
-        anchors.top: toolbarLine.bottom
-        anchors.bottom: parent.bottom
+    // --- preview dialog ---------------------------------------------------
+    Dialog {
+        id: previewDialog
+        objectName: "previewDialog"
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(page.width - 80, 760)
+        height: Math.min(page.height - 80, 620)
+        padding: 0
 
-        Rectangle {
-            id: previewBar
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: 48
+        background: Rectangle {
             color: Th.surface
+            radius: Th.radiusPanel
+            border.width: 1
+            border.color: Th.borderStrong
+        }
+
+        header: Item {
+            height: 52
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: Th.pad
+                anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "dxvk.conf 预览"
+                text: "dxvk.conf（已选 " + page.selectedCount + " 项）"
                 color: Th.text
-                font.pixelSize: Th.fontBody
+                font.pixelSize: Th.fontTitle
                 font.bold: true
             }
 
             Row {
                 anchors.right: parent.right
-                anchors.rightMargin: Th.pad
+                anchors.rightMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Th.space2
 
@@ -389,14 +411,14 @@ delegate: Rectangle {
                     contentItem: Text {
                         text: parent.text
                         color: Th.text
-                        font.pixelSize: Th.fontCaption
+                        font.pixelSize: Th.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
 
                 Button {
-                    text: "导出为文件…"
+                    text: "保存为文件…"
                     padding: 6
                     onClicked: bridge.exportConfig()
                     background: Rectangle {
@@ -407,7 +429,25 @@ delegate: Rectangle {
                     contentItem: Text {
                         text: parent.text
                         color: Th.primaryText
-                        font.pixelSize: Th.fontCaption
+                        font.pixelSize: Th.fontBody
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                Button {
+                    text: "关闭"
+                    padding: 6
+                    onClicked: previewDialog.close()
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.textMuted
+                        font.pixelSize: Th.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -415,34 +455,17 @@ delegate: Rectangle {
             }
         }
 
-        Rectangle {
-            id: previewLine
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: previewBar.bottom
-            height: 1
-            color: Th.border
-        }
+        // A scrim behind the dialog, otherwise the page shows through.
+        Overlay.modal: Rectangle { color: "#99000000" }
 
-        Text {
-            id: previewHint
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.margins: Th.space3
-            height: 32
-            text: "dxvk.conf 要和游戏 exe 放在同一目录；这里可以独立导出，不需要扫描游戏。"
-            color: Th.textDim
-            font.pixelSize: Th.fontCaption
-            wrapMode: Text.WordWrap
-        }
+        contentItem: Item {
+            Rectangle {
+                anchors.fill: parent
+                color: Th.surface
+            }
 
-        Flickable {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: previewLine.bottom
-            anchors.bottom: previewHint.top
-            anchors.bottomMargin: Th.space1
+            Flickable {
+            anchors.fill: parent
             clip: true
             contentWidth: previewArea.paintedWidth
             contentHeight: previewArea.paintedHeight
@@ -450,14 +473,28 @@ delegate: Rectangle {
 
             TextArea {
                 id: previewArea
-                width: previewPane.width - Th.space5
+                width: previewDialog.width - Th.space5
                 readOnly: true
                 wrapMode: TextArea.NoWrap
                 color: Th.text
                 font.family: "Consolas"
-                font.pixelSize: Th.fontCaption
+                font.pixelSize: Th.fontBody
                 selectByMouse: true
                 background: Rectangle { color: Th.surface }
+            }
+            }
+        }
+
+        footer: Item {
+            height: 40
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "放在游戏 exe 同级目录即可生效。"
+                color: Th.textDim
+                font.pixelSize: Th.fontCaption
             }
         }
     }

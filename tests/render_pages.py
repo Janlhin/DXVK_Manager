@@ -94,6 +94,20 @@ def main() -> int:
         window.grabWindow().save(str(target))
         print(f"{name:<12} -> {target}")
 
+    # The config preview dialog is new code and worth looking at.
+    from PySide6.QtCore import QMetaObject
+    dialog = window.findChild(QObject, "previewDialog")
+    if dialog is not None:
+        window.setProperty("currentPage", 2)
+        pump(1.0)
+        QMetaObject.invokeMethod(dialog, "open")
+        pump(1.5)
+        target = out_dir / "config-preview.png"
+        window.grabWindow().save(str(target))
+        print(f"{'config-preview':<12} -> {target}")
+        QMetaObject.invokeMethod(dialog, "close")
+        pump(0.5)
+
     # The list variant of the games page is a separate view.
     grid = window.findChild(QObject, "gameGrid")
     if grid is not None:
