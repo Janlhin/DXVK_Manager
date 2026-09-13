@@ -152,6 +152,11 @@ class Bridge(QObject):
 
         self._submit(work, done, "识别 Direct3D 版本失败", pool=self._detect_pool)
 
+    @Slot(str)
+    def setSort(self, key: str) -> None:  # noqa: N802 - QML naming
+        """Clicking a column heading in list mode."""
+        self.model.set_sort(key)
+
     @Slot(str, str, str)
     def setFilter(self, search: str, platform: str, dxtk: str = "all") -> None:  # noqa: N802
         self.model.apply_filter(search, platform, dxtk)

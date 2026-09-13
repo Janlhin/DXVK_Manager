@@ -21,6 +21,7 @@ Item {
 
     Connections {
         target: bridge
+        ignoreUnknownSignals: true
         function onVersionsReady(payload) {
             page.loading = false
             if (payload.kind !== page.kind)
@@ -167,9 +168,15 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            ListView {
+            GridView {
             id: list
             objectName: "versionsList"
+            cellWidth: 232
+            cellHeight: 116
+            leftMargin: Th.pad
+            rightMargin: Th.pad
+            topMargin: Th.pad
+            bottomMargin: Th.pad
             anchors.fill: parent
             clip: true
             model: releaseModel
@@ -203,7 +210,9 @@ Item {
             }
 
             delegate: Rectangle {
-                id: versionRow
+                id: versionCard
+
+                required property int index
                 required property string version
                 required property string label
                 required property string date
@@ -213,94 +222,123 @@ Item {
                 required property string notes
                 required property string kindZh
 
+                width: 220
+                height: 104
+                radius: Th.radiusCard
+                color: cardHover.containsMouse ? Th.surfaceHover : Th.surface
+                border.width: 1
+                border.color: cardHover.containsMouse ? Th.borderStrong : Th.borderSubtle
+
+                Behavior on color { ColorAnimation { duration: 120 } }
+
                 MouseArea {
+                    id: cardHover
                     anchors.fill: parent
                     hoverEnabled: true
                     acceptedButtons: Qt.NoButton
-                    onEntered: versionTip.show(versionRow)
+                    onEntered: versionTip.show(versionCard)
                     onExited: versionTip.hide()
                 }
 
-                width: list.width
-                height: 64
-                color: index % 2 === 0 ? Th.surface : Th.surfaceAlt
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Th.space3
+                    spacing: Th.space1
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Th.pad
-                    anchors.rightMargin: Th.pad
-                    spacing: Th.space3
-
-                    // Version and what changed in it: the upstream release
-                    // notes, summarised by the source layer.
-                    Column {
-                        Layout.preferredWidth: 320
-                        Layout.alignment: Qt.AlignVCenter
-                        spacing: 1
-
-                        Row {
-                            spacing: Th.space2
-                            Text {
-                                text: version
-                                color: Th.text
-                                font.pixelSize: Th.fontBody
-                                font.bold: true
-                            }
-                            Rectangle {
-                                anchors.verticalCenter: parent.verticalCenter
-                                visible: versionRow.kindZh !== ""
-                                radius: Th.radiusMicro
-                                color: Th.surfaceHover
-                                implicitWidth: kindLabel.implicitWidth + Th.space2
-                                implicitHeight: kindLabel.implicitHeight + 2
-                                Text {
-                                    id: kindLabel
-                                    x: (parent.width - width) / 2
-                                    y: (parent.height - height) / 2
-                                    text: versionRow.kindZh
-                                    color: Th.textMuted
-                                    font.pixelSize: Th.fontMicro
-                                }
-                            }
-                        }
+                    Row {
+                        spacing: Th.space2
 
                         Text {
-                            width: parent.width
-                            text: versionRow.summary !== "" ? versionRow.summary : "（官方未提供说明）"
-                            color: Th.textDim
-                            font.pixelSize: Th.fontCaption
-                            elide: Text.ElideRight
+                            text: versionCard.version
+                            color: Th.text
+                            font.pixelSize: Th.fontSubtitle
+                            font.bold: true
+                        }
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: versionCard.kindZh !== ""
+                            radius: Th.radiusMicro
+                            color: Th.surfaceHover
+                            implicitWidth: cardKind.implicitWidth + Th.space2
+                            implicitHeight: cardKind.implicitHeight + 2
+                            Text {
+                                id: cardKind
+                                x: (parent.width - width) / 2
+                                y: (parent.height - height) / 2
+                                text: versionCard.kindZh
+                                color: Th.textMuted
+                                font.pixelSize: Th.fontMicro
+                            }
                         }
                     }
 
                     Text {
-                        text: date ? date : "-"
-                        color: Th.textMuted
-                        font.pixelSize: Th.fontSmall
-                        Layout.preferredWidth: 100
+                        width: parent.width
+                        text: versionCard.summary !== "" ? versionCard.summary : "（官方未提供说明）"
+                        color: Th.textDim
+                        font.pixelSize: Th.fontCaption
+                        elide: Text.ElideRight
+                        maximumLineCount: 2
+                        wrapMode: Text.WordWrap
                     }
+                }
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: Th.space3
+                    anchors.rightMargin: Th.space3
+                    anchors.bottomMargin: Th.space2
+                    spacing: Th.space2
+
                     Text {
-                        text: size ? (size / 1048576).toFixed(1) + " MB" : "-"
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (versionCard.date ? versionCard.date : "-") +
+                              (versionCard.size ? "   " + (versionCard.size / 1048576).toFixed(1) + " MB" : "")
                         color: Th.textMuted
-                        font.pixelSize: Th.fontSmall
-                        Layout.preferredWidth: 80
-                    }
-                    Text {
-                        text: installed ? "已下载" : ""
-                        color: Th.ok
-                        font.pixelSize: Th.fontSmall
+                        font.pixelSize: Th.fontMicro
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item { width: 1; height: 1 }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: versionCard.installed
+                        radius: Th.radiusMicro
+                        color: Th.statusBg("ok")
+                        border.width: 1
+                        border.color: Th.ok
+                        implicitWidth: cardInstalled.implicitWidth + Th.space2
+                        implicitHeight: cardInstalled.implicitHeight + 2
+                        Text {
+                            id: cardInstalled
+                            x: (parent.width - width) / 2
+                            y: (parent.height - height) / 2
+                            text: "已下载"
+                            color: Th.ok
+                            font.pixelSize: Th.fontMicro
+                        }
+                    }
 
                     Button {
-                        text: installed ? "重新下载" : "下载"
-                        onClicked: bridge.downloadVersion(page.kind, version)
-                        background: Rectangle { radius: Th.radiusSmall
-                                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter }
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: versionCard.installed ? "重新下载" : "下载"
+                        padding: 4
+                        onClicked: bridge.downloadVersion(page.kind, versionCard.version)
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: parent.hovered ? Th.primaryHover : Th.primary
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: Th.primaryText
+                            font.pixelSize: Th.fontMicro
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
                     }
                 }
             }

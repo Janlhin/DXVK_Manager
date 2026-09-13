@@ -59,7 +59,101 @@ Item {
             }
         }
 
-        Column {
+        // Qt draws its own ComboBox and Switch in the light palette, which put
+    // white boxes and square corners in the middle of the dark interface.
+    // Both are drawn here instead, popup list included.
+    component DarkCombo: ComboBox {
+        id: combo
+        implicitHeight: 30
+        font.pixelSize: Th.fontSmall
+
+        background: Rectangle {
+            radius: Th.radiusControl
+            color: Th.surfaceAlt
+            border.width: 1
+            border.color: combo.hovered || combo.activeFocus ? Th.borderStrong : Th.border
+            Behavior on border.color { ColorAnimation { duration: 120 } }
+        }
+        contentItem: Text {
+            leftPadding: Th.space3
+            rightPadding: Th.space5
+            text: combo.displayText
+            color: Th.text
+            font.pixelSize: Th.fontSmall
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+        indicator: Text {
+            x: combo.width - width - Th.space2
+            y: (combo.height - height) / 2
+            text: "▾"
+            color: Th.textMuted
+            font.pixelSize: Th.fontSmall
+        }
+        popup: Popup {
+            y: combo.height + Th.space1
+            width: combo.width
+            implicitHeight: Math.min(contentItem.implicitHeight + Th.space2, 260)
+            padding: Th.space1
+
+            background: Rectangle {
+                radius: Th.radiusControl
+                color: Th.surfaceAlt
+                border.width: 1
+                border.color: Th.borderStrong
+            }
+            contentItem: ListView {
+                implicitHeight: contentHeight
+                model: combo.popup.visible ? combo.delegateModel : null
+                clip: true
+
+                delegate: ItemDelegate {
+                    width: combo.width - Th.space2
+                    contentItem: Text {
+                        text: modelData
+                        color: Th.text
+                        font.pixelSize: Th.fontSmall
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        radius: Th.radiusControl - 2
+                        color: parent.hovered ? Th.surfaceHover : "transparent"
+                    }
+                }
+            }
+        }
+    }
+
+    component DarkSwitch: Switch {
+        id: sw
+        implicitHeight: 24
+
+        indicator: Rectangle {
+            implicitWidth: 40
+            implicitHeight: 22
+            x: sw.leftPadding
+            y: (sw.height - height) / 2
+            radius: 11
+            color: sw.checked ? Th.accentDark : Th.surfaceAlt
+            border.width: 1
+            border.color: sw.checked ? Th.accent : Th.border
+
+            Behavior on color { ColorAnimation { duration: 120 } }
+
+            Rectangle {
+                width: 16
+                height: 16
+                radius: 8
+                y: 2
+                x: sw.checked ? parent.width - width - 3 : 3
+                color: sw.checked ? "#ffffff" : Th.textMuted
+                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            }
+        }
+        contentItem: Item {}
+    }
+
+    Column {
             id: content
             // Settings read badly when a row stretches across the whole
             // window: cap the measure and centre it, like every settings page.
@@ -86,7 +180,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "离线模式"
                         }
-                        Switch {
+                        DarkSwitch {
                             id: offlineSwitch
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
@@ -123,7 +217,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        ComboBox {
+                        DarkCombo {
                             id: proxyMode
                             width: 130
                             model: ["自动", "直连", "自定义"]
@@ -174,7 +268,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        ComboBox {
+                        DarkCombo {
                             id: sourceBox
                             width: 300
                             model: bridge.downloadSources()

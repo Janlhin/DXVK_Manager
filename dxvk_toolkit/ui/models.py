@@ -46,6 +46,9 @@ class GameListModel(QAbstractListModel):
         self._platform = ""
         self._dxtk = "all"          # all | patched | clean
         self._grouped = False       # the "all" view is split by DXVK state
+        saved = str(settings.get("games_sort") or "name:asc").split(":")
+        self._sort_key = saved[0]
+        self._sort_desc = len(saved) > 1 and saved[1] == "desc"
 
     # -- Qt API ----------------------------------------------------------
     def roleNames(self) -> dict[int, bytes]:  # noqa: N802 - Qt naming
@@ -179,6 +182,57 @@ class GameListModel(QAbstractListModel):
         parts.extend(GameListModel.SLANG.get((row.get("name") or "").lower(), ()))
         return " ".join(parts).lower()
 
+    def _sorted(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Sort the visible rows. Version-like columns use their real order."""
+        key = self._sort_key
+
+        def by_name(row: dict[str, Any]) -> tuple:
+            return ((row.get("nameZh") or row.get("name") or "").lower(),)
+
+        def by_platform(row: dict[str, Any]) -> tuple:
+            return ((row.get("platformLabel") or "").lower(),
+                    (row.get("name") or "").lower())
+
+        def by_api(row: dict[str, Any]) -> tuple:
+            # Direct3D 9 < 10 < 11 < 12, not the alphabetical order.
+            digits = "".join(ch for ch in (row.get("direct3d") or "") if ch.isdigit())
+            return (int(digits) if digits else 99, (row.get("name") or "").lower())
+
+        def by_arch(row: dict[str, Any]) -> tuple:
+            order = {"x32": 0, "x64": 1}
+            return (order.get((row.get("arch") or "").lower(), 9),
+                    (row.get("name") or "").lower())
+
+        def by_state(row: dict[str, Any]) -> tuple:
+            return (0 if row["patched"] else 1, (row.get("name") or "").lower())
+
+        chooser = {"platform": by_platform, "direct3d": by_api,
+                   "arch": by_arch, "dxtk": by_state}
+        return sorted(rows, key=chooser.get(key, by_name), reverse=self._sort_desc)
+
+    def set_sort(self, key: str) -> None:
+        """Click a column heading: same column flips direction."""
+        if key not in ("name", "platform", "direct3d", "arch", "dxtk"):
+            return
+        if key == self._sort_key:
+            self._sort_desc = not self._sort_desc
+        else:
+            self._sort_key = key
+            self._sort_desc = False
+        settings.set("games_sort", f"{self._sort_key}:{'desc' if self._sort_desc else 'asc'}")
+        self.beginResetModel()
+        self._apply_filter()
+        self.endResetModel()
+        self.countChanged.emit()
+
+    @Property(str, notify=countChanged)
+    def sortKey(self) -> str:  # noqa: N802 - QML naming
+        return self._sort_key
+
+    @Property(bool, notify=countChanged)
+    def sortDescending(self) -> bool:  # noqa: N802
+        return self._sort_desc
+
     def _apply_filter(self) -> None:
         needle = self._search.strip().lower()
         platform = self._platform
@@ -192,6 +246,7 @@ class GameListModel(QAbstractListModel):
                  or (dxtk == "patched" and row["patched"])
                  or (dxtk == "clean" and not row["patched"]))
         ]
+        selected = self._sorted(selected)
         # Under "all" the wall is split into headings, the way DLSS Swapper
         # separates Steam / Epic / manually added games.  A specific filter
         # already says what is shown, so headings would only add noise.

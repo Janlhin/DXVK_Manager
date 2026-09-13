@@ -28,14 +28,29 @@ Item {
         return Math.max(lower, Math.min(value, upper))
     }
 
+    property bool previewInitialised: false
+
     Component.onCompleted: {
         bridge.loadConfig()
+        // The window has no width yet while the component is being created,
+        // so the default is taken again on the first resize.
+        if (page.width > 0)
+            page.applyDefaultPreview()
+    }
+
+    function applyDefaultPreview() {
+        if (page.previewInitialised || page.width <= 0)
+            return
         var saved = bridge.getSetting("config_preview_width")
         page.previewWidth = page.clampPreview(
             (typeof saved === "number" && saved > 300) ? saved : page.width * 0.45)
+        page.previewInitialised = true
     }
 
-    onWidthChanged: page.previewWidth = page.clampPreview(page.previewWidth)
+    onWidthChanged: {
+        page.applyDefaultPreview()
+        page.previewWidth = page.clampPreview(page.previewWidth)
+    }
 
     function setMode(value) {
         page.mode = value

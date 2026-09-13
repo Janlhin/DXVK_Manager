@@ -47,6 +47,42 @@ Item {
 
     // A slim scroll bar with no full-height track (the default style draws a
     // dark column next to the content, which looks like a broken panel).
+    // One clickable column heading.
+    component SortHeader: Item {
+        id: header
+        property string label: ""
+        property string column: ""
+
+        readonly property bool active: gameModel.sortKey === header.column
+        implicitHeight: 32
+
+        Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: header.label + (header.active
+                                  ? (gameModel.sortDescending ? "  ↓" : "  ↑") : "")
+            color: header.active ? Th.text : Th.textMuted
+            font.pixelSize: Th.fontCaption
+            font.bold: header.active
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 2
+            color: Th.accent
+            visible: header.active
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: bridge.setSort(header.column)
+        }
+    }
+
     component SlimBar: ScrollBar {
         policy: ScrollBar.AsNeeded
         width: 8
@@ -72,12 +108,10 @@ Item {
             bridge.requestRange(firstRow, Math.min(gameModel.count - 1, firstRow + rows))
             return
         }
-        var columns = page.gridColumns(grid.width)
-        var cardRow = Th.cardHeight + Th.cardFooter + Th.gap
-        var first = Math.max(0, Math.floor((grid.contentY - grid.topMargin) / cardRow)) * columns
-        var lastRow = Math.floor((grid.contentY - grid.topMargin + grid.height) / cardRow) + 1
-        var last = Math.min(gameModel.count - 1, (lastRow + 1) * columns - 1)
-        bridge.requestRange(first, last)
+        // The wall is a Flow, so every card exists as soon as the list does:
+        // covers and identification are requested for the whole library at
+        // once rather than for a visible window.
+        bridge.requestRange(0, gameModel.count - 1)
     }
 
     // Double clicking a card opens the per-game sheet: the only place where a
@@ -425,6 +459,43 @@ Item {
             }
 
             // --- list view ------------------------------------------------
+            // Column headings, clickable to sort (name / platform / API / arch /
+            // installed state), with an arrow on the active column.
+            Rectangle {
+                id: listHeader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 32
+                color: Th.surface
+                visible: page.viewMode === "list"
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Th.pad
+                    anchors.rightMargin: Th.pad
+                    spacing: Th.space4
+
+                    Item { Layout.preferredWidth: 40 }
+
+                    SortHeader { Layout.fillWidth: true; label: "名称"; column: "name" }
+                    SortHeader { Layout.preferredWidth: 80; label: "平台"; column: "platform" }
+                    SortHeader { Layout.preferredWidth: 120; label: "Direct3D"; column: "direct3d" }
+                    SortHeader { Layout.preferredWidth: 56; label: "架构"; column: "arch" }
+                    SortHeader { Layout.preferredWidth: 110; label: "DXVK"; column: "dxtk" }
+                }
+            }
+
+            Rectangle {
+                id: listHeaderLine
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: listHeader.bottom
+                height: 1
+                color: Th.borderSubtle
+                visible: page.viewMode === "list"
+            }
+
             ListView {
                 id: gameList
                 objectName: "gameList"
@@ -437,7 +508,10 @@ Item {
                             page.clearSelection()
                     }
                 }
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: listHeaderLine.bottom
+                anchors.bottom: parent.bottom
                 visible: page.viewMode === "list"
                 clip: true
                 model: gameModel
