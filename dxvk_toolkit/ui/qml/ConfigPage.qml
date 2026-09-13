@@ -95,7 +95,7 @@ Item {
                         contentItem: Text {
                             text: parent.text
                             color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -115,7 +115,7 @@ Item {
                 contentItem: Text {
                     text: parent.text
                     color: Th.text
-                    font.pixelSize: 12
+                    font.pixelSize: Th.fontBody
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -130,7 +130,7 @@ Item {
                   ? page.importMessage
                   : "共 " + configModel.count + " 项，已选 " + page.selectedCount
             color: page.importMessage !== "" ? Th.ok : Th.textDim
-            font.pixelSize: 11
+            font.pixelSize: Th.fontCaption
         }
     }
 

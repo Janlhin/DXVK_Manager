@@ -55,12 +55,20 @@ var space6 = 32
 var gap = 16
 var pad = 16
 
-// Type sizes: micro 10, caption 11, body 13, title 15, heading 18.
+// Type scale, chosen to match how the interface actually reads:
+//   micro    badges, units, cover initials label
+//   caption  secondary text, hints, field labels
+//   body     default UI text (the most common size)
+//   subtitle tab labels, card titles, section headers
+//   title    page and dialog headings
+//   heading  brand / large numbers
 var fontMicro = 10
 var fontCaption = 11
-var fontBody = 13
-var fontTitle = 15
-var fontHeading = 18
+var fontBody = 12
+var fontSubtitle = 14
+var fontTitle = 16
+var fontHeading = 20
+var fontDisplay = 40
 
 function platformColor(platform) {
     switch ((platform || "").toLowerCase()) {

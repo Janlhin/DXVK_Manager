@@ -120,7 +120,7 @@ Item {
         // --- top bar -----------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 58
+            Layout.preferredHeight: 52
             color: Th.surface
 
             RowLayout {
@@ -163,7 +163,7 @@ Item {
                         contentItem: Text {
                             text: parent.text
                             color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -197,7 +197,7 @@ Item {
                             contentItem: Text {
                                 text: parent.text
                                 color: parent.checked ? "#ffffff" : Th.textMuted
-                                font.pixelSize: 12
+                                font.pixelSize: Th.fontBody
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -224,7 +224,7 @@ Item {
                         contentItem: Text {
                             text: parent.text
                             color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -244,7 +244,7 @@ Item {
                         contentItem: Text {
                             text: parent.text
                             color: parent.checked ? "#ffffff" : Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -257,7 +257,7 @@ Item {
                     background: Rectangle { radius: Th.radiusSmall
                                             color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
                                             Behavior on color { ColorAnimation { duration: 120 } } }
-                    contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: 12
+                    contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -270,7 +270,7 @@ Item {
                                             color: parent.hovered ? Th.primaryHover : Th.primary
                                             Behavior on color { ColorAnimation { duration: 120 } } }
                     contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: 12
+                                        font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -434,7 +434,7 @@ Item {
                             anchors.centerIn: parent
                             text: gameRow.name.substring(0, 1).toUpperCase()
                             color: "#ffffff"
-                            font.pixelSize: 14
+                            font.pixelSize: Th.fontSubtitle
                             font.bold: true
                             visible: gameRow.coverUrl === ""
                         }
@@ -452,7 +452,7 @@ Item {
                             width: Math.max(160, gameRow.width - 560)
                             text: gameRow.name
                             color: Th.text
-                            font.pixelSize: 13
+                            font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -461,7 +461,7 @@ Item {
                             width: 90
                             text: gameRow.platformLabel
                             color: Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -472,7 +472,7 @@ Item {
                                   ? "识别中…"
                                   : (gameRow.direct3d === "Unknown" ? "未知" : gameRow.direct3d)
                             color: Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             elide: Text.ElideRight
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -481,7 +481,7 @@ Item {
                             width: 60
                             text: gameRow.arch !== "" ? gameRow.arch : "—"
                             color: Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -497,7 +497,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: gameRow.statusText
                                 color: Th.statusColor(gameRow.statusKind)
-                                font.pixelSize: 11
+                                font.pixelSize: Th.fontCaption
                             }
                         }
                     }
@@ -524,14 +524,14 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "还没有游戏"
                     color: Th.text
-                    font.pixelSize: 18
+                    font.pixelSize: Th.fontTitle
                     font.bold: true
                 }
                 Text {
                     width: parent.width
                     text: "点「扫描」读取 Steam 库（含所有库文件夹），或「添加文件夹…」指定任意游戏目录。"
                     color: Th.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Th.fontBody
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                 }
@@ -543,7 +543,7 @@ Item {
                     background: Rectangle { radius: Th.radiusSmall
                                             color: parent.hovered ? Th.primaryHover : Th.primary }
                     contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: 13
+                                        font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -587,7 +587,7 @@ Item {
                     Text {
                         text: detail.name
                         color: Th.text
-                        font.pixelSize: 15
+                        font.pixelSize: Th.fontSubtitle
                         font.bold: true
                         elide: Text.ElideRight
                         Layout.maximumWidth: 420
@@ -602,7 +602,7 @@ Item {
                             anchors.centerIn: parent
                             text: detail.statusText
                             color: Th.statusColor(detail.statusKind)
-                            font.pixelSize: 11
+                            font.pixelSize: Th.fontCaption
                         }
                     }
 
@@ -614,7 +614,7 @@ Item {
                         background: Rectangle { radius: Th.radiusSmall
                                                 color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
                                                 Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: 12
+                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter }
                     }
@@ -624,7 +624,7 @@ Item {
                         background: Rectangle { radius: Th.radiusSmall
                                                 color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
                                                 Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: 12
+                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter }
                     }
@@ -634,7 +634,7 @@ Item {
                         background: Rectangle { radius: Th.radiusSmall
                                                 color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
                                                 Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: 12
+                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter }
                     }
@@ -644,7 +644,7 @@ Item {
                     Layout.fillWidth: true
                     text: "路径：" + detail.path
                     color: Th.textMuted
-                    font.pixelSize: 11
+                    font.pixelSize: Th.fontCaption
                     elide: Text.ElideMiddle
                 }
                 Text {
@@ -654,7 +654,7 @@ Item {
                                             : (detail.direct3d === "Unknown" ? "未知" : detail.direct3d)) +
                           "    架构：" + (detail.arch ? detail.arch : "识别中…")
                     color: Th.textMuted
-                    font.pixelSize: 11
+                    font.pixelSize: Th.fontCaption
                 }
             }
         }

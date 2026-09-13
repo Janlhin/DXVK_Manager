@@ -15,13 +15,13 @@ Item {
 
     component SectionTitle: Text {
         color: Th.text
-        font.pixelSize: 14
+        font.pixelSize: Th.fontSubtitle
         font.bold: true
     }
 
     component Hint: Text {
         color: Th.textMuted
-        font.pixelSize: 11
+        font.pixelSize: Th.fontCaption
         wrapMode: Text.WordWrap
     }
 
@@ -34,7 +34,7 @@ Item {
         contentItem: Text {
             text: parent.text
             color: Th.text
-            font.pixelSize: 12
+            font.pixelSize: Th.fontBody
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
@@ -61,26 +61,35 @@ Item {
 
         Column {
             id: content
-            x: Th.pad
+            // Settings read badly when a row stretches across the whole
+            // window: cap the measure and centre it, like every settings page.
+            readonly property real maxWidth: 920
+            x: Math.max(Th.pad, (parent.width - width) / 2)
             y: Th.pad
-            width: parent.width - Th.pad * 2
-            spacing: 16
+            width: Math.min(parent.width - Th.pad * 2, maxWidth)
+            spacing: Th.space4
 
             // --- offline ---------------------------------------------------
             Card {
-                height: 96
+                height: 92
                 Column {
                     anchors.fill: parent
                     anchors.margins: 16
                     spacing: 8
 
-                    Row {
+                    Item {
                         width: parent.width
-                        SectionTitle { text: "离线模式" }
+                        height: 28
+
+                        SectionTitle {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "离线模式"
+                        }
                         Switch {
                             id: offlineSwitch
+                            anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            x: parent.width - width
                             checked: bridge.getSetting("offline_mode") === true
                             onToggled: bridge.setSetting("offline_mode", checked)
                         }
@@ -109,7 +118,7 @@ Item {
                         Text {
                             text: "代理"
                             color: Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             width: 42
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -160,7 +169,7 @@ Item {
                         Text {
                             text: "下载源"
                             color: Th.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Th.fontBody
                             width: 42
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -211,7 +220,7 @@ Item {
                                 text: parent.text
                                 color: Th.primaryText
                                 font.bold: true
-                                font.pixelSize: 12
+                                font.pixelSize: Th.fontBody
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -223,7 +232,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "点「测试连接」会真实拉取一次版本列表"
                             color: Th.textDim
-                            font.pixelSize: 11
+                            font.pixelSize: Th.fontCaption
                             elide: Text.ElideRight
                         }
                     }
@@ -316,14 +325,14 @@ Item {
                                         Text {
                                             text: modelData.name
                                             color: Th.text
-                                            font.pixelSize: 13
+                                            font.pixelSize: Th.fontBody
                                             font.bold: true
                                         }
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: modelData.author
                                             color: Th.textMuted
-                                            font.pixelSize: 11
+                                            font.pixelSize: Th.fontCaption
                                         }
                                         Item { width: 1; height: 1 }
                                     }
@@ -331,7 +340,7 @@ Item {
                                         width: parent.width
                                         text: modelData.role
                                         color: Th.textDim
-                                        font.pixelSize: 11
+                                        font.pixelSize: Th.fontCaption
                                         wrapMode: Text.WordWrap
                                         maximumLineCount: 2
                                         elide: Text.ElideRight
@@ -339,7 +348,7 @@ Item {
                                     Text {
                                         text: "许可：" + modelData.license
                                         color: Th.textDim
-                                        font.pixelSize: 10
+                                        font.pixelSize: Th.fontMicro
                                     }
                                 }
 

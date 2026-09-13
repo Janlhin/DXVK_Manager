@@ -62,7 +62,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 58
+            Layout.preferredHeight: 52
             color: Th.surface
 
             RowLayout {
@@ -80,7 +80,7 @@ Item {
                                             color: parent.checked ? Th.accentDark
                                                  : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt) }
                     contentItem: Text { text: parent.text; color: parent.checked ? "#ffffff" : Th.textMuted
-                                        font.pixelSize: 12
+                                        font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -93,7 +93,7 @@ Item {
                                             color: parent.checked ? Th.accentDark
                                                  : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt) }
                     contentItem: Text { text: parent.text; color: parent.checked ? "#ffffff" : Th.textMuted
-                                        font.pixelSize: 12
+                                        font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -103,7 +103,7 @@ Item {
                 Text {
                     text: "已下载 " + localModel.count + " 个"
                     color: Th.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Th.fontBody
                 }
 
                 Button {
@@ -114,7 +114,7 @@ Item {
                     background: Rectangle { radius: Th.radiusSmall
                                             color: parent.hovered ? Th.primaryHover : Th.primary }
                     contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: 12
+                                        font.pixelSize: Th.fontBody
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter }
                 }
@@ -141,7 +141,7 @@ Item {
                 anchors.centerIn: parent
                 text: parent.label
                 color: Th.text
-                font.pixelSize: 11
+                font.pixelSize: Th.fontCaption
             }
         }
 
@@ -204,26 +204,26 @@ Item {
                     Text {
                         text: version
                         color: Th.text
-                        font.pixelSize: 13
+                        font.pixelSize: Th.fontBody
                         font.bold: true
                         Layout.preferredWidth: 120
                     }
                     Text {
                         text: date ? date : "-"
                         color: Th.textMuted
-                        font.pixelSize: 12
+                        font.pixelSize: Th.fontBody
                         Layout.preferredWidth: 110
                     }
                     Text {
                         text: size ? (size / 1048576).toFixed(1) + " MB" : "-"
                         color: Th.textMuted
-                        font.pixelSize: 12
+                        font.pixelSize: Th.fontBody
                         Layout.preferredWidth: 90
                     }
                     Text {
                         text: installed ? "已下载" : ""
                         color: Th.ok
-                        font.pixelSize: 12
+                        font.pixelSize: Th.fontBody
                     }
 
                     Item { Layout.fillWidth: true }
@@ -233,7 +233,7 @@ Item {
                         onClicked: bridge.downloadVersion(page.kind, version)
                         background: Rectangle { radius: Th.radiusSmall
                                                 color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: 12
+                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter }
                     }
@@ -253,14 +253,14 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: page.loading ? "正在获取版本列表…" : "还没有版本列表"
                     color: Th.text
-                    font.pixelSize: 16
+                    font.pixelSize: Th.fontTitle
                     font.bold: true
                 }
                 Text {
                     width: parent.width
                     text: "点「刷新列表」从官方源获取（这是唯一需要联网的操作）。已下载的版本在本地，离线也能用。"
                     color: Th.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Th.fontBody
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                 }

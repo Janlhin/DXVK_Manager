@@ -57,7 +57,7 @@ ApplicationWindow {
                 Text {
                     text: "DXVK"
                     color: Th.text
-                    font.pixelSize: 20
+                    font.pixelSize: Th.fontHeading
                     font.bold: true
                     Layout.rightMargin: 14
                 }
@@ -94,7 +94,7 @@ ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: modelData.label
                                     color: window.currentPage === index ? Th.text : Th.textMuted
-                                    font.pixelSize: 14
+                                    font.pixelSize: Th.fontSubtitle
                                     font.bold: window.currentPage === index
 
                                     Behavior on color { ColorAnimation { duration: 140 } }
@@ -140,7 +140,7 @@ ApplicationWindow {
                 Text {
                     text: window.pages[window.currentPage].hint
                     color: Th.textDim
-                    font.pixelSize: 11
+                    font.pixelSize: Th.fontCaption
                 }
             }
         }
@@ -188,7 +188,7 @@ ApplicationWindow {
                      : window.statusKind === "ok" ? Th.ok
                      : window.statusKind === "warn" ? Th.warn
                      : Th.textMuted
-                font.pixelSize: 12
+                font.pixelSize: Th.fontBody
             }
 
             Row {
@@ -207,7 +207,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: window.busy ? "处理中…" : "v" + bridge.appVersion()
                     color: Th.textDim
-                    font.pixelSize: 11
+                    font.pixelSize: Th.fontCaption
                 }
             }
         }

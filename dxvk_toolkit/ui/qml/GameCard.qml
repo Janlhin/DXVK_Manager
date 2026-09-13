@@ -85,7 +85,7 @@ Item {
                 anchors.centerIn: parent
                 text: card.initials(card.title)
                 color: "#e7e9ec"
-                font.pixelSize: 40
+                font.pixelSize: Th.fontDisplay
                 font.bold: true
                 visible: card.coverUrl === ""
             }
@@ -161,7 +161,7 @@ Item {
                     anchors.centerIn: parent
                     text: card.statusText
                     color: Th.statusColor(card.statusKind)
-                    font.pixelSize: 10
+                    font.pixelSize: Th.fontMicro
                 }
             }
         }
