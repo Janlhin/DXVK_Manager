@@ -80,6 +80,23 @@ Item {
         bridge.requestRange(first, last)
     }
 
+    // Double clicking a card opens the per-game sheet: the only place where a
+    // DXVK build can be applied to that game.
+    function openDetail(key, name, path, platformLabel, direct3d, arch,
+                        statusText, statusKind, coverUrl) {
+        page.selectGame(key, name, path, platformLabel, direct3d, arch, statusText, statusKind)
+        gameSheet.gameKey = key
+        gameSheet.gameName = name
+        gameSheet.installPath = path
+        gameSheet.platformLabel = platformLabel
+        gameSheet.direct3d = direct3d
+        gameSheet.arch = arch
+        gameSheet.statusText = statusText
+        gameSheet.statusKind = statusKind
+        gameSheet.coverUrl = coverUrl
+        gameSheet.open()
+    }
+
     function selectGame(key, name, path, platformLabel, direct3d, arch, statusText, statusKind) {
         page.selectedKey = key
         detail.gameKey = key
@@ -129,6 +146,10 @@ Item {
                 detail.arch = arch
             }
         }
+    }
+
+    GameDetailDialog {
+        id: gameSheet
     }
 
     ColumnLayout {
@@ -385,6 +406,9 @@ Item {
                     onActivated: page.selectGame(model.gameKey, model.name, model.installPath,
                                                  model.platformLabel, model.direct3d,
                                                  model.arch, model.statusText, model.statusKind)
+                    onOpened: page.openDetail(model.gameKey, model.name, model.installPath,
+                                              model.platformLabel, model.direct3d, model.arch,
+                                              model.statusText, model.statusKind, model.coverUrl)
                 }
                 }
             }

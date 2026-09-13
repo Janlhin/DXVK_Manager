@@ -17,6 +17,7 @@ Item {
     property bool selected: false
 
     signal activated()
+    signal opened()
 
     width: Th.cardWidth
     height: Th.cardHeight + Th.cardFooter
@@ -176,7 +177,7 @@ Item {
             onEntered: hovered = true
             onExited: hovered = false
             onClicked: card.activated()
-            onDoubleClicked: card.activated()
+            onDoubleClicked: card.opened()
         }
     }
 }

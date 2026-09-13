@@ -1,0 +1,413 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import "theme.js" as Th
+
+// Per-game dialog, opened by double clicking a card. Modelled on DLSS
+// Swapper's game page: artwork on the left, the facts and the pickers on the
+// right, actions along the bottom. This is also the only place where DXVK can
+// actually be applied to a game - the list itself only reports state.
+Dialog {
+    id: sheet
+    objectName: "gameDetailDialog"
+
+    property string gameKey: ""
+    property string gameName: ""
+    property string installPath: ""
+    property string platformLabel: ""
+    property string direct3d: ""
+    property string arch: ""
+    property string statusText: ""
+    property string statusKind: "muted"
+    property string coverUrl: ""
+
+    property var versions: []
+    property string kind: "dxvk"
+    property string version: ""
+
+    readonly property var kindValues: ["dxvk", "gplasync"]
+    readonly property var kindLabels: ["官方 DXVK", "DXVK-GPLAsync"]
+
+    function loadVersions() {
+        bridge.loadLocalVersions()
+    }
+
+    function applyKind() {
+        var list = sheet.versions[sheet.kind] || []
+        versionPicker.model = list
+        sheet.version = list.length > 0 ? list[0] : ""
+    }
+
+    modal: true
+    anchors.centerIn: parent
+    width: Math.min(parent.width - 80, 880)
+    height: Math.min(parent.height - 80, 560)
+    padding: 0
+
+    Overlay.modal: Rectangle { color: "#99000000" }
+
+    background: Rectangle {
+        color: Th.surface
+        radius: Th.radiusPanel
+        border.width: 1
+        border.color: Th.borderStrong
+    }
+
+    Connections {
+        target: bridge
+        function onLocalVersionsReady(payload) {
+            sheet.versions = payload
+            sheet.applyKind()
+        }
+    }
+
+    onOpened: sheet.loadVersions()
+
+    contentItem: Rectangle {
+        color: Th.surface
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: Th.space5
+            spacing: Th.space5
+
+            // --- artwork ---------------------------------------------------
+            Column {
+                Layout.alignment: Qt.AlignTop
+                spacing: Th.space2
+
+                Rectangle {
+                    width: 200
+                    height: 300
+                    radius: Th.radiusCard
+                    color: Th.platformColor(sheet.platformLabel.toLowerCase())
+                    clip: true
+
+                    Image {
+                        anchors.fill: parent
+                        source: sheet.coverUrl
+                        asynchronous: true
+                        fillMode: Image.PreserveAspectCrop
+                        visible: status === Image.Ready
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        text: sheet.gameName.substring(0, 1).toUpperCase()
+                        color: "#ffffff"
+                        font.pixelSize: Th.fontDisplay
+                        font.bold: true
+                        visible: sheet.coverUrl === ""
+                    }
+                }
+            }
+
+            // --- facts and actions ------------------------------------------
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: Th.space4
+
+                Text {
+                    Layout.fillWidth: true
+                    text: sheet.gameName
+                    color: Th.text
+                    font.pixelSize: Th.fontHeading
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Th.space1
+
+                    Text { text: "安装路径"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Th.space2
+                        TextField {
+                            Layout.fillWidth: true
+                            readOnly: true
+                            text: sheet.installPath
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontSmall
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: Th.surfaceAlt
+                                border.width: 1
+                                border.color: Th.border
+                            }
+                        }
+                        Button {
+                            text: "打开目录"
+                            padding: 6
+                            onClicked: bridge.openFolder(sheet.installPath)
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                            }
+                            contentItem: Text {
+                                text: parent.text; color: Th.text
+                                font.pixelSize: Th.fontSmall
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+                }
+
+                Row {
+                    spacing: Th.space4
+
+                    Rectangle {
+                        radius: Th.radiusMicro
+                        implicitWidth: statusChip.implicitWidth + Th.space3
+                        implicitHeight: statusChip.implicitHeight + Th.space2
+                        color: Th.statusBg(sheet.statusKind)
+                        border.width: 1
+                        border.color: sheet.statusKind === "ok" ? Th.ok : Th.border
+                        Text {
+                            id: statusChip
+                            x: (parent.width - width) / 2
+                            y: (parent.height - height) / 2
+                            text: sheet.statusText
+                            color: Th.statusColor(sheet.statusKind)
+                            font.pixelSize: Th.fontCaption
+                        }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (sheet.direct3d === "" ? "Direct3D 识别中…" : sheet.direct3d) +
+                              (sheet.arch !== "" ? "   ·   " + sheet.arch : "")
+                        color: Th.textMuted
+                        font.pixelSize: Th.fontCaption
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
+
+                // --- pickers -------------------------------------------------
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: Th.space4
+                    rowSpacing: Th.space2
+
+                    Text { text: "DXVK 来源"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
+                    Text { text: "版本"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
+
+                    ComboBox {
+                        id: kindPicker
+                        Layout.preferredWidth: 220
+                        model: sheet.kindLabels
+                        currentIndex: sheet.kindValues.indexOf(sheet.kind)
+                        onActivated: {
+                            sheet.kind = sheet.kindValues[currentIndex]
+                            sheet.applyKind()
+                        }
+                        font.pixelSize: Th.fontSmall
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: Th.surfaceAlt
+                            border.width: 1
+                            border.color: kindPicker.activeFocus ? Th.accent : Th.border
+                        }
+                        contentItem: Text {
+                            leftPadding: Th.space3
+                            text: kindPicker.displayText
+                            color: Th.text
+                            font.pixelSize: Th.fontSmall
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        indicator: Text {
+                            x: kindPicker.width - width - Th.space3
+                            y: (kindPicker.height - height) / 2
+                            text: "▾"
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontSmall
+                        }
+                        popup: Popup {
+                            y: kindPicker.height + 4
+                            width: kindPicker.width
+                            implicitHeight: contentItem.implicitHeight + Th.space2
+                            padding: Th.space1
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: Th.surfaceAlt
+                                border.width: 1
+                                border.color: Th.borderStrong
+                            }
+                            contentItem: ListView {
+                                implicitHeight: contentHeight
+                                model: kindPicker.popup.visible ? kindPicker.delegateModel : null
+                                clip: true
+                                delegate: ItemDelegate {
+                                    width: kindPicker.width - Th.space2
+                                    contentItem: Text {
+                                        text: modelData
+                                        color: Th.text
+                                        font.pixelSize: Th.fontSmall
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        radius: Th.radiusControl - 2
+                                        color: parent.hovered ? Th.surfaceHover : "transparent"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ComboBox {
+                        id: versionPicker
+                        Layout.preferredWidth: 220
+                        onActivated: sheet.version = currentText
+                        font.pixelSize: Th.fontSmall
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: Th.surfaceAlt
+                            border.width: 1
+                            border.color: versionPicker.activeFocus ? Th.accent : Th.border
+                        }
+                        contentItem: Text {
+                            leftPadding: Th.space3
+                            text: versionPicker.count > 0 ? versionPicker.displayText : "（没有已下载版本）"
+                            color: versionPicker.count > 0 ? Th.text : Th.textDim
+                            font.pixelSize: Th.fontSmall
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        indicator: Text {
+                            x: versionPicker.width - width - Th.space3
+                            y: (versionPicker.height - height) / 2
+                            text: "▾"
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontSmall
+                        }
+                        popup: Popup {
+                            y: versionPicker.height + 4
+                            width: versionPicker.width
+                            implicitHeight: Math.min(contentItem.implicitHeight + Th.space2, 240)
+                            padding: Th.space1
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: Th.surfaceAlt
+                                border.width: 1
+                                border.color: Th.borderStrong
+                            }
+                            contentItem: ListView {
+                                implicitHeight: contentHeight
+                                model: versionPicker.popup.visible ? versionPicker.delegateModel : null
+                                clip: true
+                                delegate: ItemDelegate {
+                                    width: versionPicker.width - Th.space2
+                                    contentItem: Text {
+                                        text: modelData
+                                        color: Th.text
+                                        font.pixelSize: Th.fontSmall
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        radius: Th.radiusControl - 2
+                                        color: parent.hovered ? Th.surfaceHover : "transparent"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: {
+                        var count = (sheet.versions[sheet.kind] || []).length
+                        if (count === 0)
+                            return "还没有下载任何版本。先到「版本库」下载，再回来应用。"
+                        return "已下载 " + count + " 个版本。应用时会自动备份原有 DLL（.bkp）。"
+                    }
+                    color: Th.textDim
+                    font.pixelSize: Th.fontCaption
+                    wrapMode: Text.WordWrap
+                }
+
+                Item { Layout.fillHeight: true }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Th.space2
+
+                    Button {
+                        text: "应用 DXVK"
+                        padding: 6
+                        enabled: sheet.version !== ""
+                        opacity: enabled ? 1.0 : 0.5
+                        onClicked: {
+                            bridge.installDxvk(sheet.gameKey, sheet.kind, sheet.version)
+                            sheet.close()
+                        }
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: !parent.enabled ? Th.surfaceAlt
+                                 : (parent.hovered ? Th.primaryHover : Th.primary)
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: parent.enabled ? Th.primaryText : Th.textDim
+                            font.pixelSize: Th.fontSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Button {
+                        text: "还原原始 DLL"
+                        padding: 6
+                        onClicked: { bridge.restoreGame(sheet.gameKey); sheet.close() }
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        }
+                        contentItem: Text {
+                            text: parent.text; color: Th.text
+                            font.pixelSize: Th.fontSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Button {
+                        text: "移除 DXVK"
+                        padding: 6
+                        onClicked: { bridge.removeDxvk(sheet.gameKey); sheet.close() }
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        }
+                        contentItem: Text {
+                            text: parent.text; color: Th.text
+                            font.pixelSize: Th.fontSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Button {
+                        text: "关闭"
+                        padding: 6
+                        onClicked: sheet.close()
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        }
+                        contentItem: Text {
+                            text: parent.text; color: Th.textMuted
+                            font.pixelSize: Th.fontSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
