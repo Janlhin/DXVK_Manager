@@ -1041,15 +1041,37 @@ dxvk_toolkit/confkit/            ← 只依赖 stdlib，可整体拷走独立发
 42 个 Slot 说明每个功能都往一个类里塞。方向：`games_controller / versions_controller / config_controller`。
 **注意：bridge 可以烂着，confkit 照样干净** —— 不必为拆 confkit 而先拆 bridge。
 
-### 18.6 建议的执行顺序（重排 17 条待办）
+### 18.6 执行顺序（**用户 2026-09-14 定调：拆分提前**）
+
+> 用户追问「不拆分先吗」——采纳。原方案把拆分放在 P0 小修之后，但 **#16（导出注释）与
+> #17（写入游戏）本来就要动 conf 模块**：先拆再写，新代码直接落进新家；先写再拆，等于搬两遍。
+> 且**现在拆最便宜**（conf 相关代码面还小）。
 
 | 阶段 | 内容 | 理由 |
 | --- | --- | --- |
-| ① | P0 小修：#5 弹层空白、#9 识别中、#12 徽标 | 不碰 conf 模块，零风险 |
-| ② | **confkit 抽取** + #16 导出注释 + #17 写入游戏 | #16/#17 本来就要动 build —— **在新模块里做，一步到位** |
-| ③ | 界面版型批：#8/13/14 列表与筛选面板、#15 删详情栏 | 纯 QML |
-| ④ | 版本库批：#4 自动加载、#10 卡片详情 | 纯 QML + 少量 bridge |
-| ⑤ | bridge 拆分（可选，最后） | 风险最大，等一切稳定 |
+| **0️⃣ 热身** | **#5 弹层空白（1 行）** | 显性坏功能，2 分钟修掉，给后续一个绿色基线 |
+| **1️⃣ 拆分** | **confkit 抽取**（7 步，见 18.6.1） | 架构优先；此后所有 conf 相关代码都写进新结构 |
+| 2️⃣ | #9 识别中 + **#16 导出注释** + **#17 写入游戏** | 全部在 confkit 新结构里做，一步到位 |
+| 3️⃣ | UI 批：#15 删详情栏 → #12 徽标统一 → #8/13/14 列表版型与筛选面板 | 纯 QML；先删栏可让 #12 少改一处 |
+| 4️⃣ | 版本库批：#4 自动加载 + #10 卡片详情 | 纯 QML + 少量 bridge |
+| 5️⃣ | bridge 拆分（可选，最后） | 风险最大，等一切稳定 |
+
+#### 18.6.1 confkit 抽取的 7 步（每步一个提交、每步跑测试）
+
+| 步 | 动作 | 风险 | 验证 |
+| --- | --- | --- | --- |
+| 1 | **先建"特征测试"**：用当前代码对 5 组选项组合导出 conf，存为快照 | 零 | 新测试通过（固定住行为） |
+| 2 | 建 `confkit/` 包，把 `confbuild.py` **原样搬**成 `confkit/build.py`（它已纯净） | 极低 | 快照逐字一致 + 21 项核心测试 |
+| 3 | 搬数据类与解析：`Member/OptionGroup/ConfModel` → `confkit/model.py`；`parse_conf_text` 等 → `confkit/parse.py`（只改 import） | 低 | 同上 |
+| 4 | **i18n 参数化**：`documentation_overrides(lang)` / `label_overrides(lang)`，调用方传 `settings` 的值 | 中 | 中文说明不丢；关掉 zh 时回退英文 |
+| 5 | **sources 依赖反转**：把 `reference_conf` / `list_installed` 的调用移出 confkit（宿主下载好把路径传进来） | 中 | 参考 conf 仍能载入；confkit 的 import 里不再有 sources/net |
+| 6 | 拆出 `confkit/curate.py`（BASIC_KEYS / LEGACY_KEYS / PURPOSE / GPLASYNC_ONLY / MODES），作为**默认策展**允许注入 | 低 | 简单/进阶/完全三档数量不变（13/68/89） |
+| 7 | 更新调用点（`ui/bridge.py`、`gui/tab_config.py`）；`gui/` 标记为 legacy | 低 | 烟雾测试 + 两个前端都能启动 |
+
+**拆分完成的判定标准（可机械检查）**：
+1. `confkit/` 内的文件**不出现** `settings` / `sources` / `net` / `PySide6` 字样；
+2. `grep -r "confkit" dxvk_toolkit/ui dxvk_toolkit/gui` 只剩调用；
+3. 把 `confkit/` 整个目录拷到别处，**只靠 stdlib 就能 import 并生成 conf**（可写一个测试证明）。
 
 ### 18.7 工作量
 
