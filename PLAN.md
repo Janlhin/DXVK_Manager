@@ -1007,22 +1007,60 @@ contentItem: Text {
 TapHandler {
     onTapped: function (event) {
         var p = event.position
-        for (var i = 0; i < flow.children.length; i++) {
-            var child = flow.children[i]
-            if (child.width === undefined || child.width <= 0)
-                continue                       // Repeater 自身等非卡片项
-            if (child.contains(child.mapFromItem(flow, p.x, p.y)))
-                return                         // 点到卡片：由卡片自己处理
-        }
-        page.clearSelection()                  // 点到空白：收起详情栏
-    }
-}
-```
 
-* 卡片自身有 MouseArea，会先吃掉按下事件，所以父级 TapHandler 不会在点卡片时误触发（与列表模式同一机制）。
-* Flow 子项最多几十个，遍历成本可忽略。
+---
 
-### 7.3 一并核对其余收起入口（当前状态）
+## 15. 【用户新提·定稿】取消底部详情栏，单击卡片直接弹详情
 
-| 入口 | 状态 |
+> 用户原话：「下面这个状态栏取消吧 我觉得点击弹出卡片就很好了」
+> **此条推翻第 11.4 节用户先前选的"乙"**（乙=单击选中+底部栏、双击弹窗）。
+
+### 15.1 结论
+
+| 项 | 处置 |
 | --- | --- |
+| 底部详情栏（游戏页底部那条） | **整个删除** |
+| 单击卡片 | **直接打开游戏详情弹窗**（`GameDetailDialog`） |
+| 双击 | 不再需要（与单击同义，保留同义也无害） |
+| "选中"状态 | **取消**（照 DLSS Swapper 的 `SelectionMode="None"`）；卡片只留悬停态 |
+| 腾出的空间 | 卡片墙 / 列表**自动获得约 92px 高度**（详情栏原本占位） |
+
+### 15.2 需要删/改的代码（`GamesPage.qml`）
+
+| 位置 | 动作 |
+| --- | --- |
+| `Rectangle { id: detail `（含 `detailBody`、路径行、平台行、三个按钮） | **删除**（约 110 行） |
+| `selectGame()` | 删除；`onActivated` 直接调 `openDetail()` |
+| `clearSelection()` / `Shortcut Esc` | 保留但改为**关闭详情弹窗**（弹窗自己也有 Esc） |
+| 卡片墙 TapHandler 点空白收起（第 7 条） | **不再需要**（没有可收起的东西）→ 第 7 条随之取消 |
+| 右键点内容区收起、工具栏空白收起 | 同上取消 |
+| 卡片 / 列表的 `selected` 高亮 | 取消（没有选中态了） |
+| `page.selectedKey` | 取消；`onDetected` 里对选中项的更新改为**弹窗打开时刷新** |
+
+### 15.3 弹出方式（照 DLSS Swapper）
+
+* 他们：`ItemClick` + `SelectionMode="None"` → **单击即进详情**；
+* 我们：`GameCard.onActivated` → `page.openDetail(...)` → `gameSheet.open()`；
+* 弹窗内已有：「应用 DXVK / 还原原始 DLL / 移除 DXVK / 打开目录」，以及状态、路径、Direct3D、架构；
+* 弹窗关闭后列表状态由既有信号（`statusesReady`）自动刷新，不需要"选中项"配合。
+
+### 15.4 受影响的其它方案条目
+
+| 编号 | 原内容 | 变化 |
+| --- | --- | --- |
+| 6 | 详情栏压成一行 | **早已撤销**，现在连栏一起删 |
+| 7 | 卡片墙点空白收起详情栏 | **取消**（无栏可收） |
+| 9 | 详情栏显示「识别中…」 | **只保留弹窗那半**：`GameDetailDialog.qml:179` 不再显示"Direct3D 识别中…" |
+| 13 | 列表行右侧按钮 | 主按钮由「应用 DXVK」改为「详情」（点击开弹窗），另两个小按钮不变 |
+
+### 15.5 验证方法
+
+1. 游戏页底部**不再有任何详情栏**，卡片墙 / 列表高度增加
+2. 单击任一卡片 → **详情弹窗**打开，内容与该游戏一致
+3. 弹窗内「应用 DXVK」可用，安装后列表状态更新
+4. Esc / 点遮罩 / 点关闭 → 关闭弹窗
+5. 卡片不再有选中高亮，只有悬停效果
+6. 列表模式下同样单击进详情，排序与分区仍正常
+7. 烟雾测试 PASS
+
+**改动量**：删除约 110 行、新增约 10 行（净减 100 行），与第 8/13/14 条同期执行。
