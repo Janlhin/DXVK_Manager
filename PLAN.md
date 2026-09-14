@@ -1,22 +1,31 @@
 # 实施方案（PLAN）
 
-> 状态：**待批准**。批准前不改任何代码。
-> 基线：提交 `94a1112`，测试 `qml_smoke: PASS (0 problems)`。
+> 状态：**第 4–17 条已全部实现并验证**；本文件现在只保留"未做"的两项（§19、§20）。
+> 基线：提交 `a840199`，测试：核心 21 项 OK / 金标准 PASS / QML 烟雾 PASS。
 
-## 0. 当前已完成（本方案不重复做）
+## 0. 已完成清单（全部实测，非"应该没问题"）
 
-| 项 | 状态 | 提交 |
+| 项 | 验证方式 | 提交 |
 | --- | --- | --- |
-| 版本页白底（缺 `required property int index`） | ✅ | `7d64f4f` |
-| 设置页下拉框/开关自绘（深色 6px 圆角） | ✅ | `7d64f4f` |
-| 配置页预览默认宽度 | ✅ | `7d64f4f` |
-| 版本页卡片网格（一屏 14 → 40 个） | ✅ | `7d64f4f` |
-| 列表模式列头排序 | ✅ 代码完成 | `7d64f4f` |
-| 搜索支持中文 / DX12 / 俚语 | ✅ | `63456e3` |
-| 全部视图按"已装 / 未安装"分区 | ✅ | `c1ba3ac` |
-| 双击卡片 → 游戏详情弹窗（可应用 DXVK） | ✅ | `952de51` |
-| 版本说明（摘要 + 中文分类 + 悬停全文） | ✅ | `3bb23b8` |
-| GPLAsync 专有选项标注 | ✅ | `3bb23b8` |
+| **confkit 拆分**（配置编写可独立拷走） | 三项机械检查 + 拷贝到临时目录只用标准库生成 conf | `49c5223` |
+| i18n 参数化（语言由宿主传入） | confkit 内无 settings/sources/net/PySide6 引用 | `49c5223` |
+| sources 依赖反转（联网取参考 conf 留在应用层） | 同上 | `49c5223` |
+| **导出 dxvk.conf 带注释**（原版有、我丢了的回归） | 金标准 15 项 + 中文按显示宽度折行 ≤76 列 | `49c5223` |
+| **写入游戏目录**（第一版有、QML 版缺的） | 实测写入 + 覆盖前备份 .bkp（两级） | `49c5223` |
+| 下载源下拉弹层空白（回归） | 弹层显示 4 个来源 | `49c5223` |
+| 识别完仍显示「识别中…」（回归） | 48 款中 arch 为空的行 = 0，3 款显示 — | `49c5223` |
+| **删底部详情栏 + 单击进详情** | GamesPage 838 → 554 行 | `dfad03e` |
+| **状态徽标统一**（卡片/列表/弹窗共用 StatusChip） | 列表固定 96px 等宽对齐 | `dfad03e` |
+| **列表改版型 + 分区标题** | 圆形封面 + 副行 + 详情/打开目录；undefined 消失 | `dfad03e` |
+| **筛选收进一个面板** | 工具栏 7 → 4 个控件 | `dfad03e` |
+| **版本库自动加载** | 打开页面 0.00 秒出 76 个版本；切 GPLAsync 不再空白 | `a840199` |
+| **版本卡片点开详情** | 右侧面板：完整说明 + 下载/复制链接/Release/应用到游戏 | `a840199` |
+| 版本页白底、下拉框自绘、预览宽度 | 见前几批 | `7d64f4f` |
+| 搜索支持中文 / DX12 / 俚语 | 单测：巫师/dx12/吃鸡/32位 全部命中 | `63456e3` |
+| 版本说明（摘要 + 中文分类 + 完整文本） | 76/76 版本有说明 | `3bb23b8` |
+| GPLAsync 专有选项（enableAsync / gplAsyncCache） | 目录 89 项，其中 2 项标 gplasync | `3bb23b8` |
+| 游戏卡片双击 → 详情弹窗（可应用 DXVK） | 弹窗内安装/还原/移除均可用 | `952de51` |
+| 游戏详情栏可收起（Esc/右键/空白/切页） | 合成鼠标事件逐条验证 | `717cc14` |
 
 ## 1. 待做事项（按建议顺序）
 
@@ -1009,78 +1018,39 @@ def write_conf(game_dir, text, name="dxvk.conf") -> Path:
 | 职责 | 证据（行号） | 属于哪层 |
 | --- | --- | --- |
 | ① 数据模型 | `Member L260 / OptionGroup L311 / ConfModel L433` | 应属于独立库 |
-| ② 解析器 | `parse_conf_text` 及配套纯函数 | 应属于独立库 |
-| ③ **产品策展** | `BASIC_KEYS L30 / LEGACY_KEYS L57 / GPLASYNC_ONLY L82 / PURPOSE L112 / _FORK_CONF L602` | "本工具认为哪些选项重要"，**不该进独立库** |
-| ④ **i18n** | `documentation_overrides / label_overrides` 读 `settings.get("docs_language")`（L179/L207） | **读应用设置 = 硬耦合** |
-| ⑤ **IO/资产** | `from .sources import list_installed`、`reference_conf` | **把网络/下载层拖进配置模块的 import 图** |
 
-**结论**：①②可以走；③④⑤把"配置文件编写"和"这个应用"焊死了。你要分离，卡点就是这三处。
 
-### 18.4 拆分方案：抽出 `confkit` 子包
+---
 
-```
-dxvk_toolkit/confkit/            ← 只依赖 stdlib，可整体拷走独立发布
-    __init__.py                  # 对外 API：load_model / build_conf / parse_config_values / tier_of
-    model.py                     # Member / OptionGroup / ConfModel（纯数据类）
-    parse.py                     # parse_conf_text / _infer_type / _clean_value（纯函数）
-    build.py                     # build_conf / format_value（现在就纯净，原样搬）
-    importer.py                  # parse_config_values（读回用户的 conf）
-    i18n.py                      # 说明/标签加载 —— 接收 lang 参数，不读 settings
-    curate.py                    # BASIC_KEYS / PURPOSE / GPLASYNC_ONLY —— 默认策展，允许宿主覆盖
-```
+## 19. 卡片墙虚拟化（未做，可选）
 
-**四条边界规则（成败在此）**：
+> 现状：卡片墙是 `Flickable + Flow + Repeater`（为了分区标题能通栏），**一次创建全部卡片**。
+> 48 款无感；**几百款会明显变慢**（每张卡都要建 Item + 拉封面）。
 
-1. `confkit` **不得 import** `paths / settings / sources / net` —— 只用 stdlib；
-2. 语言、资产路径**由调用方传入**：`load_model(path)`（已有）、`documentation_overrides(lang="zh")`（改造点）；
-3. "获取最新参考 conf"这个**联网动作留在应用层**（app 下载好后把路径喂给 confkit）；
-4. 策展通过**参数注入**，宿主可整套替换。
-
-### 18.5 bridge 上帝对象（顺带记，非前置条件）
-
-42 个 Slot 说明每个功能都往一个类里塞。方向：`games_controller / versions_controller / config_controller`。
-**注意：bridge 可以烂着，confkit 照样干净** —— 不必为拆 confkit 而先拆 bridge。
-
-### 18.6 执行顺序（**用户 2026-09-14 定调：拆分提前**）
-
-> 用户追问「不拆分先吗」——采纳。原方案把拆分放在 P0 小修之后，但 **#16（导出注释）与
-> #17（写入游戏）本来就要动 conf 模块**：先拆再写，新代码直接落进新家；先写再拆，等于搬两遍。
-> 且**现在拆最便宜**（conf 相关代码面还小）。
-
-| 阶段 | 内容 | 理由 |
+| 方案 | 做法 | 代价 |
 | --- | --- | --- |
-| **0️⃣ 热身** | **#5 弹层空白（1 行）** | 显性坏功能，2 分钟修掉，给后续一个绿色基线 |
-| **1️⃣ 拆分** | **confkit 抽取**（7 步，见 18.6.1） | 架构优先；此后所有 conf 相关代码都写进新结构 |
-| 2️⃣ | #9 识别中 + **#16 导出注释** + **#17 写入游戏** | 全部在 confkit 新结构里做，一步到位 |
-| 3️⃣ | UI 批：#15 删详情栏 → #12 徽标统一 → #8/13/14 列表版型与筛选面板 | 纯 QML；先删栏可让 #12 少改一处 |
-| 4️⃣ | 版本库批：#4 自动加载 + #10 卡片详情 | 纯 QML + 少量 bridge |
-| 5️⃣ | bridge 拆分（可选，最后） | 风险最大，等一切稳定 |
+| **D1（推荐）** | ListView + `section.property/delegate`：外层 ListView 每行放 N 张卡，标题由控件生成 | 重写卡片墙约 120 行；ListView 自带虚拟化 |
+| D2 | 超过 150 款时降级为 GridView（**失去分区标题**） | 两套布局要维护，且大库正是最需要分区的场景 |
+| D3 | 不做 | 大库卡顿 |
 
-#### 18.6.1 confkit 抽取的 7 步（每步一个提交、每步跑测试）
+**何时做**：等游戏库超过 ~150 款，或用户反馈滚动卡。当前 48 款不需要。
 
-| 步 | 动作 | 风险 | 验证 |
-| --- | --- | --- | --- |
-| 1 | **先建"特征测试"**：用当前代码对 5 组选项组合导出 conf，存为快照 | 零 | 新测试通过（固定住行为） |
-| 2 | 建 `confkit/` 包，把 `confbuild.py` **原样搬**成 `confkit/build.py`（它已纯净） | 极低 | 快照逐字一致 + 21 项核心测试 |
-| 3 | 搬数据类与解析：`Member/OptionGroup/ConfModel` → `confkit/model.py`；`parse_conf_text` 等 → `confkit/parse.py`（只改 import） | 低 | 同上 |
-| 4 | **i18n 参数化**：`documentation_overrides(lang)` / `label_overrides(lang)`，调用方传 `settings` 的值 | 中 | 中文说明不丢；关掉 zh 时回退英文 |
-| 5 | **sources 依赖反转**：把 `reference_conf` / `list_installed` 的调用移出 confkit（宿主下载好把路径传进来） | 中 | 参考 conf 仍能载入；confkit 的 import 里不再有 sources/net |
-| 6 | 拆出 `confkit/curate.py`（BASIC_KEYS / LEGACY_KEYS / PURPOSE / GPLASYNC_ONLY / MODES），作为**默认策展**允许注入 | 低 | 简单/进阶/完全三档数量不变（13/68/89） |
-| 7 | 更新调用点（`ui/bridge.py`、`gui/tab_config.py`）；`gui/` 标记为 legacy | 低 | 烟雾测试 + 两个前端都能启动 |
+---
 
-**拆分完成的判定标准（可机械检查）**：
-1. `confkit/` 内的文件**不出现** `settings` / `sources` / `net` / `PySide6` 字样；
-2. `grep -r "confkit" dxvk_toolkit/ui dxvk_toolkit/gui` 只剩调用；
-3. 把 `confkit/` 整个目录拷到别处，**只靠 stdlib 就能 import 并生成 conf**（可写一个测试证明）。
+## 20. bridge 拆分（未做，可选）
 
-### 18.7 工作量
+> `ui/bridge.py` 现在 **815 行 / 45 个 Slot / 11 个 Signal**，扫描、版本、安装、配置、设置、封面、
+> 中文名全在一个类里。每加一个功能都往里塞。
 
-| 项 | 量 |
+| 目标结构 | 内容 |
 | --- | --- |
-| confkit 抽取（i18n 参数化 + sources 依赖反转） | ~1 天当量（搬移 + 改调用点 + 补测试） |
-| 其中纯搬移（model/parse/build） | 半天，行为零变化 |
-| bridge 拆分 | 另计 ~半天，可推迟 |
+| `bridge.py` | 只留窗口级杂项（打开目录、复制、版本号、数据目录） |
+| `games_controller.py` | 扫描 / 筛选 / 排序 / 封面 / 识别 / 中文名 |
+| `versions_controller.py` | 版本列表 / 缓存优先加载 / 下载 / 本地版本 |
+| `config_controller.py` | 载入 / 勾选 / 预览 / 导入导出 / 写入游戏 |
 
-### 18.8 一句话回答
+**做法**：每个控制器是一个 `QObject`，QML 侧通过 `bridge.games.xxx()` 访问；迁移时保持
+`bridge.scanGames()` 等旧入口为转发方法，QML 可以逐个改，不必一次性重写。
 
-**"烂不烂"**：核心/UI 的分离是真的（两个前端共核已验证）；但 `confspec` 是 719 行、混 5 种职责、带 3 处应用耦合的大文件 —— **要分离必须先做 18.4 的抽取**。好消息：`confbuild` 已纯净到可直接搬，真正要改的只有 i18n 参数化和 sources 依赖反转两处。
+**风险**：这是全项目最容易改坏的一处（信号连接 + 线程池 + 任务回调都在这儿）。
+**前置条件**：等界面不再大改（当前刚完成版型批）。
