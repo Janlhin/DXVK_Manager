@@ -456,3 +456,79 @@ delegate: Rectangle {
 
 * 本条会**顺带完成 `LAYOUT-SPEC` 里"版本库右面板"的空缺**（原本是待你确认的问题之一，现在直接有了明确内容）。
 * 与第 4 节（版本库自动加载）同文件，**建议一起做**，避免两次改同一个文件。
+
+---
+
+## 11. 研究 DLSS Swapper 的实现（用户指定参照）
+
+> 用户给了仓库地址并说「你是在不行看着人家的怎么实现的吧」。以下为**实际抓取其源码**得到的结论（非猜测）。
+
+### 11.1 他们怎么做的（证据）
+
+**① 游戏页 = 列表控件自带分组 + 单击进详情**
+`src/Pages/GameGridPage.xaml`：
+```xml
+<ListView ItemsSource="{x:Bind CurrentCollectionView}" ItemClick="GridAndListView_ItemClick"
+          SelectionMode="None" IsItemClickEnabled="True">
+    <ListView.GroupStyle>
+        <GroupStyle HidesIfEmpty="True">
+            <GroupStyle.HeaderTemplate>
+                <DataTemplate x:DataType="data:GameGroup">
+                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource TitleTextBlockStyle}"/>
+```
+
+* **分组用控件内置能力**（`CollectionViewSource` + `GroupStyle`），不是手工摆版式；
+* **单击卡片 = 打开详情**（`ItemClick`），`SelectionMode="None"` —— **没有"选中"这个状态**；
+* 上例标题来自 `GameGroup.Name`，空标题自动隐藏（`HidesIfEmpty`）。
+
+**② 版本库 = 网格 + 单击进详情**
+`src/Pages/LibraryPage.xaml`：
+```xml
+<GridView x:Name="MainGridView" ItemsSource="{x:Bind ViewModel.SelectedLibraryList}"
+          SelectionMode="None" IsItemClickEnabled="True" ItemClick="MainGridView_ItemClick">
+    <DataTemplate x:DataType="data:DLLRecord">
+```
+
+* 页面结构：第 2 行是**横向滚动的来源标签条**（DLSS / FSR / XeSS …），第 3 行是**版本卡片网格**；
+* **单击卡片 → 详情**（`MainGridView_ItemClick`）；
+* 数据模型是 `DLLRecord`，右侧同页切换列表内容（`SelectedLibraryList`）。
+
+**③ 网格/列表两套视图共用一个数据源**
+存在 `src/UserControls/ListGridViewTemplateSelector.cs` —— 用**模板选择器**在同一份数据上切两种呈现，而不是维护两套数据。
+
+### 11.2 对照我们的问题
+
+| 他们的做法 | 我们现在的做法 | 结论 |
+| --- | --- | --- |
+| 用**控件内置分组**（GroupStyle） | 我在数据层塞"标题行"再手写布局（还漏了 `gameKind`，出现 undefined） | **应改成 Qt 的内置分区**：`ListView.section`（即我方案 D1），标题行由控件生成，**不会有 undefined** |
+| **单击**卡片进详情，无选中态 | 单击=选中+底部详情栏，双击=弹窗 | 需你定（见 11.4） |
+| 版本卡片单击看详情 | **卡片点不动**（你刚提的第 10 条） | 与第 10 条一致，**单击 → 详情** |
+| 来源切换是横向标签条 | 我们已用 Track 分段控件 | 一致，保留 |
+| 网格/列表共用一份数据 | 我们也是同模型两个视图 | 一致，保留 |
+
+### 11.3 因此对既有方案的修正
+
+* **第 8 条**（列表 undefined）：根因是"手写标题行"。**正确修法不是补 `gameKind`**，而是改用 `ListView.section.property` + `section.delegate`，让控件负责标题行；卡片墙若要保留分区，也改走 `ListView` 分区方案（即 D1）。**这样能一次性消掉 undefined、分组、以及虚拟化三个问题。**
+* **第 7 条**（点空白收起）：改用分区方案后，点空白判断可沿用 `itemAt`（ListView 有该接口），比遍历 Flow 子项更可靠。
+* **第 10 条**（版本卡片详情）：照他们做——**单击卡片 → 详情**，默认选中第一个版本，详情里放完整说明与操作。
+* **D 条**（虚拟化）：`ListView` 分区方案自带虚拟化，D1 由"可选项"变为**推荐必做**。
+
+### 11.4 需要你拍板的一点
+
+他们**没有"选中"状态**，单击就是进详情。我们现在是"单击选中 → 底部详情栏，双击 → 弹窗"。三种选择：
+
+| 方案 | 说明 |
+| --- | --- |
+| **甲（照 DLSS Swapper）** | 单击卡片 = 直接打开详情弹窗；**去掉底部详情栏**。最简洁，但你会失去常驻信息栏 |
+| **乙（折中，我倾向）** | 单击 = 选中 + 底部详情栏（现状）；**新增：单击卡片右侧的"详情"图标 / 双击 → 弹窗** |
+| 丙 | 保持现状（双击弹窗），底部栏可收起（已实现） |
+
+### 11.5 参考链接
+
+* 仓库：https://github.com/beeradmoore/dlss-swapper
+* 关键文件（抓取路径）：
+  * `src/Pages/GameGridPage.xaml`（分组 + ItemClick）
+  * `src/Pages/LibraryPage.xaml`（版本网格 + ItemClick）
+  * `src/Data/GameGroup.cs`、`src/Data/DLLRecord.cs`（数据模型）
+  * `src/UserControls/ListGridViewTemplateSelector.cs`（视图切换）
+* 备用 CDN（国内可达）：`https://cdn.jsdelivr.net/gh/beeradmoore/dlss-swapper@main/<路径>`
