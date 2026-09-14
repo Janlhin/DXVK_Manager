@@ -254,3 +254,65 @@ D:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive
 
 * **选方案 1（一行，路径靠悬停）还是方案 2（两行，路径常驻）？**
 * 我倾向 **方案 1**：和 `LAYOUT-SPEC` 的"页面工具栏统一 52"一致，且底部详情本质是状态条。
+
+---
+
+## 7. 【P0 / 我引入的回归】卡片墙左键点空白不再收起详情栏
+
+> 用户原话：「其他地方左键点击他自动收起怎么不做了不是你说的方案」
+
+### 7.1 现状核对（只读，已确认）
+
+| 视图 | 右键收起 | 左键点空白收起 |
+| --- | --- | --- |
+| 列表模式 | ✅ `GamesPage.qml:711` | ✅ `GamesPage.qml:503`（TapHandler + `itemAt`） |
+| **卡片墙** | ✅ `GamesPage.qml:393` | ❌ **没有** |
+
+**原因**：卡片墙从 `GridView` 重写成 `Flickable + Flow` 时，原来挂在 GridView 上的
+`TapHandler`（用 `grid.itemAt` 判断"点到的位置有没有卡片"）**随旧代码一起被删掉了**，
+我只把右键的 MouseArea 带了过来。
+
+### 7.2 修法
+
+给卡片墙补一个等价的 TapHandler。Flow 没有 `itemAt`，改为遍历子项判断：
+
+```qml
+TapHandler {
+    onTapped: function (event) {
+        var p = event.position
+        for (var i = 0; i < flow.children.length; i++) {
+            var child = flow.children[i]
+            if (child.width === undefined || child.width <= 0)
+                continue                       // Repeater 自身等非卡片项
+            if (child.contains(child.mapFromItem(flow, p.x, p.y)))
+                return                         // 点到卡片：由卡片自己处理
+        }
+        page.clearSelection()                  // 点到空白：收起详情栏
+    }
+}
+```
+
+* 卡片自身有 MouseArea，会先吃掉按下事件，所以父级 TapHandler 不会在点卡片时误触发（与列表模式同一机制）。
+* Flow 子项最多几十个，遍历成本可忽略。
+
+### 7.3 一并核对其余收起入口（当前状态）
+
+| 入口 | 状态 |
+| --- | --- |
+| 点卡片之间/周围空白 | ❌ 本条 |
+| 右键内容区 | ✅ |
+| 点工具栏空白 | ✅（工具栏底层 MouseArea） |
+| 切页面再回来 | ✅（`onVisibleChanged`） |
+| Esc | ✅（`Shortcut`） |
+| 点卡片本身 | 切换选中（预期行为） |
+
+### 7.4 验证方法
+
+1. 点一张卡片 → 详情栏出现
+2. 点卡片之间的缝隙 → **详情栏收起**
+3. 点卡片墙下方空白 → **详情栏收起**
+4. 点卡片 → 详情栏切换成那款游戏（不能被误收起）
+5. 右键 / 工具栏空白 / Esc / 切页 → 仍然收起
+6. 烟雾测试 PASS
+
+**改动量**：约 15 行，只动 `GamesPage.qml`。
