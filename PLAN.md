@@ -316,3 +316,69 @@ TapHandler {
 6. 烟雾测试 PASS
 
 **改动量**：约 15 行，只动 `GamesPage.qml`。
+
+---
+
+## 8. 【P0 / 我引入的回归】列表模式出现 undefined 且列全挤在右侧
+
+> 用户原话：「这真的好看吗」，附截图：列表顶部若干 `undefined undefined undefined undefined`，各列挤在右侧。
+
+### 8.1 根因（已核对代码）
+
+| # | 现象 | 位置 | 原因 |
+| --- | --- | --- | --- |
+| 1 | 分区标题行渲染成"每列 undefined" | `GamesPage.qml:543` 起 | 列表委托声明了 11 个角色，**没有 `gameKind`**。分区标题行（`已装 DXVK · 2` / `未安装 · 46`）被当成普通游戏行渲染，`platformLabel`/`direct3d`/`arch` 全为 undefined |
+| 2 | 名称与后面几列之间空出 400+ px | 同上，`RowLayout` | 名称列用 `Layout.fillWidth: true` 吸收全部余量，把 平台/Direct3D/架构/状态 顶到最右 |
+
+**两个都是我这轮改分区与列头时引入的**：委托写在"分区"功能之前，加分区时没回头补 `gameKind`。
+
+### 8.2 修法
+
+**① 委托声明 `gameKind`，并让标题行走单独分支**
+
+```qml
+delegate: Rectangle {
+    required property string gameKind        // ← 补这一行
+    readonly property bool isHeader: gameKind === "header"
+
+    height: isHeader ? 36 : 46
+    color: isHeader ? Th.surface : (...)
+}
+```
+
+* 标题行：通栏，15px 加粗，左侧留白 16，底部 1px `borderSubtle`；
+* 标题行不下钻到列布局（用 `visible` 关掉整行 `RowLayout`），避免出现 undefined。
+
+**② 列宽策略（二选一，需你定）**
+
+| | 方案 A（推荐） | 方案 B |
+| --- | --- | --- |
+| 名称列 | 固定上限 420，超出省略 | 吸收余量（现状） |
+| 其余列 | 紧跟名称之后依次排列 | 被顶到最右 |
+| 右侧空白 | 由状态列贴最右填充 | 名称列吃掉 |
+| 观感 | 像表格，列距紧凑 | 列之间 400px 空档（就是截图的问题） |
+
+推荐 **A**：名称列限宽后，各列自然靠拢；状态列（已装/未安装）仍贴最右，保持"一眼看到状态"。
+
+### 8.3 验证方法
+
+1. 切列表模式 → **不出现 undefined**
+2. 分区标题（已装 DXVK / 未安装）各占一整行，样式与卡片墙标题一致
+3. 列头（名称/平台/Direct3D/架构/DXVK）文字可见，点任一列头可排序，箭头跟着变
+4. 名称列超长时省略号，不挤压其他列
+5. 1600 / 1280 / 1100 三种宽度渲染自查
+6. 烟雾测试 PASS
+
+**改动量**：约 30 行，只动 `GamesPage.qml` 的列表委托与列布局。
+
+### 8.4 备注：这一条与我此前列的 P0 是同一批
+
+| 编号 | 问题 | 改动量 |
+| --- | --- | --- |
+| 5 | 下载源下拉弹层空白 | 1 行 |
+| 7 | 卡片墙左键点空白不收起 | ~15 行 |
+| 8 | 列表 undefined + 列挤右侧（本条） | ~30 行 |
+| 6 | 详情栏压成一行 | ~40 行 |
+| 4 | 版本库自动加载 | ~60 行 |
+
+合计约 **150 行**，都在 `GamesPage.qml` / `VersionsPage.qml` / `SettingsPage.qml` 三个文件里，互不冲突。
