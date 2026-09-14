@@ -1012,27 +1012,70 @@ TapHandler {
 
 ---
 
-### 16.7 补充证据（用户追问「之前第一版好像做的是吧」后查证）
+---
 
-抓取原版源码 `camomano/DXVK-Configurator/script.js`（国内可达：
-`https://cdn.jsdelivr.net/gh/camomano/DXVK-Configurator@main/script.js`）：
+## 17. 【用户新提·记】QML 版缺「把 dxvk.conf 写入游戏目录」
 
-```js
-let commentBuffer = [];                 // 解析参考 conf 时收集注释
-const commentMatch = line.match(/^\s*#\s*(.*)$/);
-const comment = (commentBuffer.length ? commentBuffer.join(' ').trim() : lastComment.join(' ').trim());
-const rawDescLines = (commentBufferRaw.length ? commentBufferRaw.slice() : lastCommentRaw.slice());
-...
-const preComment = lines.slice(0, -1).join('\n').trim();
-const cleanedComments = commentBlocks.map(...).join('\n\n');
-const cleanedKeys = keyLines.map(...).join('\n');
-preview.value = conf;                   // 注释块 + 键值行一起输出
+> 用户对比第一版后指出，并要求「记」——本条只记录，不做。
+
+### 17.1 第一版有、QML 版没有
+
+| | 第一版（Tk） | QML 版 |
+| --- | --- | --- |
+| 复制到剪贴板 | ✅ | ✅ |
+| 导出到任意位置 | ✅ | ✅ |
+| **写入指定游戏目录** | ✅ `gui/tab_config.py:404 write_to_game()` | ❌ **没有** |
+| 记住上次写入的游戏 | ✅ `self.target_game_dir` | ❌ |
+
+### 17.2 核心能力其实已经存在
+
+`dxvk_toolkit/installer.py:394`：
+
+```python
+def write_conf(game_dir, text, name="dxvk.conf") -> Path:
+    """Write a dxvk.conf next to the game executable."""
+    root = Path(game_dir); root.mkdir(parents=True, exist_ok=True)
+    target = root / name
+    target.write_text(text, encoding="utf-8", newline="\r\n")
+    ledger.record(root, conf_written=..., conf_path=str(target))
+    invalidate(root)
+    return target
 ```
 
-| 版本 | 是否带注释 |
-| --- | --- |
-| **原版（DXVK Configurator）** | ✅ 解析时保留注释，生成时连注释一起输出 |
-| 我的 Tk 第一版 | ❌ `gui/tab_config.py:368` 调用的 `confbuild.build_conf` 就不写注释 |
-| 我的 QML 版 | ❌ 同上 |
+**所以这只是界面缺口**：核心写文件、记入账本、让状态缓存失效，都已经做好了。
 
-**结论：用户记忆正确。这不是新需求，是我重写时丢掉的原版能力 → 按回归处理，优先级 P0。**
+### 17.3 方案
+
+配置页预览区按钮从 `[复制] [保存为文件…]` 改为 `[复制] [写入游戏…] [保存为文件…]`：
+
+```
+┌ dxvk.conf 预览 ─────────────── [复制] [写入游戏…] [保存为文件…] ┐
+```
+
+点「写入游戏…」→ 弹出游戏选择（**复用第 10 节的 `bridge.gameOptions()`**，不新造轮子）
+→ 选中后 `bridge.writeConfToGame(key)` → `installer.write_conf()` → 状态栏提示 `已写入 <路径>`。
+
+| 细节 | 处理 |
+| --- | --- |
+| 目标目录已有 dxvk.conf | **先备份为 `dxvk.conf.bkp`**（`write_conf` 目前**不备份**，需补 3 行；与 installer 的 `.bkp` 约定一致） |
+| 目录不存在 | `write_conf` 会 `mkdir(parents=True)` —— 保持 |
+| 该游戏未安装 DXVK | 允许写入（dxvk.conf 只在有 DXVK 时被读取，但写了无害） |
+| 离线模式 | **允许**（纯本地写文件，不联网） |
+| 写完后 | 刷新游戏状态（`installer.invalidate` 已处理），并在预览区显示"将写入：<目录>" |
+
+### 17.4 改动量
+
+| 文件 | 改动 | 量 |
+| --- | --- | --- |
+| `installer.py` | `write_conf` 增加覆盖前备份 | ~5 行 |
+| `ui/bridge.py` | 新增 `writeConfToGame(key)` + `gameOptions()`（与第 10 节共用） | ~20 行 |
+| `ui/qml/ConfigPage.qml` | 预览区加「写入游戏…」按钮 + 游戏选择弹窗（可复用第 10 节的 `FilterSheet` 式面板） | ~50 行 |
+
+### 17.5 验证方法
+
+1. 配置页勾几个选项 → 点「写入游戏…」→ 选游戏 → 状态栏显示写入路径
+2. 打开该游戏目录：`dxvk.conf` 内容与预览**一致**（CRLF 换行）
+3. 再次写入：原文件被备份为 `dxvk.conf.bkp`
+4. 游戏状态刷新（若该游戏已装 DXVK，配置项生效）
+5. 离线模式下同样可用
+6. 冒烟测试 PASS
