@@ -159,10 +159,11 @@ Item {
             id: content
             // Settings read badly when a row stretches across the whole
             // window: cap the measure and centre it, like every settings page.
-            readonly property real maxWidth: 920
-            x: Math.max(Th.pad, (parent.width - width) / 2)
+            // Left aligned and full width: the cards are the grouping, so the
+            // column does not need to be narrowed or centred.
+            x: Th.pad
             y: Th.pad
-            width: Math.min(parent.width - Th.pad * 2, maxWidth)
+            width: parent.width - Th.pad * 2
             spacing: Th.space4
 
             // --- offline ---------------------------------------------------

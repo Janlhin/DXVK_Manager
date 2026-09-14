@@ -143,67 +143,74 @@ Dialog {
             }
         }
 
-        // --- view and sort ----------------------------------------------
-        Row {
-            spacing: Th.space5
-
-            Column {
-                spacing: Th.space2
-                GroupLabel { text: "视图" }
-                Track {
-                    Pick {
-                        text: "卡片"
-                        active: sheet.viewMode === "grid"
-                        onClicked: sheet.viewChosen("grid")
-                    }
-                    Pick {
-                        text: "列表"
-                        active: sheet.viewMode === "list"
-                        onClicked: sheet.viewChosen("list")
-                    }
+        // --- view --------------------------------------------------------
+        Column {
+            spacing: Th.space2
+            GroupLabel { text: "视图" }
+            Track {
+                Pick {
+                    text: "卡片"
+                    active: sheet.viewMode === "grid"
+                    onClicked: sheet.viewChosen("grid")
+                }
+                Pick {
+                    text: "列表"
+                    active: sheet.viewMode === "list"
+                    onClicked: sheet.viewChosen("list")
                 }
             }
+        }
 
-            Column {
-                spacing: Th.space2
-                GroupLabel { text: "排序" }
-                Column {
-                    spacing: 2
+        // --- sort --------------------------------------------------------
+        // One full-width row: next to the view switch this only had ~350px and
+        // wrapped into two ragged rows.
+        Column {
+            spacing: Th.space2
+            GroupLabel { text: "排序" }
+            Track {
+                Pick {
+                    text: "名称"
+                    active: sheet.sortKey === "name"
+                    onClicked: sheet.sortChosen("name")
+                }
+                Pick {
+                    text: "平台"
+                    active: sheet.sortKey === "platform"
+                    onClicked: sheet.sortChosen("platform")
+                }
+                Pick {
+                    text: "Direct3D"
+                    active: sheet.sortKey === "direct3d"
+                    onClicked: sheet.sortChosen("direct3d")
+                }
+                Pick {
+                    text: "架构"
+                    active: sheet.sortKey === "arch"
+                    onClicked: sheet.sortChosen("arch")
+                }
+                Pick {
+                    text: "已装优先"
+                    active: sheet.sortKey === "dxtk"
+                    onClicked: sheet.sortChosen("dxtk")
+                }
+            }
+        }
 
-                    Track {
-                        Pick {
-                            text: "名称"
-                            active: sheet.sortKey === "name"
-                            onClicked: sheet.sortChosen("name")
-                        }
-                        Pick {
-                            text: "平台"
-                            active: sheet.sortKey === "platform"
-                            onClicked: sheet.sortChosen("platform")
-                        }
-                        Pick {
-                            text: "Direct3D"
-                            active: sheet.sortKey === "direct3d"
-                            onClicked: sheet.sortChosen("direct3d")
-                        }
-                    }
-                    Track {
-                        Pick {
-                            text: "架构"
-                            active: sheet.sortKey === "arch"
-                            onClicked: sheet.sortChosen("arch")
-                        }
-                        Pick {
-                            text: "已装优先"
-                            active: sheet.sortKey === "dxtk"
-                            onClicked: sheet.sortChosen("dxtk")
-                        }
-                        Pick {
-                            text: sheet.sortDescending ? "↓ 降序" : "↑ 升序"
-                            active: false
-                            onClicked: sheet.orderChosen(!sheet.sortDescending)
-                        }
-                    }
+        // --- direction ---------------------------------------------------
+        // Its own group: the column and the direction are different choices.
+        Column {
+            spacing: Th.space2
+            GroupLabel { text: "方向" }
+            Track {
+                Pick {
+                    text: "↑ 升序"
+                    active: !sheet.sortDescending
+                    onClicked: sheet.orderChosen(false)
+                }
+                Pick {
+                    text: "↓ 降序"
+                    active: sheet.sortDescending
+                    onClicked: sheet.orderChosen(true)
                 }
             }
         }
