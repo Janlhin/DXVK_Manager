@@ -158,25 +158,19 @@ Dialog {
                 Row {
                     spacing: Th.space4
 
-                    Rectangle {
-                        radius: Th.radiusMicro
-                        implicitWidth: statusChip.implicitWidth + Th.space3
-                        implicitHeight: statusChip.implicitHeight + Th.space2
-                        color: Th.statusBg(sheet.statusKind)
-                        border.width: 1
-                        border.color: sheet.statusKind === "ok" ? Th.ok : Th.border
-                        Text {
-                            id: statusChip
-                            x: (parent.width - width) / 2
-                            y: (parent.height - height) / 2
-                            text: sheet.statusText
-                            color: Th.statusColor(sheet.statusKind)
-                            font.pixelSize: Th.fontCaption
-                        }
+                    StatusChip {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: sheet.statusText
+                        kind: sheet.statusKind
                     }
+
+                    // "" only happens before detection has run; afterwards the
+                    // bridge stores "Unknown" / "—" so the dialog stops saying
+                    // 识别中 for a game that will never produce a value.
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (sheet.direct3d === "" ? "Direct3D 识别中…" : sheet.direct3d) +
+                        text: (sheet.direct3d === "" ? "Direct3D 识别中…"
+                               : (sheet.direct3d === "Unknown" ? "Direct3D 未知" : sheet.direct3d)) +
                               (sheet.arch !== "" ? "   ·   " + sheet.arch : "")
                         color: Th.textMuted
                         font.pixelSize: Th.fontCaption

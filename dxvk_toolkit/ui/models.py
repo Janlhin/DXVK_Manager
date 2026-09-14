@@ -212,6 +212,17 @@ class GameListModel(QAbstractListModel):
                    "arch": by_arch, "dxtk": by_state}
         return sorted(rows, key=chooser.get(key, by_name), reverse=self._sort_desc)
 
+    def set_sort_descending(self, descending: bool) -> None:
+        """Explicit direction, for the filter panel's 升序 / 降序 control."""
+        if self._sort_desc == bool(descending):
+            return
+        self._sort_desc = bool(descending)
+        settings.set("games_sort", f"{self._sort_key}:{'desc' if self._sort_desc else 'asc'}")
+        self.beginResetModel()
+        self._apply_filter()
+        self.endResetModel()
+        self.countChanged.emit()
+
     def set_sort(self, key: str) -> None:
         """Click a column heading: same column flips direction."""
         if key not in ("name", "platform", "direct3d", "arch", "dxtk"):

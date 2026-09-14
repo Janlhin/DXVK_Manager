@@ -157,8 +157,13 @@ class Bridge(QObject):
 
     @Slot(str)
     def setSort(self, key: str) -> None:  # noqa: N802 - QML naming
-        """Clicking a column heading in list mode."""
+        """Pick a sort column; choosing the same one again flips direction."""
         self.model.set_sort(key)
+
+    @Slot(bool)
+    def setSortDescending(self, descending: bool) -> None:  # noqa: N802
+        """Explicit direction, used by the 升序 / 降序 buttons."""
+        self.model.set_sort_descending(descending)
 
     @Slot(str, str, str)
     def setFilter(self, search: str, platform: str, dxtk: str = "all") -> None:  # noqa: N802

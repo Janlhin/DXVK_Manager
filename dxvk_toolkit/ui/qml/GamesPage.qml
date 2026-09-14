@@ -3,18 +3,14 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "theme.js" as Th
 
+// The library. One toolbar (search, one filter button, add, scan), then either
+// a wall of cover cards or a list, both split into 已装 DXVK / 未安装 sections.
+// Clicking a game opens its dialog - there is no separate details bar, which
+// used to eat the bottom of the window and duplicate what the dialog shows.
 Item {
     id: page
     objectName: "gamesPage"
 
-    Shortcut {
-        sequence: "Esc"
-        onActivated: page.clearSelection()
-    }
-
-    onVisibleChanged: if (!visible) page.clearSelection()
-
-    property string selectedKey: ""
     property string filterPlatform: ""
     property var platformOptions: []
     property string viewMode: bridge.getSetting("games_view") === "list" ? "list" : "grid"
@@ -28,97 +24,67 @@ Item {
         return page.dxtkCounts[value] !== undefined ? page.dxtkCounts[value] : 0
     }
 
-    // The details bar used to stay until another game was picked. It now
-    // closes on a click in empty space, a right click, Esc, or leaving the page.
-    function clearSelection() {
-        if (page.selectedKey === "" && detail.gameKey === "")
-            return
-        page.selectedKey = ""
-        detail.gameKey = ""
-        detail.name = ""
+    function platformLabel(value) {
+        for (var i = 0; i < page.platformOptions.length; i++) {
+            if (page.platformOptions[i].value === value)
+                return page.platformOptions[i].label
+        }
+        return ""
+    }
+
+    // What the 筛选 button shows, so the current narrowing is visible without
+    // opening the panel.
+    function filterSummary() {
+        var parts = []
+        if (page.dxtkFilter === "patched")
+            parts.push("已装 DXVK")
+        else if (page.dxtkFilter === "clean")
+            parts.push("未安装")
+        if (page.filterPlatform !== "")
+            parts.push(page.platformLabel(page.filterPlatform))
+        if (parts.length === 0)
+            return "筛选"
+        return "筛选：" + parts.join(" · ")
+    }
+
+    function applyFilters() {
+        bridge.setFilter(search.text, page.filterPlatform, page.dxtkFilter)
+        Qt.callLater(page.requestVisible)
     }
 
     function setDxtkFilter(value) {
         page.dxtkFilter = value
         bridge.setSetting("games_dxtk_filter", value)
-        bridge.setFilter(search.text, page.filterPlatform, value)
+        page.applyFilters()
+    }
+
+    function setPlatform(value) {
+        page.filterPlatform = value
+        page.applyFilters()
+    }
+
+    function setViewMode(mode) {
+        page.viewMode = mode
+        bridge.setSetting("games_view", mode)
         Qt.callLater(page.requestVisible)
     }
 
-    // A slim scroll bar with no full-height track (the default style draws a
-    // dark column next to the content, which looks like a broken panel).
-    // One clickable column heading.
-    component SortHeader: Item {
-        id: header
-        property string label: ""
-        property string column: ""
-
-        readonly property bool active: gameModel.sortKey === header.column
-        implicitHeight: 32
-
-        Text {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: header.label + (header.active
-                                  ? (gameModel.sortDescending ? "  ↓" : "  ↑") : "")
-            color: header.active ? Th.text : Th.textMuted
-            font.pixelSize: Th.fontCaption
-            font.bold: header.active
-        }
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 2
-            color: Th.accent
-            visible: header.active
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: bridge.setSort(header.column)
-        }
-    }
-
-    component SlimBar: ScrollBar {
-        policy: ScrollBar.AsNeeded
-        width: 8
-        background: Item {}
-        contentItem: Rectangle {
-            implicitWidth: 6
-            radius: Th.radiusMicro
-            color: Th.borderStrong
-            opacity: parent.pressed ? 1.0 : 0.6
-            Behavior on opacity { NumberAnimation { duration: 120 } }
-        }
-    }
-
-    // Ask the bridge for what is on screen: covers plus Direct3D/architecture
-    // identification for exactly those games.
+    // Covers and identification are requested for what is on screen.
     function requestVisible() {
         if (gameModel.count === 0)
             return
         if (page.viewMode === "list") {
-            var rowHeight = 46
+            var rowHeight = 72
             var firstRow = Math.max(0, Math.floor(gameList.contentY / rowHeight) - 1)
             var rows = Math.ceil(gameList.height / rowHeight) + 2
             bridge.requestRange(firstRow, Math.min(gameModel.count - 1, firstRow + rows))
             return
         }
-        // The wall is a Flow, so every card exists as soon as the list does:
-        // covers and identification are requested for the whole library at
-        // once rather than for a visible window.
+        // The wall is a Flow: every card exists, so ask for the whole library.
         bridge.requestRange(0, gameModel.count - 1)
     }
 
-    // Double clicking a card opens the per-game sheet: the only place where a
-    // DXVK build can be applied to that game.
-    function openDetail(key, name, path, platformLabel, direct3d, arch,
-                        statusText, statusKind, coverUrl) {
-        page.selectGame(key, name, path, platformLabel, direct3d, arch, statusText, statusKind)
+    function openDetail(key, name, path, platformLabel, direct3d, arch, statusText, statusKind, coverUrl) {
         gameSheet.gameKey = key
         gameSheet.gameName = name
         gameSheet.installPath = path
@@ -129,37 +95,6 @@ Item {
         gameSheet.statusKind = statusKind
         gameSheet.coverUrl = coverUrl
         gameSheet.open()
-    }
-
-    function selectGame(key, name, path, platformLabel, direct3d, arch, statusText, statusKind) {
-        page.selectedKey = key
-        detail.gameKey = key
-        detail.name = name
-        detail.path = path
-        detail.platform = platformLabel
-        detail.direct3d = direct3d
-        detail.arch = arch
-        detail.statusText = statusText
-        detail.statusKind = statusKind
-        bridge.detectGame(key)
-    }
-
-    // How many cards fit, and how wide each cell must be so that the columns
-    // share the leftover width evenly (no dead strip at the right edge).
-    function gridColumns(available) {
-        var usable = Math.max(0, available - Th.pad * 2)
-        return Math.max(1, Math.floor((usable + Th.gap) / (Th.cardWidth + Th.gap)))
-    }
-
-    function gridCellWidth(available) {
-        var usable = Math.max(0, available - Th.pad * 2)
-        return usable / gridColumns(available)
-    }
-
-    function setViewMode(mode) {
-        page.viewMode = mode
-        bridge.setSetting("games_view", mode)
-        Qt.callLater(page.requestVisible)
     }
 
     onViewModeChanged: Qt.callLater(page.requestVisible)
@@ -175,71 +110,57 @@ Item {
             page.dxtkCounts = bridge.dxtkCounts()
         }
         function onDetected(key, direct3d, arch) {
-            if (key === page.selectedKey) {
-                detail.direct3d = direct3d
-                detail.arch = arch
+            // Keep an open dialog in step with a detection that just finished.
+            if (gameSheet.visible && key === gameSheet.gameKey) {
+                gameSheet.direct3d = direct3d
+                gameSheet.arch = arch
             }
         }
     }
 
-    GameDetailDialog {
-        id: gameSheet
+    // A slim scroll bar with no full-height track.
+    component SlimBar: ScrollBar {
+        policy: ScrollBar.AsNeeded
+        width: 8
+        background: Item {}
+        contentItem: Rectangle {
+            implicitWidth: 6
+            radius: Th.radiusMicro
+            color: Th.borderStrong
+            opacity: parent.pressed ? 1.0 : 0.6
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+        }
+    }
+
+    // Toolbar buttons (text button and icon button) share one look.
+    component BarButton: Button {
+        id: bar
+        property bool primary: false
+        padding: 6
+        background: Rectangle {
+            radius: Th.radiusControl
+            color: bar.primary
+                 ? (bar.hovered ? Th.primaryHover : Th.primary)
+                 : (bar.hovered ? Th.surfaceHover : Th.surfaceAlt)
+        }
+        contentItem: Text {
+            text: bar.text
+            color: bar.primary ? Th.primaryText : Th.text
+            font.pixelSize: Th.fontSmall
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
     }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // --- top bar -----------------------------------------------------
+        // --- toolbar -----------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 52
             color: Th.surface
-
-            // Sits behind the controls: a click that misses every button counts
-            // as "clicked somewhere else" and closes the details bar.
-            MouseArea {
-                anchors.fill: parent
-                onClicked: page.clearSelection()
-            }
-
-            // Two groups of mutually exclusive buttons used to sit side by side
-            // with the same 4 px gap, so five buttons read as one control.
-            // Each group now lives in its own track, and the tracks are spaced.
-            component Track: Rectangle {
-                id: track
-                default property alias content: trackRow.data
-                implicitWidth: trackRow.implicitWidth + Th.space1
-                implicitHeight: trackRow.implicitHeight + Th.space1
-                radius: Th.radiusControl
-                color: Th.surfaceAlt
-                border.width: 1
-                border.color: Th.borderSubtle
-
-                Row {
-                    id: trackRow
-                    anchors.centerIn: parent
-                    spacing: 2
-                }
-            }
-
-            component Segment: Button {
-                padding: 6
-                checkable: true
-                background: Rectangle {
-                    radius: Th.radiusControl - 2
-                    color: parent.checked ? Th.accentDark
-                         : (parent.hovered ? Th.surfaceHover : "transparent")
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: parent.checked ? "#ffffff" : Th.textMuted
-                    font.pixelSize: Th.fontSmall
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
 
             RowLayout {
                 anchors.fill: parent
@@ -249,7 +170,7 @@ Item {
 
                 TextField {
                     id: search
-                    Layout.preferredWidth: 200
+                    Layout.preferredWidth: 220
                     Layout.alignment: Qt.AlignVCenter
                     placeholderText: "搜索游戏…"
                     color: Th.text
@@ -262,97 +183,36 @@ Item {
                         border.color: search.activeFocus ? Th.accent : Th.border
                         Behavior on border.color { ColorAnimation { duration: 120 } }
                     }
-                    onTextChanged: bridge.setFilter(text, page.filterPlatform, page.dxtkFilter)
+                    onTextChanged: page.applyFilters()
                 }
 
-                // --- platform --------------------------------------------------
-                Track {
+                BarButton {
                     Layout.alignment: Qt.AlignVCenter
-                    Repeater {
-                        model: page.platformOptions
-                        delegate: Segment {
-                            text: modelData.label + " " + modelData.count
-                            checked: page.filterPlatform === modelData.value
-                            onClicked: {
-                                page.filterPlatform = modelData.value
-                                bridge.setFilter(search.text, page.filterPlatform, page.dxtkFilter)
-                            }
-                        }
-                    }
+                    text: "▽ " + page.filterSummary()
+                    onClicked: filterSheet.open()
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // --- DXVK state ------------------------------------------------
-                Track {
+                BarButton {
                     Layout.alignment: Qt.AlignVCenter
-                    Repeater {
-                        model: [
-                            { value: "all", label: "全部" },
-                            { value: "patched", label: "已装 DXVK" },
-                            { value: "clean", label: "未装" }
-                        ]
-                        delegate: Segment {
-                            text: modelData.label + " " + page.dxtkCount(modelData.value)
-                            checked: page.dxtkFilter === modelData.value
-                            onClicked: page.setDxtkFilter(modelData.value)
-                        }
-                    }
-                }
-
-                // --- view mode ------------------------------------------------
-                Track {
-                    Layout.alignment: Qt.AlignVCenter
-                    Segment {
-                        text: "卡片"
-                        checked: page.viewMode === "grid"
-                        onClicked: page.setViewMode("grid")
-                    }
-                    Segment {
-                        text: "列表"
-                        checked: page.viewMode === "list"
-                        onClicked: page.setViewMode("list")
-                    }
-                }
-
-                Button {
-                    Layout.alignment: Qt.AlignVCenter
-                    text: "添加文件夹…"
-                    padding: 6
+                    text: "＋ 添加文件夹"
                     onClicked: bridge.addManualGame()
-                    background: Rectangle {
-                        radius: Th.radiusControl
-                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: Th.text
-                        font.pixelSize: Th.fontSmall
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
 
-                Button {
+                BarButton {
                     Layout.alignment: Qt.AlignVCenter
                     text: "扫描"
-                    padding: 6
-                    onClicked: { bridge.scanGames(); page.selectedKey = "" }
-                    background: Rectangle {
-                        radius: Th.radiusControl
-                        color: parent.hovered ? Th.primaryHover : Th.primary
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: Th.primaryText
-                        font.pixelSize: Th.fontSmall
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    primary: true
+                    onClicked: bridge.scanGames()
                 }
             }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Th.borderSubtle
         }
 
         // --- views -------------------------------------------------------
@@ -360,8 +220,8 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // A Flow inside a Flickable rather than a GridView: headings have
-            // to span the full width, which uniform grid cells cannot do.
+            // Card wall: a Flow, because section headings must span the row and
+            // uniform grid cells cannot do that.
             Flickable {
                 id: wall
                 objectName: "gameGrid"
@@ -390,12 +250,6 @@ Item {
                     }
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.RightButton
-                    onClicked: page.clearSelection()
-                }
-
                 Flow {
                     id: flow
                     objectName: "gameWall"
@@ -408,19 +262,9 @@ Item {
                         model: gameModel
 
                         delegate: Item {
-                            // Headings take the whole line, cards take a cell.
                             readonly property bool isHeader: model.gameKind === "header"
                             width: isHeader ? flow.width : Th.cardWidth
                             height: isHeader ? 44 : Th.cardHeight + Th.cardFooter
-
-                            Rectangle {
-                                visible: parent.isHeader
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 1
-                                color: Th.borderSubtle
-                            }
 
                             Text {
                                 visible: parent.isHeader
@@ -431,6 +275,15 @@ Item {
                                 color: Th.text
                                 font.pixelSize: Th.fontTitle
                                 font.bold: true
+                            }
+
+                            Rectangle {
+                                visible: parent.isHeader
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 1
+                                color: Th.borderSubtle
                             }
 
                             GameCard {
@@ -444,11 +297,11 @@ Item {
                                 statusText: model.statusText
                                 statusKind: model.statusKind
                                 coverUrl: model.coverUrl
-                                selected: page.selectedKey === model.gameKey
 
-                                onActivated: page.selectGame(model.gameKey, model.name, model.installPath,
+                                onActivated: page.openDetail(model.gameKey, model.name, model.installPath,
                                                              model.platformLabel, model.direct3d,
-                                                             model.arch, model.statusText, model.statusKind)
+                                                             model.arch, model.statusText, model.statusKind,
+                                                             model.coverUrl)
                                 onOpened: page.openDetail(model.gameKey, model.name, model.installPath,
                                                           model.platformLabel, model.direct3d, model.arch,
                                                           model.statusText, model.statusKind, model.coverUrl)
@@ -458,213 +311,189 @@ Item {
                 }
             }
 
-            // --- list view ------------------------------------------------
-            // Column headings, clickable to sort (name / platform / API / arch /
-            // installed state), with an arrow on the active column.
-            Rectangle {
-                id: listHeader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 32
-                color: Th.surface
-                visible: page.viewMode === "list"
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Th.pad
-                    anchors.rightMargin: Th.pad
-                    spacing: Th.space4
-
-                    Item { Layout.preferredWidth: 40 }
-
-                    SortHeader { Layout.fillWidth: true; label: "名称"; column: "name" }
-                    SortHeader { Layout.preferredWidth: 80; label: "平台"; column: "platform" }
-                    SortHeader { Layout.preferredWidth: 120; label: "Direct3D"; column: "direct3d" }
-                    SortHeader { Layout.preferredWidth: 56; label: "架构"; column: "arch" }
-                    SortHeader { Layout.preferredWidth: 110; label: "DXVK"; column: "dxtk" }
-                }
-            }
-
-            Rectangle {
-                id: listHeaderLine
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: listHeader.bottom
-                height: 1
-                color: Th.borderSubtle
-                visible: page.viewMode === "list"
-            }
-
+            // List: one rounded row per game, headings included.
             ListView {
                 id: gameList
                 objectName: "gameList"
-
-                TapHandler {
-                    onTapped: function (event) {
-                        var hit = gameList.itemAt(event.position.x + gameList.contentX,
-                                                  event.position.y + gameList.contentY)
-                        if (hit === null)
-                            page.clearSelection()
-                    }
-                }
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: listHeaderLine.bottom
-                anchors.bottom: parent.bottom
+                anchors.fill: parent
                 visible: page.viewMode === "list"
                 clip: true
                 model: gameModel
+                spacing: Th.space1
+                topMargin: Th.pad
+                bottomMargin: Th.pad
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: SlimBar {}
+
+                onContentYChanged: page.requestVisible()
+                onHeightChanged: page.requestVisible()
 
                 add: Transition {
                     NumberAnimation { property: "opacity"; from: 0; to: 1
                                       duration: 160; easing.type: Easing.OutCubic }
                 }
-                onContentYChanged: page.requestVisible()
-                onHeightChanged: page.requestVisible()
 
-            // Qt's default wheel step (60 px) crawls on a wall of cards; this
-            // scrolls by rows instead, and still honours touchpad pixel deltas.
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: function (event) {
-                    var step = 46 * 3
-                    var delta = event.pixelDelta.y !== 0
-                              ? event.pixelDelta.y * 2
-                              : (event.angleDelta.y / 120) * step
-                    var limit = Math.max(0, gameList.contentHeight - gameList.height)
-                    gameList.contentY = Math.max(0, Math.min(limit, gameList.contentY - delta))
-                    event.accepted = true
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: function (wheel) {
+                        var step = 64 * 2
+                        var delta = wheel.pixelDelta.y !== 0
+                                  ? wheel.pixelDelta.y * 2
+                                  : (wheel.angleDelta.y / 120) * step
+                        var limit = Math.max(0, gameList.contentHeight - gameList.height)
+                        gameList.contentY = Math.max(0, Math.min(limit, gameList.contentY - delta))
+                        wheel.accepted = true
+                    }
                 }
-            }
 
-                delegate: Rectangle {
-                    id: gameRow
-                    required property int index
+                delegate: Item {
+                    id: row
+                    required property string gameKind
                     required property string gameKey
                     required property string name
-                    required property string platform
                     required property string platformLabel
+                    required property string direct3d
+                    required property string arch
                     required property string statusText
                     required property string statusKind
                     required property string coverUrl
-                    required property string direct3d
-                    required property string arch
                     required property string installPath
 
+                    readonly property bool isHeader: row.gameKind === "header"
                     width: gameList.width
-                    height: 46
-                    color: page.selectedKey === gameKey
-                           ? Th.surfaceHover
-                           : (index % 2 === 0 ? Th.bg : Th.surface)
+                    height: row.isHeader ? 40 : 64
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
-
-                    // small cover thumbnail
-                    Rectangle {
-                        id: thumb
+                    // --- section heading ---------------------------------
+                    Text {
+                        visible: row.isHeader
                         anchors.left: parent.left
-                        anchors.leftMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 28
-                        height: 42
-                        radius: Th.radiusMicro
-                        color: Th.platformColor(gameRow.platform)
-                        clip: true
-
-                        Image {
-                            anchors.fill: parent
-                            source: gameRow.coverUrl
-                            asynchronous: true
-                            fillMode: Image.PreserveAspectCrop
-                            sourceSize.width: 56
-                            sourceSize.height: 84
-                            visible: status === Image.Ready
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: gameRow.name.substring(0, 1).toUpperCase()
-                            color: "#ffffff"
-                            font.pixelSize: Th.fontSubtitle
-                            font.bold: true
-                            visible: gameRow.coverUrl === ""
-                        }
+                        anchors.leftMargin: Th.pad
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: Th.space2
+                        text: row.isHeader ? row.name : ""
+                        color: Th.text
+                        font.pixelSize: Th.fontTitle
+                        font.bold: true
                     }
 
-                    // Columns line up across rows and the name absorbs the
-                    // slack; fixed widths left half the row empty on a wide
-                    // window.
-                    RowLayout {
-                        anchors.left: thumb.right
-                        anchors.leftMargin: Th.space3
+                    Rectangle {
+                        visible: row.isHeader
+                        anchors.left: parent.left
                         anchors.right: parent.right
+                        anchors.leftMargin: Th.pad
                         anchors.rightMargin: Th.pad
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Th.space4
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Th.borderSubtle
+                    }
 
-                        Text {
-                            Layout.fillWidth: true
-                            text: gameRow.name
-                            color: Th.text
-                            font.pixelSize: Th.fontBody
-                            elide: Text.ElideRight
+                    // --- one game ----------------------------------------
+                    Rectangle {
+                        id: card
+                        visible: !row.isHeader
+                        anchors.fill: parent
+                        anchors.leftMargin: Th.pad
+                        anchors.rightMargin: Th.pad
+                        radius: Th.radiusCard
+                        color: rowHover.containsMouse ? Th.surfaceHover : Th.surface
+
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        MouseArea {
+                            id: rowHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.openDetail(row.gameKey, row.name, row.installPath,
+                                                       row.platformLabel, row.direct3d, row.arch,
+                                                       row.statusText, row.statusKind, row.coverUrl)
                         }
 
-                        Text {
-                            Layout.preferredWidth: 80
-                            text: gameRow.platformLabel
-                            color: Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            elide: Text.ElideRight
-                        }
-
-                        Text {
-                            Layout.preferredWidth: 120
-                            text: gameRow.direct3d === ""
-                                  ? "识别中…"
-                                  : (gameRow.direct3d === "Unknown" ? "未知" : gameRow.direct3d)
-                            color: Th.textMuted
-                            font.pixelSize: Th.fontBody
-                            elide: Text.ElideRight
-                        }
-
-                        Text {
-                            Layout.preferredWidth: 56
-                            text: gameRow.arch !== "" ? gameRow.arch : "—"
-                            color: Th.textMuted
-                            font.pixelSize: Th.fontBody
-                        }
-
+                        // Circular cover thumbnail.
                         Rectangle {
-                            implicitWidth: rowStatus.implicitWidth + Th.space3
-                            implicitHeight: rowStatus.implicitHeight + Th.space2
-                            Layout.alignment: Qt.AlignVCenter
-                            radius: Th.radiusMicro
-                            color: Th.statusBg(gameRow.statusKind)
-                            border.width: 1
-                            border.color: Th.borderSubtle
+                            id: avatar
+                            width: 36
+                            height: 36
+                            radius: 18
+                            anchors.left: parent.left
+                            anchors.leftMargin: Th.space3
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Th.platformColor((row.platformLabel || "").toLowerCase())
+                            clip: true
 
+                            Image {
+                                anchors.fill: parent
+                                source: row.coverUrl
+                                asynchronous: true
+                                fillMode: Image.PreserveAspectCrop
+                                visible: status === Image.Ready
+                            }
                             Text {
-                                id: rowStatus
-                                x: (parent.width - width) / 2
-                                y: (parent.height - height) / 2
-                                text: gameRow.statusText
-                                color: Th.statusColor(gameRow.statusKind)
-                                font.pixelSize: Th.fontCaption
+                                anchors.centerIn: parent
+                                text: (row.name || "?").substring(0, 1).toUpperCase()
+                                color: "#ffffff"
+                                font.pixelSize: Th.fontSubtitle
+                                font.bold: true
+                                visible: row.coverUrl === ""
                             }
                         }
-                    }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: page.selectGame(gameRow.gameKey, gameRow.name, gameRow.installPath,
-                                                   gameRow.platformLabel, gameRow.direct3d,
-                                                   gameRow.arch, gameRow.statusText, gameRow.statusKind)
+                        Column {
+                            anchors.left: avatar.right
+                            anchors.leftMargin: Th.space3
+                            anchors.right: statusChip.left
+                            anchors.rightMargin: Th.space3
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 1
+
+                            Text {
+                                width: parent.width
+                                text: row.isHeader ? "" : row.name
+                                color: Th.text
+                                font.pixelSize: Th.fontBody
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                width: parent.width
+                                text: row.platformLabel + " · " +
+                                      (row.direct3d === "" ? "识别中…"
+                                       : (row.direct3d === "Unknown" ? "Direct3D 未知" : row.direct3d)) +
+                                      (row.arch !== "" ? " · " + row.arch : "")
+                                color: Th.textMuted
+                                font.pixelSize: Th.fontCaption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        StatusChip {
+                            id: statusChip
+                            fixedWidth: true
+                            text: row.statusText
+                            kind: row.statusKind
+                            anchors.right: detailButton.left
+                            anchors.rightMargin: Th.space2
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        BarButton {
+                            id: detailButton
+                            text: "详情"
+                            anchors.right: folderButton.left
+                            anchors.rightMargin: Th.space2
+                            anchors.verticalCenter: parent.verticalCenter
+                            onClicked: page.openDetail(row.gameKey, row.name, row.installPath,
+                                                       row.platformLabel, row.direct3d, row.arch,
+                                                       row.statusText, row.statusKind, row.coverUrl)
+                        }
+
+                        BarButton {
+                            id: folderButton
+                            text: "打开目录"
+                            anchors.right: parent.right
+                            anchors.rightMargin: Th.space3
+                            anchors.verticalCenter: parent.verticalCenter
+                            onClicked: bridge.openFolder(row.installPath)
+                        }
                     }
                 }
             }
@@ -685,154 +514,40 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: "点「扫描」读取 Steam 库（含所有库文件夹），或「添加文件夹…」指定任意游戏目录。"
+                    text: "点「扫描」读取 Steam 库（含所有库文件夹），或「＋ 添加文件夹」指定任意游戏目录。"
                     color: Th.textMuted
                     font.pixelSize: Th.fontBody
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                 }
-                Button {
+                BarButton {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "开始扫描"
-                    padding: 8
+                    primary: true
                     onClicked: bridge.scanGames()
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.hovered ? Th.primaryHover : Th.primary }
-                    contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
-                }
-            }
-
-            // Right click anywhere in the list also closes the details bar.
-            // The overlay accepts no button but the right one, so it never
-            // interferes with clicking, hovering or scrolling the games.
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.RightButton
-                onClicked: page.clearSelection()
-            }
-        }
-
-        // --- details -----------------------------------------------------
-        Rectangle {
-            id: detail
-            objectName: "gameDetails"
-            Layout.fillWidth: true
-            // Sized by its content: a fixed height left a blank line under
-            // the last row of text.
-            Layout.preferredHeight: detail.gameKey !== ""
-                                   ? detailBody.implicitHeight + Th.space5
-                                   : 0
-            visible: detail.gameKey !== ""
-            color: Th.surface
-
-            property string gameKey: ""
-            property string name: ""
-            property string path: ""
-            property string platform: ""
-            property string direct3d: ""
-            property string arch: ""
-            property string statusText: ""
-            property string statusKind: "muted"
-
-            ColumnLayout {
-                id: detailBody
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Th.space3
-                spacing: Th.space1
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Th.space3
-
-                    Text {
-                        text: detail.name
-                        color: Th.text
-                        font.pixelSize: Th.fontSubtitle
-                        font.bold: true
-                        elide: Text.ElideRight
-                        Layout.maximumWidth: 420
-                    }
-                    // A status chip: without a stroke and real padding the
-                    // label read as part of the game title.
-                    // Sized via implicitWidth/implicitHeight and positioned with
-                    // x/y: centring the label with anchors while the parent's
-                    // width depended on the label's implicit width was a binding
-                    // loop, and Qt broke it - the chip collapsed to 12 px.
-                    Rectangle {
-                        implicitWidth: statusLabel.implicitWidth + Th.space3
-                        implicitHeight: statusLabel.implicitHeight + Th.space2
-                        radius: Th.radiusMicro
-                        color: Th.statusBg(detail.statusKind)
-                        border.width: 1
-                        border.color: detail.statusKind === "ok" ? Th.ok
-                                      : (detail.statusKind === "warn" ? Th.warn
-                                         : (detail.statusKind === "error" ? Th.error : Th.border))
-                        Text {
-                            id: statusLabel
-                            x: (parent.width - width) / 2
-                            y: (parent.height - height) / 2
-                            text: detail.statusText
-                            color: Th.statusColor(detail.statusKind)
-                            font.pixelSize: Th.fontCaption
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Button {
-                        text: "打开目录"
-                        onClicked: bridge.openFolder(detail.path)
-                        background: Rectangle { radius: Th.radiusSmall
-                                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                                                Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter }
-                    }
-                    Button {
-                        text: "移除 DXVK"
-                        onClicked: bridge.removeDxvk(detail.gameKey)
-                        background: Rectangle { radius: Th.radiusSmall
-                                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                                                Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter }
-                    }
-                    Button {
-                        text: "还原原始 DLL"
-                        onClicked: bridge.restoreGame(detail.gameKey)
-                        background: Rectangle { radius: Th.radiusSmall
-                                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
-                                                Behavior on color { ColorAnimation { duration: 120 } } }
-                        contentItem: Text { text: parent.text; color: Th.text; font.pixelSize: Th.fontBody
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "路径：" + detail.path
-                    color: Th.textMuted
-                    font.pixelSize: Th.fontCaption
-                    elide: Text.ElideMiddle
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: "平台：" + detail.platform +
-                          "    Direct3D：" + (detail.direct3d === "" ? "识别中…"
-                                            : (detail.direct3d === "Unknown" ? "未知" : detail.direct3d)) +
-                          "    架构：" + (detail.arch ? detail.arch : "识别中…")
-                    color: Th.textMuted
-                    font.pixelSize: Th.fontCaption
                 }
             }
         }
+    }
+
+    FilterSheet {
+        id: filterSheet
+        dxtkFilter: page.dxtkFilter
+        platformFilter: page.filterPlatform
+        platformOptions: page.platformOptions
+        dxtkCounts: page.dxtkCounts
+        viewMode: page.viewMode
+        sortKey: gameModel.sortKey
+        sortDescending: gameModel.sortDescending
+
+        onDxtkChosen: (value) => page.setDxtkFilter(value)
+        onPlatformChosen: (value) => page.setPlatform(value)
+        onViewChosen: (mode) => page.setViewMode(mode)
+        onSortChosen: (key) => bridge.setSort(key)
+        onOrderChosen: (descending) => bridge.setSortDescending(descending)
+    }
+
+    GameDetailDialog {
+        id: gameSheet
     }
 }

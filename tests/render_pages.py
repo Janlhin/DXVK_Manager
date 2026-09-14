@@ -16,7 +16,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_QUICK_BACKEND"] = "software"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PySide6.QtCore import QObject, QUrl  # noqa: E402
+from PySide6.QtCore import QMetaObject, QObject, QUrl  # noqa: E402
 from PySide6.QtGui import QFontDatabase  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 from PySide6.QtQuickControls2 import QQuickStyle  # noqa: E402
@@ -77,17 +77,34 @@ def main() -> int:
     pump(6)                                # let detection and covers settle
 
     # Fill the details panel with a sample so it shows up in the capture.
-    detail = window.findChild(QObject, "gameDetails")
-    if detail is not None:
-        detail.setProperty("gameKey", "sample")
-        detail.setProperty("name", "Call of Duty: Modern Warfare")
-        detail.setProperty("path", r"D:\SteamLibrary\steamapps\common\Call of Duty Modern Warfare")
-        detail.setProperty("platform", "Steam")
-        detail.setProperty("direct3d", "Direct3D 12")
-        detail.setProperty("arch", "x64")
-        detail.setProperty("statusText", "未安装")
-        detail.setProperty("statusKind", "muted")
-        pump(1.0)
+    # The bottom details bar is gone; the per-game dialog is what matters now.
+    sheet = window.findChild(QObject, "gameDetailDialog")
+    if sheet is not None:
+        first = None
+        for key in bridge.model.keys():
+            row = bridge.model.row(key) or {}
+            if row.get("gameKind") != "header":
+                first = row
+                break
+        if first:
+            window.setProperty("currentPage", 0)
+            pump(0.5)
+            sheet.setProperty("gameKey", first.get("key") or "sample")
+            sheet.setProperty("gameName", first.get("name") or "Sample")
+            sheet.setProperty("installPath", first.get("installPath") or "")
+            sheet.setProperty("platformLabel", first.get("platformLabel") or "")
+            sheet.setProperty("direct3d", first.get("direct3d") or "Direct3D 11")
+            sheet.setProperty("arch", first.get("arch") or "x64")
+            sheet.setProperty("statusText", first.get("statusText") or "未安装")
+            sheet.setProperty("statusKind", first.get("statusKind") or "muted")
+            sheet.setProperty("coverUrl", first.get("coverUrl") or "")
+            QMetaObject.invokeMethod(sheet, "open")
+            pump(1.5)
+            target = out_dir / "game-dialog.png"
+            window.grabWindow().save(str(target))
+            print(f"{'game-dialog':<12} -> {target}")
+            QMetaObject.invokeMethod(sheet, "close")
+            pump(0.6)
 
     # The version list is fetched on demand; trigger it so the page has rows.
     window.setProperty("currentPage", 1)
@@ -107,7 +124,6 @@ def main() -> int:
         print(f"{name:<12} -> {target}")
 
     # The config preview dialog is new code and worth looking at.
-    from PySide6.QtCore import QMetaObject
     dialog = window.findChild(QObject, "previewDialog")
     if dialog is not None:
         window.setProperty("currentPage", 2)
@@ -124,7 +140,7 @@ def main() -> int:
     grid = window.findChild(QObject, "gameGrid")
     if grid is not None:
         window.setProperty("currentPage", 0)
-        grid.parent().setProperty("viewMode", "list")
+        grid_page.setProperty("viewMode", "list")
         pump(2.0)
         window.grabWindow()
         pump(0.8)

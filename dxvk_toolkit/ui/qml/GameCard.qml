@@ -148,24 +148,15 @@ Item {
                 anchors.rightMargin: Th.space2
             }
 
-            Rectangle {
+            // Same badge component as the list and the dialog.
+            StatusChip {
                 id: badge
                 anchors.right: parent.right
                 anchors.rightMargin: Th.space2
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Th.space2 - 2
-                radius: Th.radiusMicro
-                color: Th.statusBg(card.statusKind)
-                implicitWidth: badgeText.implicitWidth + Th.space2
-                implicitHeight: badgeText.implicitHeight + Th.space1
-                Text {
-                    id: badgeText
-                    x: (parent.width - width) / 2
-                    y: (parent.height - height) / 2
-                    text: card.statusText
-                    color: Th.statusColor(card.statusKind)
-                    font.pixelSize: Th.fontMicro
-                }
+                text: card.statusText
+                kind: card.statusKind
             }
         }
 
