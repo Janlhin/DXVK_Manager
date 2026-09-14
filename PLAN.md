@@ -1014,68 +1014,83 @@ TapHandler {
 
 ---
 
-## 17. 【用户新提·记】QML 版缺「把 dxvk.conf 写入游戏目录」
+## 18. 【架构评估】配置子系统能否分离成独立模块（用户问）
 
-> 用户对比第一版后指出，并要求「记」——本条只记录，不做。
+> 用户原话：「代码层面会不会有点太烂了 不够原子化 我可能未来把配置文件编写分离出去」
+> 以下为只读体检结果 + 拆分方案。**本节只评估，不动代码。**
 
-### 17.1 第一版有、QML 版没有
+### 18.1 体检数据（实测，非感觉）
 
-| | 第一版（Tk） | QML 版 |
+| 指标 | 数值 | 评价 |
 | --- | --- | --- |
-| 复制到剪贴板 | ✅ | ✅ |
-| 导出到任意位置 | ✅ | ✅ |
-| **写入指定游戏目录** | ✅ `gui/tab_config.py:404 write_to_game()` | ❌ **没有** |
-| 记住上次写入的游戏 | ✅ `self.target_game_dir` | ❌ |
+| `confspec.py` | **719 行** | 混杂 5 种职责（见 18.2/18.3） |
+| `confbuild.py` | 84 行 | **零 settings 依赖、零 Qt、纯函数** —— 已是可直接搬走的模块 |
+| `ui/bridge.py` | **780 行、42 个 Slot、11 个 Signal** | 上帝对象：扫描/版本/安装/配置/设置/封面/中文名全在一个类 |
+| `ui/models.py` | 641 行（两个模型挤一起） | 应拆 |
+| `gui/`（旧 Tk） | 约 2900 行仍在包里 | 死重量，分离时应移出 |
 
-### 17.2 核心能力其实已经存在
+### 18.2 好消息：分离的"骨架"是对的
 
-`dxvk_toolkit/installer.py:394`：
+* **confspec/confbuild 完全不 import Qt** —— 只用 stdlib + 少量内部模块；
+* **两个前端（Tk 与 QML）已经共用同一套核心** —— 这是分离可行性的最有力证明：
+  一套 `confspec + confbuild` 同时服务了两个完全不同的界面；
+* `confbuild.py` 纯净到**可以原样搬走**。
 
-```python
-def write_conf(game_dir, text, name="dxvk.conf") -> Path:
-    """Write a dxvk.conf next to the game executable."""
-    root = Path(game_dir); root.mkdir(parents=True, exist_ok=True)
-    target = root / name
-    target.write_text(text, encoding="utf-8", newline="\r\n")
-    ledger.record(root, conf_written=..., conf_path=str(target))
-    invalidate(root)
-    return target
+### 18.3 坏消息：confspec 混了 5 种职责，3 处硬耦合
+
+| 职责 | 证据（行号） | 属于哪层 |
+| --- | --- | --- |
+| ① 数据模型 | `Member L260 / OptionGroup L311 / ConfModel L433` | 应属于独立库 |
+| ② 解析器 | `parse_conf_text` 及配套纯函数 | 应属于独立库 |
+| ③ **产品策展** | `BASIC_KEYS L30 / LEGACY_KEYS L57 / GPLASYNC_ONLY L82 / PURPOSE L112 / _FORK_CONF L602` | "本工具认为哪些选项重要"，**不该进独立库** |
+| ④ **i18n** | `documentation_overrides / label_overrides` 读 `settings.get("docs_language")`（L179/L207） | **读应用设置 = 硬耦合** |
+| ⑤ **IO/资产** | `from .sources import list_installed`、`reference_conf` | **把网络/下载层拖进配置模块的 import 图** |
+
+**结论**：①②可以走；③④⑤把"配置文件编写"和"这个应用"焊死了。你要分离，卡点就是这三处。
+
+### 18.4 拆分方案：抽出 `confkit` 子包
+
+```
+dxvk_toolkit/confkit/            ← 只依赖 stdlib，可整体拷走独立发布
+    __init__.py                  # 对外 API：load_model / build_conf / parse_config_values / tier_of
+    model.py                     # Member / OptionGroup / ConfModel（纯数据类）
+    parse.py                     # parse_conf_text / _infer_type / _clean_value（纯函数）
+    build.py                     # build_conf / format_value（现在就纯净，原样搬）
+    importer.py                  # parse_config_values（读回用户的 conf）
+    i18n.py                      # 说明/标签加载 —— 接收 lang 参数，不读 settings
+    curate.py                    # BASIC_KEYS / PURPOSE / GPLASYNC_ONLY —— 默认策展，允许宿主覆盖
 ```
 
-**所以这只是界面缺口**：核心写文件、记入账本、让状态缓存失效，都已经做好了。
+**四条边界规则（成败在此）**：
 
-### 17.3 方案
+1. `confkit` **不得 import** `paths / settings / sources / net` —— 只用 stdlib；
+2. 语言、资产路径**由调用方传入**：`load_model(path)`（已有）、`documentation_overrides(lang="zh")`（改造点）；
+3. "获取最新参考 conf"这个**联网动作留在应用层**（app 下载好后把路径喂给 confkit）；
+4. 策展通过**参数注入**，宿主可整套替换。
 
-配置页预览区按钮从 `[复制] [保存为文件…]` 改为 `[复制] [写入游戏…] [保存为文件…]`：
+### 18.5 bridge 上帝对象（顺带记，非前置条件）
 
-```
-┌ dxvk.conf 预览 ─────────────── [复制] [写入游戏…] [保存为文件…] ┐
-```
+42 个 Slot 说明每个功能都往一个类里塞。方向：`games_controller / versions_controller / config_controller`。
+**注意：bridge 可以烂着，confkit 照样干净** —— 不必为拆 confkit 而先拆 bridge。
 
-点「写入游戏…」→ 弹出游戏选择（**复用第 10 节的 `bridge.gameOptions()`**，不新造轮子）
-→ 选中后 `bridge.writeConfToGame(key)` → `installer.write_conf()` → 状态栏提示 `已写入 <路径>`。
+### 18.6 建议的执行顺序（重排 17 条待办）
 
-| 细节 | 处理 |
+| 阶段 | 内容 | 理由 |
+| --- | --- | --- |
+| ① | P0 小修：#5 弹层空白、#9 识别中、#12 徽标 | 不碰 conf 模块，零风险 |
+| ② | **confkit 抽取** + #16 导出注释 + #17 写入游戏 | #16/#17 本来就要动 build —— **在新模块里做，一步到位** |
+| ③ | 界面版型批：#8/13/14 列表与筛选面板、#15 删详情栏 | 纯 QML |
+| ④ | 版本库批：#4 自动加载、#10 卡片详情 | 纯 QML + 少量 bridge |
+| ⑤ | bridge 拆分（可选，最后） | 风险最大，等一切稳定 |
+
+### 18.7 工作量
+
+| 项 | 量 |
 | --- | --- |
-| 目标目录已有 dxvk.conf | **先备份为 `dxvk.conf.bkp`**（`write_conf` 目前**不备份**，需补 3 行；与 installer 的 `.bkp` 约定一致） |
-| 目录不存在 | `write_conf` 会 `mkdir(parents=True)` —— 保持 |
-| 该游戏未安装 DXVK | 允许写入（dxvk.conf 只在有 DXVK 时被读取，但写了无害） |
-| 离线模式 | **允许**（纯本地写文件，不联网） |
-| 写完后 | 刷新游戏状态（`installer.invalidate` 已处理），并在预览区显示"将写入：<目录>" |
+| confkit 抽取（i18n 参数化 + sources 依赖反转） | ~1 天当量（搬移 + 改调用点 + 补测试） |
+| 其中纯搬移（model/parse/build） | 半天，行为零变化 |
+| bridge 拆分 | 另计 ~半天，可推迟 |
 
-### 17.4 改动量
+### 18.8 一句话回答
 
-| 文件 | 改动 | 量 |
-| --- | --- | --- |
-| `installer.py` | `write_conf` 增加覆盖前备份 | ~5 行 |
-| `ui/bridge.py` | 新增 `writeConfToGame(key)` + `gameOptions()`（与第 10 节共用） | ~20 行 |
-| `ui/qml/ConfigPage.qml` | 预览区加「写入游戏…」按钮 + 游戏选择弹窗（可复用第 10 节的 `FilterSheet` 式面板） | ~50 行 |
-
-### 17.5 验证方法
-
-1. 配置页勾几个选项 → 点「写入游戏…」→ 选游戏 → 状态栏显示写入路径
-2. 打开该游戏目录：`dxvk.conf` 内容与预览**一致**（CRLF 换行）
-3. 再次写入：原文件被备份为 `dxvk.conf.bkp`
-4. 游戏状态刷新（若该游戏已装 DXVK，配置项生效）
-5. 离线模式下同样可用
-6. 冒烟测试 PASS
+**"烂不烂"**：核心/UI 的分离是真的（两个前端共核已验证）；但 `confspec` 是 719 行、混 5 种职责、带 3 处应用耦合的大文件 —— **要分离必须先做 18.4 的抽取**。好消息：`confbuild` 已纯净到可直接搬，真正要改的只有 i18n 参数化和 sources 依赖反转两处。
