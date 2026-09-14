@@ -532,3 +532,85 @@ delegate: Rectangle {
   * `src/Data/GameGroup.cs`、`src/Data/DLLRecord.cs`（数据模型）
   * `src/UserControls/ListGridViewTemplateSelector.cs`（视图切换）
 * 备用 CDN（国内可达）：`https://cdn.jsdelivr.net/gh/beeradmoore/dlss-swapper@main/<路径>`
+
+---
+
+## 12. 【用户新提】列表里"已装 DXVK / 未安装"太难看
+
+> 用户原话：「列表栏的已装 安装太难看了」
+
+### 12.1 现状与三个根因（`GamesPage.qml:641-658`）
+
+```qml
+Rectangle {
+    implicitWidth: rowStatus.implicitWidth + Th.space3     // ← 宽度随文字变
+    implicitHeight: rowStatus.implicitHeight + Th.space2
+    radius: Th.radiusMicro
+    color: Th.statusBg(gameRow.statusKind)                 // muted → surfaceAlt（≈行底色）
+    border.width: 1
+    border.color: Th.borderSubtle                          // ← 状态是绿/红时边框仍是灰
+    Text { color: Th.statusColor(gameRow.statusKind); font.pixelSize: Th.fontCaption }
+}
+```
+
+| # | 问题 | 后果 |
+| --- | --- | --- |
+| 1 | `muted` 状态底色 = `surfaceAlt`、边框 = `borderSubtle` | **"未安装"几乎看不见**，像一行飘着的灰字 |
+| 2 | 宽度按文字长度自适应 | 两种徽标宽度不同 → **左边缘参差**，列不对齐 |
+| 3 | 边框颜色与状态色无关 | 绿字 + 绿底 + 灰边 → 发闷，不像徽标 |
+| 4 | 字号 12（`fontCaption`），行内其他文字 15 | 同一行内字号跳变 |
+
+### 12.2 修法：抽一个统一的 StatusChip
+
+三处（列表状态列 / 底部详情栏 / 卡片角标）现在各写一套，合并为**一个内联组件**：
+
+```qml
+component StatusChip: Rectangle {
+    property string text: ""
+    property string kind: "muted"      // ok | warn | error | muted
+    property bool wide: true           // 列表用固定宽，卡片用自适应
+
+    implicitWidth: wide ? 96 : label.implicitWidth + Th.space3
+    implicitHeight: label.implicitHeight + Th.space2
+    radius: Th.radiusControl           // 6，全项目统一
+    color: Th.statusBg(kind)           // 15% 透明度底
+    border.width: 1
+    border.color: kind === "ok" ? Th.ok
+                : kind === "warn" ? Th.warn
+                : kind === "error" ? Th.error
+                : Th.borderStrong      // ← muted 也要看得见
+    Text {
+        id: label
+        anchors.centerIn: parent
+        text: parent.text
+        color: kind === "muted" ? Th.textMuted : Th.statusColor(kind)
+        font.pixelSize: Th.fontCaption
+    }
+}
+```
+
+| 元素 | 规格 | 理由 |
+| --- | --- | --- |
+| 圆角 | 6 | 全项目唯一值 |
+| 内边距 | 横 8 / 纵 4 | 与 Track 内边距一致 |
+| 底色 | `statusBg(kind)` | 15% 同色透明底 |
+| 描边 | **跟随状态色**；`muted` 用 `borderStrong` | 让"未安装"也能看见 |
+| 文字 | 12px；`muted` 用 `textMuted`（不再是 `textDim`） | 可读性 |
+| 列表宽度 | **固定 96**，文字居中 | 列对齐，不再参差 |
+| 卡片角标 | 自适应宽（`wide: false`） | 卡片只有 168px |
+
+### 12.3 影响范围与验证
+
+| 位置 | 改动 |
+| --- | --- |
+| 列表状态列 | 换用 `StatusChip { wide: true }` |
+| 底部详情栏 | 换用 `StatusChip { wide: false }` |
+| 卡片角标 | 换用 `StatusChip { wide: false }` |
+
+**验证**：
+1. 列表里"已装 DXVK"与"未安装"两个徽标**左右边缘对齐、宽度一致**
+2. "未安装"有可见的灰色描边与淡底，不再是飘着的灰字
+3. 卡片角标、详情栏徽标、列表徽标**样式一致**（同圆角、同内边距、同字号）
+4. 1600 / 1280 宽度渲染自查；烟雾测试 PASS
+
+**改动量**：约 40 行（新增组件 30 行，三处替换 10 行）。
