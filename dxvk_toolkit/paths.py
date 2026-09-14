@@ -27,6 +27,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # Documentation language: "zh" uses the bundled translation, "en" the raw
     # DXVK comments.
     "docs_language": "zh",
+    # Write the documentation above each option in the generated dxvk.conf
+    # (the reference file does the same, and the original configurator did too).
+    "conf_comments": True,
     "keep_archive": False,
     # "auto" tries GitHub first and then mirrors, "official" never uses a
     # mirror, "mirror:<prefix>" pins one.

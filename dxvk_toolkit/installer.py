@@ -392,10 +392,19 @@ def remove_dxvk(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = N
 
 
 def write_conf(game_dir: str | os.PathLike[str], text: str, name: str = CONF_NAME) -> Path:
-    """Write a dxvk.conf next to the game executable."""
+    """Write a dxvk.conf next to the game executable.
+
+    An existing file is kept as <name>.bkp first: the user's own tweaks are
+    worth more than the convenience of overwriting silently.
+    """
     root = Path(game_dir)
     root.mkdir(parents=True, exist_ok=True)
     target = root / name
+    if target.is_file():
+        try:
+            shutil.copy2(target, target.with_suffix(target.suffix + ".bkp"))
+        except OSError as exc:
+            log.debug("could not back up %s: %s", target, exc)
     target.write_text(text, encoding="utf-8", newline="\r\n")
     ledger.record(root, conf_written=time.strftime("%Y-%m-%d %H:%M:%S"), conf_path=str(target))
     invalidate(root)

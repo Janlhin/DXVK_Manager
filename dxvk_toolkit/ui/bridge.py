@@ -145,8 +145,11 @@ class Bridge(QObject):
             return info
 
         def done(info: dict[str, str]) -> None:
-            direct3d = str(info.get("direct3d") or "")
-            arch = str(info.get("arch") or "")
+            # Detection is finished, so an empty result becomes a sentinel:
+            # "" means "not looked at yet" and the interface shows 识别中…,
+            # which used to be shown forever for games without runtime DLLs.
+            direct3d = str(info.get("direct3d") or "") or "Unknown"
+            arch = str(info.get("arch") or "") or "—"
             self.model.update(key, direct3d=direct3d, arch=arch)
             self.detected.emit(key, direct3d, arch)
 
@@ -400,7 +403,10 @@ class Bridge(QObject):
         if model is None:
             return "# 还没有载入参考文件\n"
         text = confbuild.build_conf(
-            model.groups, self.config.values, section_order=model.section_order
+            model.groups,
+            self.config.values,
+            section_order=model.section_order,
+            comments=bool(settings.get("conf_comments", True)),
         )
         return text
 
@@ -436,6 +442,34 @@ class Bridge(QObject):
             summary += f"，另有 {len(unknown)} 个选项不在参考文件里（已忽略）"
         self.statusMessage.emit(summary, "ok")
         return summary
+
+    @Slot(result="QVariant")
+    def gameOptions(self) -> Any:  # noqa: N802 - QML naming
+        """Games that a dxvk.conf can be written to, for the pickers."""
+        options = [
+            {"key": game.key, "label": game.name, "path": str(game.install_dir)}
+            for game in self._games.values()
+            if game.exists
+        ]
+        options.sort(key=lambda item: item["label"].lower())
+        return options
+
+    @Slot(str, result=str)
+    def writeConfToGame(self, key: str) -> str:  # noqa: N802
+        """Write the generated dxvk.conf next to one game's executable."""
+        game = self._games.get(key)
+        if game is None:
+            self.statusMessage.emit("找不到这款游戏，请先扫描游戏库", "warn")
+            return ""
+        text = self.previewConfig()
+        try:
+            path = installer.write_conf(game.install_dir, text)
+        except OSError as exc:
+            self.statusMessage.emit(f"写入失败：{exc}", "error")
+            return ""
+        self.statusMessage.emit(f"已写入 {path}", "ok")
+        self._refresh_one(game)
+        return str(path)
 
     @Slot()
     def copyConfig(self) -> None:  # noqa: N802
@@ -713,8 +747,9 @@ class Bridge(QObject):
                     continue
                 # The signal is queued to the interface thread, so the model
                 # is only ever touched from there.
-                self.detected.emit(game.key, str(info.get("direct3d") or ""),
-                                   str(info.get("arch") or ""))
+                self.detected.emit(game.key,
+                                   str(info.get("direct3d") or "") or "Unknown",
+                                   str(info.get("arch") or "") or "—")
                 done += 1
             steam.flush_detect_cache()
             return done

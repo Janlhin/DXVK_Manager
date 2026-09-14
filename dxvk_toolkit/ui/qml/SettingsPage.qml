@@ -110,7 +110,9 @@ Item {
                 delegate: ItemDelegate {
                     width: combo.width - Th.space2
                     contentItem: Text {
-                        text: modelData
+                        // Object models (the download source list) carry a label
+                        // field; a plain string list has modelData itself.
+                        text: combo.textRole ? model[combo.textRole] : modelData
                         color: Th.text
                         font.pixelSize: Th.fontSmall
                         verticalAlignment: Text.AlignVCenter
@@ -329,6 +331,38 @@ Item {
                             font.pixelSize: Th.fontCaption
                             elide: Text.ElideRight
                         }
+                    }
+                }
+            }
+
+            // --- generated config file -------------------------------------
+            Card {
+                height: 92
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 8
+
+                    Item {
+                        width: parent.width
+                        height: 28
+
+                        SectionTitle {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "导出的 dxvk.conf"
+                        }
+                        DarkSwitch {
+                            id: commentsSwitch
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            checked: bridge.getSetting("conf_comments") === true
+                            onToggled: bridge.setSetting("conf_comments", checked)
+                        }
+                    }
+                    Hint {
+                        width: parent.width
+                        text: "开启后每个选项上方会写入中文说明（与原版工具一致）；关闭则只输出选项本身。预览与导出使用同一份内容。"
                     }
                 }
             }

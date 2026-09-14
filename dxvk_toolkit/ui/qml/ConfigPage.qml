@@ -530,6 +530,24 @@ Item {
                 }
 
                 Button {
+                    text: "写入游戏…"
+                    padding: 6
+                    onClicked: gamePicker.open()
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.text
+                        font.pixelSize: Th.fontCaption
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                Button {
                     text: "保存为文件…"
                     padding: 6
                     onClicked: bridge.exportConfig()
@@ -594,6 +612,121 @@ Item {
                 font.pixelSize: Th.fontSmall
                 selectByMouse: true
                 background: Rectangle { color: Th.surface }
+            }
+        }
+    }
+
+    // --- pick a game to write dxvk.conf into ------------------------------
+    Dialog {
+        id: gamePicker
+        objectName: "gamePicker"
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(page.width - 120, 560)
+        height: Math.min(page.height - 120, 520)
+        padding: 0
+
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        background: Rectangle {
+            color: Th.surface
+            radius: Th.radiusPanel
+            border.width: 1
+            border.color: Th.borderStrong
+        }
+
+        header: Item {
+            height: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "把 dxvk.conf 写入哪个游戏？"
+                color: Th.text
+                font.pixelSize: Th.fontTitle
+                font.bold: true
+            }
+        }
+
+        contentItem: ListView {
+            id: pickerList
+            clip: true
+            model: gamePicker.visible ? bridge.gameOptions() : []
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            delegate: Rectangle {
+                width: pickerList.width
+                height: 54
+                color: pickHover.containsMouse ? Th.surfaceHover : "transparent"
+
+                MouseArea {
+                    id: pickHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        bridge.writeConfToGame(modelData.key)
+                        gamePicker.close()
+                    }
+                }
+
+                Column {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Th.space4
+                    anchors.right: parent.right
+                    anchors.rightMargin: Th.space4
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 1
+
+                    Text {
+                        width: parent.width
+                        text: modelData.label
+                        color: Th.text
+                        font.pixelSize: Th.fontBody
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        text: modelData.path
+                        color: Th.textDim
+                        font.pixelSize: Th.fontCaption
+                        elide: Text.ElideMiddle
+                    }
+                }
+            }
+        }
+
+        footer: Item {
+            height: 48
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "写入前会把已有的 dxvk.conf 备份为 .bkp"
+                color: Th.textDim
+                font.pixelSize: Th.fontCaption
+            }
+
+            Button {
+                anchors.right: parent.right
+                anchors.rightMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "关闭"
+                padding: 6
+                onClicked: gamePicker.close()
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: Th.textMuted
+                    font.pixelSize: Th.fontCaption
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
         }
     }

@@ -158,17 +158,21 @@ class ConfSpecTests(unittest.TestCase):
         model = confspec.build_model(
             "# Some option\n# more docs\n# dxvk.hud = \"fps\"\n\nd3d9.maxFrameRate = 0\n"
         )
-        self.assertEqual(len(model.groups), 2)
-        hud = model.groups[0]
+        # build_model appends the GPLAsync-only options to every model, so the
+        # count has to ignore them.
+        own = [g for g in model.groups if g.key not in confspec.GPLASYNC_ONLY]
+        self.assertEqual(len(own), 2)
+        hud = own[0]
         self.assertEqual(hud.key, "hud")
         self.assertEqual(hud.type, "string")
         self.assertIn("more docs", hud.description())
-        self.assertEqual(model.groups[1].type, "number")
+        self.assertEqual(own[1].type, "number")
 
     def test_alias_consolidation(self) -> None:
         model = confspec.build_model("[dxvk]\ndxvk.syncInterval = 1\n[dxgi]\ndxgi.syncInterval = 1\n")
-        self.assertEqual(len(model.groups), 1)
-        self.assertEqual(len(model.groups[0].members), 2)
+        own = [g for g in model.groups if g.key not in confspec.GPLASYNC_ONLY]
+        self.assertEqual(len(own), 1)
+        self.assertEqual(len(own[0].members), 2)
 
 
 class SteamTests(unittest.TestCase):
