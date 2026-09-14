@@ -15,7 +15,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from .. import APP_VERSION, confbuild, confspec, covers, installer, sources, steam
+from .. import APP_VERSION, confbuild, confspec, covers, installer, net, sources, steam
 from ..paths import data_root, settings
 from ..util import log
 from .models import ConfigListModel, GameListModel, status_for
@@ -252,10 +252,40 @@ class Bridge(QObject):
         return ""
 
     # -- versions --------------------------------------------------------
-    @Slot(str)
-    def loadVersions(self, kind: str = "dxvk") -> None:
+    # Refreshed in the background once the cached list is older than this.
+    CACHE_TTL_SECONDS = 6 * 3600
+
+    @Slot(str, bool)
+    def loadVersions(self, kind: str = "dxvk", force: bool = False) -> None:
+        """Show the cached list at once, then refresh it when it is stale.
+
+        Switching between 官方 DXVK and DXVK-GPLAsync used to leave the list
+        empty until 刷新列表 was pressed; now the cache appears immediately and
+        a stale one is refreshed silently.
+        """
+        cached = sources.cached_releases(kind)
+        if cached and not force:
+            self.versionsReady.emit(
+                {
+                    "kind": kind,
+                    "releases": [release.to_dict() for release in cached],
+                    "installed": sources.list_installed(kind),
+                    "cached": True,
+                }
+            )
+
+        if not force and cached and sources.cache_age(kind) < self.CACHE_TTL_SECONDS:
+            return
+        if net.offline():
+            if not cached:
+                self.statusMessage.emit("离线模式：本地还没有版本缓存", "warn")
+            else:
+                self.statusMessage.emit("离线模式：使用本地版本缓存", "info")
+            return
+        if force:
+            self.statusMessage.emit("正在强制刷新版本列表…", "info")
+
         self._set_busy(True)
-        self.statusMessage.emit("正在获取版本列表…", "info")
 
         def work() -> dict[str, Any]:
             releases = (
@@ -274,6 +304,13 @@ class Bridge(QObject):
             self._set_busy(False)
 
         self._submit(work, done, "获取版本列表失败")
+
+    @Slot(str, str, result=str)
+    def releaseUrl(self, kind: str, version: str) -> str:  # noqa: N802
+        """Upstream page for one version, for the detail panel's link."""
+        if kind == "gplasync":
+            return "https://gitlab.com/Ph42oN/dxvk-gplasync/-/releases"
+        return f"https://github.com/doitsujin/dxvk/releases/tag/{version}"
 
     @Slot(str, str)
     def downloadVersion(self, kind: str, version: str) -> None:

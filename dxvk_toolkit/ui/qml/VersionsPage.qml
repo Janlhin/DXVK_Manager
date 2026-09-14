@@ -3,52 +3,81 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "theme.js" as Th
 
+// Version library: version cards on the left, the selected version's details on
+// the right. The list loads itself - cache first, refreshed in the background -
+// so switching between 官方 DXVK and DXVK-GPLAsync never leaves an empty screen
+// waiting for a manual refresh.
 Item {
     id: page
     objectName: "versionsPage"
 
     property string kind: "dxvk"
     property bool loading: false
+    property var selected: null
+    property var installedHere: []
+    property var gameChoices: []
+    property string chosenGame: ""
 
-    ListModel { id: releaseModel; objectName: "releaseModel" }
-    ListModel { id: localModel }
+    readonly property real panelWidth: Math.max(320, Math.min(420, width * 0.28))
 
-    function reload() {
-        releaseModel.clear()
-        page.loading = true
-        bridge.loadVersions(page.kind)
+    function chooseKind(value) {
+        if (page.kind === value)
+            return
+        page.kind = value
+        page.selected = null
+        bridge.loadLocalVersions()
+        bridge.loadVersions(value, false)
     }
+
+    function reload(force) {
+        page.loading = true
+        bridge.loadVersions(page.kind, force)
+    }
+
+    Component.onCompleted: {
+        page.gameChoices = bridge.gameOptions()
+        bridge.loadLocalVersions()
+        bridge.loadVersions(page.kind, false)
+    }
+
+    // Returning to the page shows the cache at once; the bridge refreshes a
+    // stale cache in the background.
+    onVisibleChanged: if (visible) bridge.loadVersions(page.kind, false)
 
     Connections {
         target: bridge
-        ignoreUnknownSignals: true
+
         function onVersionsReady(payload) {
-            page.loading = false
             if (payload.kind !== page.kind)
                 return
+            page.loading = false
+            page.installedHere = payload.installed || []
             releaseModel.clear()
             var releases = payload.releases || []
             for (var i = 0; i < releases.length; i++) {
                 var r = releases[i]
                 releaseModel.append({
                     version: r.version,
-                    label: r.label,
                     date: r.date,
                     size: r.size,
-                    summary: r.summary || "",
                     notes: r.notes || "",
+                    summary: r.summary || "",
                     kindZh: r.kindZh || "",
-                    installed: (payload.installed || []).indexOf(
+                    installed: page.installedHere.indexOf(
                         page.kind === "gplasync" ? r.version.replace(/^v/, "") : r.version) !== -1
                 })
             }
         }
+
         function onLocalVersionsReady(payload) {
-            localModel.clear()
-            var list = (payload[page.kind] || [])
-            for (var i = 0; i < list.length; i++)
-                localModel.append({ version: list[i] })
+            page.installedHere = payload[page.kind] || []
+            for (var i = 0; i < releaseModel.count; i++) {
+                var row = releaseModel.get(i)
+                var name = page.kind === "gplasync" ? row.version.replace(/^v/, "") : row.version
+                releaseModel.setProperty(i, "installed", page.installedHere.indexOf(name) !== -1)
+            }
         }
+
         function onProgressChanged(fraction, label) {
             progress.visible = fraction >= 0
             progress.value = fraction >= 0 ? fraction : 0
@@ -56,29 +85,11 @@ Item {
         }
     }
 
-    Component.onCompleted: bridge.loadLocalVersions()
-
-    DarkTip {
-        id: versionTip
-        property var row: null
-        function show(target) {
-            if (!target || target.notes === "")
-                return
-            body = target.kindZh + " · " + target.version + "\n\n" + target.notes
-            open()
-            var point = target.mapToItem(page, target.width * 0.25, target.height)
-            x = Math.max(Th.space4, Math.min(point.x, page.width - width - Th.space4))
-            y = Math.max(Th.space4, Math.min(point.y + Th.space1, page.height - height - Th.space4))
-        }
-        function hide() { close() }
-    }
-
     ColumnLayout {
-        id: column
-        objectName: "versionsColumn"
         anchors.fill: parent
         spacing: 0
 
+        // --- toolbar -----------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 52
@@ -88,286 +99,481 @@ Item {
                 anchors.fill: parent
                 anchors.leftMargin: Th.pad
                 anchors.rightMargin: Th.pad
-                spacing: 8
+                spacing: Th.space3
 
-                Button {
-                    text: "官方 DXVK"
-                    checkable: true
-                    checked: page.kind === "dxvk"
-                    onClicked: { page.kind = "dxvk"; bridge.loadLocalVersions() }
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.checked ? Th.accentDark
-                                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt) }
-                    contentItem: Text { text: parent.text; color: parent.checked ? "#ffffff" : Th.textMuted
-                                        font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
-                }
-                Button {
-                    text: "DXVK-GPLAsync"
-                    checkable: true
-                    checked: page.kind === "gplasync"
-                    onClicked: { page.kind = "gplasync"; bridge.loadLocalVersions() }
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.checked ? Th.accentDark
-                                                 : (parent.hovered ? Th.surfaceHover : Th.surfaceAlt) }
-                    contentItem: Text { text: parent.text; color: parent.checked ? "#ffffff" : Th.textMuted
-                                        font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
+                Track {
+                    Layout.alignment: Qt.AlignVCenter
+                    Segment {
+                        text: "官方 DXVK"
+                        checked: page.kind === "dxvk"
+                        onClicked: page.chooseKind("dxvk")
+                    }
+                    Segment {
+                        text: "DXVK-GPLAsync"
+                        checked: page.kind === "gplasync"
+                        onClicked: page.chooseKind("gplasync")
+                    }
                 }
 
                 Item { Layout.fillWidth: true }
 
                 Text {
-                    text: "已下载 " + localModel.count + " 个"
-                    color: Th.textMuted
-                    font.pixelSize: Th.fontBody
+                    Layout.alignment: Qt.AlignVCenter
+                    text: page.installedHere.length > 0
+                          ? "已下载 " + page.installedHere.length + " 个"
+                          : "还没有下载版本"
+                    color: page.installedHere.length > 0 ? Th.ok : Th.textMuted
+                    font.pixelSize: Th.fontCaption
                 }
 
-                Button {
-                    text: page.loading ? "获取中…" : "刷新列表"
-                    padding: 8
-                    enabled: !page.loading
-                    onClicked: page.reload()
-                    background: Rectangle { radius: Th.radiusSmall
-                                            color: parent.hovered ? Th.primaryHover : Th.primary }
-                    contentItem: Text { text: parent.text; color: Th.primaryText; font.bold: true
-                                        font.pixelSize: Th.fontBody
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter }
+                BarButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    text: page.loading ? "获取中…" : "强制刷新"
+                    onClicked: page.reload(true)
                 }
             }
         }
 
         Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Th.borderSubtle
+        }
+
+        // --- cards and details -------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                GridView {
+                    id: grid
+                    objectName: "versionsList"
+                    anchors.fill: parent
+                    anchors.margins: Th.pad
+                    clip: true
+                    cellWidth: 232
+                    cellHeight: 116
+                    model: releaseModel
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                    delegate: Rectangle {
+                        id: versionCard
+                        required property int index
+                        required property string version
+                        required property string date
+                        required property int size
+                        required property bool installed
+                        required property string summary
+                        required property string notes
+                        required property string kindZh
+
+                        readonly property bool active: page.selected !== null
+                                                       && page.selected.version === versionCard.version
+
+                        width: 220
+                        height: 104
+                        radius: Th.radiusCard
+                        color: cardHover.containsMouse ? Th.surfaceHover : Th.surface
+                        border.width: 1
+                        border.color: active ? Th.accent
+                                             : (cardHover.containsMouse ? Th.borderStrong : Th.borderSubtle)
+
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        MouseArea {
+                            id: cardHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.selected = {
+                                "version": versionCard.version,
+                                "date": versionCard.date,
+                                "size": versionCard.size,
+                                "installed": versionCard.installed,
+                                "notes": versionCard.notes,
+                                "kindZh": versionCard.kindZh
+                            }
+                        }
+
+                        Column {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: Th.space3
+                            spacing: Th.space1
+
+                            Row {
+                                spacing: Th.space2
+
+                                Text {
+                                    text: versionCard.version
+                                    color: Th.text
+                                    font.pixelSize: Th.fontSubtitle
+                                    font.bold: true
+                                }
+                                StatusChip {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: versionCard.kindZh !== ""
+                                    text: versionCard.kindZh
+                                    kind: "muted"
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: versionCard.summary !== "" ? versionCard.summary : "（官方未提供说明）"
+                                color: Th.textDim
+                                font.pixelSize: Th.fontCaption
+                                elide: Text.ElideRight
+                                maximumLineCount: 2
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Row {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: Th.space3
+                            anchors.rightMargin: Th.space3
+                            anchors.bottomMargin: Th.space2
+                            spacing: Th.space2
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (versionCard.date ? versionCard.date : "-") +
+                                      (versionCard.size ? "   " + (versionCard.size / 1048576).toFixed(1) + " MB" : "")
+                                color: Th.textMuted
+                                font.pixelSize: Th.fontMicro
+                            }
+
+                            Item { width: 1; height: 1 }
+
+                            StatusChip {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: versionCard.installed
+                                text: "已下载"
+                                kind: "ok"
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 80, 620)
+                    spacing: 12
+                    visible: releaseModel.count === 0
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: page.loading ? "正在获取版本列表…" : "还没有版本列表"
+                        color: Th.text
+                        font.pixelSize: Th.fontTitle
+                        font.bold: true
+                    }
+                    Text {
+                        width: parent.width
+                        text: page.loading
+                              ? "首次获取需要联网；之后会立即显示本地缓存。"
+                              : "点「强制刷新」从官方源获取；已下载的版本在本地，离线也能用。"
+                        color: Th.textMuted
+                        font.pixelSize: Th.fontBody
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.fillHeight: true
+                color: Th.borderSubtle
+            }
+
+            // --- detail panel --------------------------------------------
+            Item {
+                Layout.preferredWidth: page.panelWidth
+                Layout.fillHeight: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Th.surface
+
+                    Text {
+                        anchors.centerIn: parent
+                        width: parent.width - Th.space6
+                        visible: page.selected === null
+                        text: "点一个版本卡片，这里显示它的完整更新说明与操作"
+                        color: Th.textDim
+                        font.pixelSize: Th.fontBody
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                    }
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Th.space4
+                        spacing: Th.space3
+                        visible: page.selected !== null
+
+                        Row {
+                            spacing: Th.space2
+
+                            Text {
+                                text: page.selected ? page.selected.version : ""
+                                color: Th.text
+                                font.pixelSize: Th.fontHeading
+                                font.bold: true
+                            }
+                            StatusChip {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: page.selected && page.selected.kindZh !== ""
+                                text: page.selected ? page.selected.kindZh : ""
+                                kind: "muted"
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: page.selected
+                                  ? ((page.selected.date || "-") + "   ·   " +
+                                     (page.selected.size ? (page.selected.size / 1048576).toFixed(1) + " MB" : "-") +
+                                     (page.selected.installed ? "   ·   已下载到本地" : ""))
+                                  : ""
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontCaption
+                        }
+
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
+
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 220
+                            clip: true
+                            contentWidth: width
+                            contentHeight: notesText.height
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            Text {
+                                id: notesText
+                                width: parent.width
+                                text: page.selected ? page.selected.notes : ""
+                                color: Th.text
+                                font.pixelSize: Th.fontSmall
+                                lineHeight: 1.3
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Th.space2
+
+                            BarButton {
+                                text: page.selected && page.selected.installed ? "重新下载" : "下载"
+                                primary: true
+                                enabled: page.selected !== null
+                                onClicked: bridge.downloadVersion(page.kind, page.selected.version)
+                            }
+                            BarButton {
+                                text: "复制链接"
+                                enabled: page.selected !== null
+                                onClicked: bridge.copyText(
+                                    bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
+                            }
+                            BarButton {
+                                text: "Release 页"
+                                enabled: page.selected !== null
+                                onClicked: bridge.openUrl(
+                                    bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
+                            }
+                        }
+
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
+
+                        Text {
+                            text: "直接应用到游戏"
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontCaption
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Th.space2
+
+                            ComboBox {
+                                id: gamePicker
+                                Layout.fillWidth: true
+                                implicitHeight: 30
+                                font.pixelSize: Th.fontSmall
+                                model: page.gameChoices
+                                textRole: "label"
+                                valueRole: "key"
+                                onActivated: page.chosenGame = currentValue
+
+                                background: Rectangle {
+                                    radius: Th.radiusControl
+                                    color: Th.surfaceAlt
+                                    border.width: 1
+                                    border.color: gamePicker.activeFocus ? Th.accent : Th.border
+                                }
+                                contentItem: Text {
+                                    leftPadding: Th.space3
+                                    text: page.chosenGame === "" ? "选择游戏…" : gamePicker.displayText
+                                    color: page.chosenGame === "" ? Th.textDim : Th.text
+                                    font.pixelSize: Th.fontSmall
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+                                indicator: Text {
+                                    x: gamePicker.width - width - Th.space2
+                                    y: (gamePicker.height - height) / 2
+                                    text: "▾"
+                                    color: Th.textMuted
+                                    font.pixelSize: Th.fontSmall
+                                }
+                                popup: Popup {
+                                    y: gamePicker.height + Th.space1
+                                    width: gamePicker.width
+                                    implicitHeight: Math.min(contentItem.implicitHeight + Th.space2, 260)
+                                    padding: Th.space1
+                                    background: Rectangle {
+                                        radius: Th.radiusControl
+                                        color: Th.surfaceAlt
+                                        border.width: 1
+                                        border.color: Th.borderStrong
+                                    }
+                                    contentItem: ListView {
+                                        implicitHeight: contentHeight
+                                        model: gamePicker.popup.visible ? gamePicker.delegateModel : null
+                                        clip: true
+                                        delegate: ItemDelegate {
+                                            width: gamePicker.width - Th.space2
+                                            contentItem: Text {
+                                                text: modelData.label
+                                                color: Th.text
+                                                font.pixelSize: Th.fontSmall
+                                                verticalAlignment: Text.AlignVCenter
+                                                elide: Text.ElideRight
+                                            }
+                                            background: Rectangle {
+                                                radius: Th.radiusControl - 2
+                                                color: parent.hovered ? Th.surfaceHover : "transparent"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            BarButton {
+                                text: "应用"
+                                primary: true
+                                enabled: page.chosenGame !== "" && page.selected !== null
+                                onClicked: bridge.installDxvk(page.chosenGame, page.kind,
+                                                              page.selected.version)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- download progress -------------------------------------------
+        Rectangle {
             id: progress
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 26 : 0
-            color: Th.surfaceAlt
+            Layout.preferredHeight: visible ? 28 : 0
+            color: Th.surface
             visible: false
-            property string label: ""
+
             property real value: 0
+            property string label: ""
 
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top
-                anchors.bottom: parent.bottom
+                height: 2
                 width: parent.width * Math.max(0, Math.min(1, progress.value))
-                color: Th.accentDark
+                color: Th.accent
             }
             Text {
-                anchors.centerIn: parent
-                text: parent.label
-                color: Th.text
+                anchors.left: parent.left
+                anchors.leftMargin: Th.pad
+                anchors.verticalCenter: parent.verticalCenter
+                text: "下载中…  " + progress.label
+                color: Th.textMuted
                 font.pixelSize: Th.fontCaption
             }
         }
+    }
 
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+    // --- shared toolbar pieces (same shapes as the games page) -----------
+    component Track: Rectangle {
+        id: track
+        default property alias content: trackRow.data
+        implicitWidth: trackRow.implicitWidth + Th.space1
+        implicitHeight: trackRow.implicitHeight + Th.space1
+        radius: Th.radiusControl
+        color: Th.surfaceAlt
+        border.width: 1
+        border.color: Th.borderSubtle
 
-            GridView {
-            id: list
-            objectName: "versionsList"
-            cellWidth: 232
-            cellHeight: 116
-            leftMargin: Th.pad
-            rightMargin: Th.pad
-            topMargin: Th.pad
-            bottomMargin: Th.pad
-            anchors.fill: parent
-            clip: true
-            model: releaseModel
-            ScrollBar.vertical: ScrollBar {
-            policy: ScrollBar.AsNeeded
-            width: 8
-            background: Item {}
-            contentItem: Rectangle {
-                implicitWidth: 6
-                radius: Th.radiusMicro
-                color: Th.borderStrong
-                opacity: parent.pressed ? 1.0 : 0.6
-            }
+        Row {
+            id: trackRow
+            anchors.centerIn: parent
+            spacing: 2
         }
+    }
 
-            add: Transition {
-                NumberAnimation { property: "opacity"; from: 0; to: 1
-                                  duration: 200; easing.type: Easing.OutCubic }
-            }
-
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: function (event) {
-                    var delta = event.pixelDelta.y !== 0
-                              ? event.pixelDelta.y * 2
-                              : (event.angleDelta.y / 120) * 54 * 3
-                    var limit = Math.max(0, list.contentHeight - list.height)
-                    list.contentY = Math.max(0, Math.min(limit, list.contentY - delta))
-                    event.accepted = true
-                }
-            }
-
-            delegate: Rectangle {
-                id: versionCard
-
-                required property int index
-                required property string version
-                required property string label
-                required property string date
-                required property int size
-                required property bool installed
-                required property string summary
-                required property string notes
-                required property string kindZh
-
-                width: 220
-                height: 104
-                radius: Th.radiusCard
-                color: cardHover.containsMouse ? Th.surfaceHover : Th.surface
-                border.width: 1
-                border.color: cardHover.containsMouse ? Th.borderStrong : Th.borderSubtle
-
-                Behavior on color { ColorAnimation { duration: 120 } }
-
-                MouseArea {
-                    id: cardHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                    onEntered: versionTip.show(versionCard)
-                    onExited: versionTip.hide()
-                }
-
-                Column {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Th.space3
-                    spacing: Th.space1
-
-                    Row {
-                        spacing: Th.space2
-
-                        Text {
-                            text: versionCard.version
-                            color: Th.text
-                            font.pixelSize: Th.fontSubtitle
-                            font.bold: true
-                        }
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: versionCard.kindZh !== ""
-                            radius: Th.radiusMicro
-                            color: Th.surfaceHover
-                            implicitWidth: cardKind.implicitWidth + Th.space2
-                            implicitHeight: cardKind.implicitHeight + 2
-                            Text {
-                                id: cardKind
-                                x: (parent.width - width) / 2
-                                y: (parent.height - height) / 2
-                                text: versionCard.kindZh
-                                color: Th.textMuted
-                                font.pixelSize: Th.fontMicro
-                            }
-                        }
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: versionCard.summary !== "" ? versionCard.summary : "（官方未提供说明）"
-                        color: Th.textDim
-                        font.pixelSize: Th.fontCaption
-                        elide: Text.ElideRight
-                        maximumLineCount: 2
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: Th.space3
-                    anchors.rightMargin: Th.space3
-                    anchors.bottomMargin: Th.space2
-                    spacing: Th.space2
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (versionCard.date ? versionCard.date : "-") +
-                              (versionCard.size ? "   " + (versionCard.size / 1048576).toFixed(1) + " MB" : "")
-                        color: Th.textMuted
-                        font.pixelSize: Th.fontMicro
-                    }
-
-                    Item { width: 1; height: 1 }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: versionCard.installed
-                        radius: Th.radiusMicro
-                        color: Th.statusBg("ok")
-                        border.width: 1
-                        border.color: Th.ok
-                        implicitWidth: cardInstalled.implicitWidth + Th.space2
-                        implicitHeight: cardInstalled.implicitHeight + 2
-                        Text {
-                            id: cardInstalled
-                            x: (parent.width - width) / 2
-                            y: (parent.height - height) / 2
-                            text: "已下载"
-                            color: Th.ok
-                            font.pixelSize: Th.fontMicro
-                        }
-                    }
-
-                    Button {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: versionCard.installed ? "重新下载" : "下载"
-                        padding: 4
-                        onClicked: bridge.downloadVersion(page.kind, versionCard.version)
-                        background: Rectangle {
-                            radius: Th.radiusControl
-                            color: parent.hovered ? Th.primaryHover : Th.primary
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: Th.primaryText
-                            font.pixelSize: Th.fontMicro
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                }
-            }
+    component Segment: Button {
+        id: seg
+        padding: 6
+        checkable: true
+        background: Rectangle {
+            radius: Th.radiusControl - 2
+            color: seg.checked ? Th.accentDark : (seg.hovered ? Th.surfaceHover : "transparent")
+            Behavior on color { ColorAnimation { duration: 120 } }
         }
-
-            // Empty state floats above the list, so the two never fight over
-            // the layout's height (which squeezed the list to a few pixels).
-            Column {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 80, 620)
-                spacing: 12
-                visible: releaseModel.count === 0
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: page.loading ? "正在获取版本列表…" : "还没有版本列表"
-                    color: Th.text
-                    font.pixelSize: Th.fontTitle
-                    font.bold: true
-                }
-                Text {
-                    width: parent.width
-                    text: "点「刷新列表」从官方源获取（这是唯一需要联网的操作）。已下载的版本在本地，离线也能用。"
-                    color: Th.textMuted
-                    font.pixelSize: Th.fontBody
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                }
-            }
+        contentItem: Text {
+            text: seg.text
+            color: seg.checked ? "#ffffff" : Th.textMuted
+            font.pixelSize: Th.fontSmall
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
         }
+    }
+
+    component BarButton: Button {
+        id: bar
+        property bool primary: false
+        padding: 6
+        opacity: enabled ? 1.0 : 0.45
+        background: Rectangle {
+            radius: Th.radiusControl
+            color: bar.primary
+                 ? (bar.hovered ? Th.primaryHover : Th.primary)
+                 : (bar.hovered ? Th.surfaceHover : Th.surfaceAlt)
+        }
+        contentItem: Text {
+            text: bar.text
+            color: bar.primary ? Th.primaryText : Th.text
+            font.pixelSize: Th.fontSmall
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+    }
+
+    ListModel {
+        id: releaseModel
+        objectName: "releaseModel"
     }
 }
