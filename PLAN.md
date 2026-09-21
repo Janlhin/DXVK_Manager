@@ -1601,3 +1601,61 @@ A 留给以后要「任意圆角/圆角动画」的场景。
 * 批量改写作者：`git filter-repo --mail-map`，或 `git rebase -i --exec "git commit --amend --no-edit --author=..."`；
 * 或者压成一个「初始提交」，作者写真实身份（代价：丢掉 58 条开发过程记录）；
 * 若只是想让 GitHub 上的头像正确，也可保留历史、仅设置全局身份，之后的提交即为本人。
+
+---
+
+## 31. 仓库瘦身：哪些冗余可以移出（2026-09-21 盘点）
+
+> 用户要求：「哪些冗余可以转移出的 希望仓库够简洁」。**本条只登记，未执行。**
+> 现状：**85 个文件 / 745.8 KB**（准确统计，`git ls-files -z`）。
+
+### 31.1 A 类：建议移出（收益最大）
+
+**① 第一版 Tk 界面 —— 12 个文件 / 125 KB（占 17%）**
+
+| 文件 | 体积 |
+| --- | --- |
+| `dxvk_toolkit/gui/` 全部 10 个（tab_games 30.5、tab_config 20.5、tab_settings 13.6、widgets 13.3、covergrid 12.8、tab_versions 10.5、theme 7.2、app 7.0、tasks 5.1、__init__ 0.1）| 120.5 KB |
+| `启动-第一版.bat` | 0.9 KB |
+| `tests/gui_smoke.py` | 3.7 KB |
+
+已被 QML 界面取代，留着等于**两套界面并存**。移出后 `main.py` 的 `--ui tk` 分支一并清理。
+
+**② 开发过程文档 —— 8 个文件 / 133.7 KB（占 18%）**
+
+| 文件 | 体积 |
+| --- | --- |
+| `PLAN.md` | **77.8 KB**（仓库最大文件，本文档） |
+| `TODO.md` | 21.7 KB |
+| `CONFIG-PAGE-SPEC.md` / `SPEC.md` / `LAYOUT-SPEC.md` / `VERSIONS-PAGE-SPEC.md` / `LIST-VIEW-SPEC.md` / `DESIGN.md` | 34.2 KB |
+
+属于开发过程产物，使用者不需要。**仓库外的 `01_Projects/dxvk-manager/docs/` 是现成的去处**（分析文档与截图已在那里）。
+
+### 31.2 B 类：可移出（小收益）
+
+`tests/profile_ui.py`、`tests/nav_diag.py`、`tests/capture_shots.py`（共 7 KB）——调试期一次性工具。
+⚠️ `tests/render_pages.py`（5.8 KB）**保留**，README 加截图要用它。
+
+### 31.3 C 类：不要动
+
+| 项 | 理由 |
+| --- | --- |
+| `assets/dxvk.conf`（29.6 KB）| 运行必需的参考文件 |
+| `tests/golden/*`（39.5 KB，13 份）| 回归基准，是"简洁但可靠"的本钱 |
+| `dxvk_toolkit/{bridge,models}.py`、`confkit/` | 代码本体 |
+| README / LICENSE / THIRD_PARTY_NOTICES | 门面 |
+
+### 31.4 瘦身效果
+
+```
+现在        85 文件 / 746 KB   根目录 16 个（其中 8 个是开发文档）
+移出 ①      73 文件 / 621 KB
+再移出 ②    65 文件 / 487 KB   根目录剩 8 个
+再移出 B    62 文件 / 480 KB   ← 比现在少 36%
+```
+
+### 31.5 执行前要确认
+
+1. **Tk 界面真的不要了？** 移出后就没有退路了（除非从 git 历史里取回）。
+2. **开发文档移到哪**：仓库外 `dxvk-manager/docs/`（最干净）还是仓库内 `docs/dev/`（保留 git 历史）？
+3. 移出用 `git mv` + 目录外保留，还是直接 `git rm`？
