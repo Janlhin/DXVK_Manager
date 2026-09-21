@@ -156,8 +156,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--d3d", default="")
     parser.add_argument("--force-backup", action="store_true")
     parser.add_argument("--limit", type=int, default=0, help="limit --versions output")
-    parser.add_argument("--ui", choices=("qml", "tk"), default="qml",
-                        help="which interface to start (default: qml)")
     parser.add_argument("--reference", help="dxvk.conf used by --gen-conf")
     parser.add_argument("--set", action="append", metavar="KEY=VALUE",
                         help="option for --gen-conf (repeatable)")
@@ -188,11 +186,6 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_status(args)
     if args.gen_conf:
         return cmd_gen_conf(args)
-
-    if args.ui == "tk":
-        from .gui.app import run as run_tk
-
-        return run_tk()
 
     from .ui.app_qml import run as run_qml
 
