@@ -20,7 +20,7 @@
 | T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | 待裁决 | 场景分组+作用域+已改清单 |
 | T14 | UI：注释开关入配置页（§29） | feat | — | 低 | 待裁决 | 配置页直接选 |
 | T15 | 英文版 i18n（§28） | feat | — | 高 | 待裁决 | qsTr / 字典路线 |
-| T16 | 作者身份改写（公开前） | chore | — | 低 | 待裁决（公开前） | `git filter-repo` 或压初始提交 |
+| T16 | 作者身份改写（公开前） | chore | — | 低 | ✅ 已完成 | git-filter-repo 改写 77 个提交：`agent@local` → `Janlhin <72262030+Janlhin@users.noreply.github.com>`；备份在 `dxvk-version-manager-py-backup-20261009-182318`；本地 git config 已设；待 force push（需 token 刷新） |
 | T17 | node-app / web-configurator 处置 | chore | — | 低 | 待裁决 | 维持外部参考 / 或明确排除 |
 | T18 | 核心层测试覆盖率（build/model/parse round-trip） | test | — | 中 | ✅ 已建（本次） | `tests/test_build.py` 15 例全绿；纳入 `verify` 门禁；push 后 CI 跑绿 |
 
