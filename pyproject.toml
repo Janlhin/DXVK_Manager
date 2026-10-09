@@ -1,0 +1,19 @@
+# 开发工具配置（不影响运行时；运行时仍为纯标准库 + PySide6/Pillow）
+# 见 MANIFEST.md 与 requirements-dev.txt
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+python_files = ["test_*.py"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]  # 行宽由 line-length 管理，不在基线期强制
+
+[tool.ruff.lint.isort]
+known-first-party = ["dxvk_toolkit"]

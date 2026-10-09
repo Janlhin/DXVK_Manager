@@ -5,3 +5,11 @@ __pycache__/
 
 # Local data / logs
 *.log
+
+# Dev tooling caches
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
