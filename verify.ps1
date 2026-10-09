@@ -2,6 +2,8 @@
 $ErrorActionPreference = 'Stop'
 Write-Host '== ruff: 静态检查（零警告）=='
 py -3 -m ruff check .
+Write-Host '== pyright: 类型检查（basic 模式）=='
+py -3 -m pyright --warnings
 Write-Host '== pytest: 核心 + 金标准 + 边界校验 + 构建层（纯标准库套件）=='
 py -3 -m pytest tests/test_core.py tests/test_conf_golden.py tests/test_validate.py tests/test_build.py -q
-Write-Host 'verify: ruff + tests OK'
+Write-Host 'verify: ruff + pyright + tests OK'

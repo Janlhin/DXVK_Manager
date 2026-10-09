@@ -183,7 +183,7 @@ def guess_main_executable(game_dir: str | os.PathLike[str]) -> tuple[Path | None
     helpers are skipped; the biggest remaining candidate wins, which matches
     how games are laid out in practice.
     """
-    candidates: list[tuple[int, int, Path]] = []
+    candidates: list[tuple[int, int, Path, int]] = []
     for index, exe in enumerate(iter_executables(game_dir)):
         lowered = exe.name.lower()
         if any(pattern in lowered for pattern in _EXE_SKIP_PATTERNS):
@@ -197,7 +197,7 @@ def guess_main_executable(game_dir: str | os.PathLike[str]) -> tuple[Path | None
         except ValueError:
             depth = 0
         arch_rank = 0 if pe_machine(exe) else 1
-        candidates.append((depth, arch_rank, exe, size))  # type: ignore[arg-type]
+        candidates.append((depth, arch_rank, exe, size))
     if not candidates:
         # Fall back to any executable at all.
         for exe in iter_executables(game_dir, max_depth=1):

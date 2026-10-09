@@ -3,6 +3,8 @@
 set -euo pipefail
 echo "== ruff: 静态检查（零警告）=="
 python -m ruff check .
+echo "== pyright: 类型检查（basic 模式）=="
+python -m pyright --warnings
 echo "== pytest: 核心 + 金标准 + 边界校验 + 构建层（纯标准库套件）=="
 python -m pytest tests/test_core.py tests/test_conf_golden.py tests/test_validate.py tests/test_build.py -q
-echo "verify: ruff + tests OK"
+echo "verify: ruff + pyright + tests OK"

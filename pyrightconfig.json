@@ -1,0 +1,11 @@
+{
+  "include": ["dxvk_toolkit", "tests"],
+  "exclude": ["**/__pycache__", "**/.venv", "**/.pytest_cache"],
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": "none",
+  "reportMissingImports": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "pythonVersion": "3.10",
+  "venvPath": ".",
+  "venv": ".venv"
+}
