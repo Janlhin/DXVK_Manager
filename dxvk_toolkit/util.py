@@ -244,7 +244,7 @@ def file_buffer(path: str | os.PathLike[str], threshold: int = 8_000_000) -> Ite
 
 
 def pe_imports(
-    path: str | os.PathLike[str], max_names: int = 512, max_bytes: int = 0
+    path: str | os.PathLike[str], max_names: int = 512
 ) -> list[str]:
     """Lower-cased DLL names this PE image imports.
 

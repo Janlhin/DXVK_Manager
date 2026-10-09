@@ -17,7 +17,6 @@ Item {
     // Pre-sliced, top-rounded card artwork (§22 scheme B). The grid delegate
     // must pass model.coverCardUrl here; the Image below binds exactly this.
     property string coverCardUrl: ""
-    property bool selected: false
 
     signal activated()
     signal opened()
@@ -53,9 +52,9 @@ Item {
         anchors.fill: parent
         radius: Th.radiusCard
         color: hover.hovered ? Th.surfaceHover : Th.surfaceRaised
-        // 不再常驻 1px 描边：靠表面色区分卡片与背景，只在与交互态出现描边
-        border.width: card.selected || hover.hovered ? 1 : 0
-        border.color: card.selected ? Th.accent : Th.borderStrong
+        // 不再常驻 1px 描边：靠表面色区分卡片与背景，只在悬停时出现描边
+        border.width: hover.hovered ? 1 : 0
+        border.color: Th.borderStrong
         clip: true
         transformOrigin: Item.Center
         scale: hover.hovered ? 1.035 : 1.0

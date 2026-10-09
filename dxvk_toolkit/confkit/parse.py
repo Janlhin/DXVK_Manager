@@ -93,9 +93,6 @@ def parse_conf_text(text: str) -> tuple[dict[str, list[Member]], list[Member], l
             # Blank lines keep the pending comment block alive on purpose.
             continue
 
-            pending_comments, pending_raw = [], []
-            last_comments, last_raw = [], []
-
     validate_model_counts(len(section_order), len(ordered))
     return sections, ordered, section_order
 
