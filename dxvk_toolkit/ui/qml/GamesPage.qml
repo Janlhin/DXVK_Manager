@@ -297,6 +297,7 @@ Item {
                                 statusText: model.statusText
                                 statusKind: model.statusKind
                                 coverUrl: model.coverUrl
+                                coverCardUrl: model.coverCardUrl
 
                                 onActivated: page.openDetail(model.gameKey, model.name, model.installPath,
                                                              model.platformLabel, model.direct3d,

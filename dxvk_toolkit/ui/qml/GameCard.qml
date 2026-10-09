@@ -14,6 +14,9 @@ Item {
     property string statusText: ""
     property string statusKind: "muted"
     property string coverUrl: ""
+    // Pre-sliced, top-rounded card artwork (§22 scheme B). The grid delegate
+    // must pass model.coverCardUrl here; the Image below binds exactly this.
+    property string coverCardUrl: ""
     property bool selected: false
 
     signal activated()
@@ -69,6 +72,11 @@ Item {
             width: parent.width
             height: Th.cardHeight
             color: Th.platformColor(card.platform)
+            // Rectangle clip is rectangular and ignores the frame radius, so
+            // the artwork's square corners used to poke past the rounded
+            // frame. Rounding the artwork itself keeps the corners honest;
+            // the pre-sliced PNG's baked corners line up with this radius.
+            radius: Th.radiusCard
             clip: true
 
             Image {

@@ -76,6 +76,11 @@ Item {
                 var name = page.kind === "gplasync" ? row.version.replace(/^v/, "") : row.version
                 releaseModel.setProperty(i, "installed", page.installedHere.indexOf(name) !== -1)
             }
+            // Keep the open detail panel in step with a delete/download that
+            // just finished, so the 删除 button enables/disables correctly.
+            if (page.selected !== null)
+                page.selected.installed = page.installedHere.indexOf(
+                    page.kind === "gplasync" ? page.selected.version.replace(/^v/, "") : page.selected.version) !== -1
         }
 
         function onProgressChanged(fraction, label) {
@@ -396,6 +401,12 @@ Item {
                                 onClicked: bridge.openUrl(
                                     bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
                             }
+                            BarButton {
+                                text: "删除本地"
+                                danger: true
+                                enabled: page.selected !== null && page.selected.installed
+                                onClicked: confirmDialog.open()
+                            }
                         }
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
@@ -516,6 +527,95 @@ Item {
         }
     }
 
+    // Deletion is irreversible locally (re-download brings it back, so the
+    // copy stays honest about that), but still worth one confirmation.
+    // Fully themed: the Basic style's default dialog shell mixes palette
+    // colours and rendered the body text nearly invisible on the dark theme.
+    Dialog {
+        id: confirmDialog
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 400
+        padding: Th.space4
+
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        background: Rectangle {
+            color: Th.surface
+            radius: Th.radiusPanel
+            border.width: 1
+            border.color: Th.borderStrong
+        }
+
+        header: Text {
+            text: "删除本地版本"
+            color: Th.text
+            font.pixelSize: Th.fontHeading
+            font.bold: true
+            topPadding: Th.space4
+            leftPadding: Th.space4
+            rightPadding: Th.space4
+            bottomPadding: Th.space2
+        }
+
+        contentItem: Text {
+            text: page.selected
+                  ? "把 " + page.selected.version + " 从本地缓存删除？\n\n已安装到游戏的 DLL 不受影响；之后想用可随时重新下载。"
+                  : ""
+            color: Th.text
+            font.pixelSize: Th.fontBody
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
+        }
+
+        footer: DialogButtonBox {
+            background: Rectangle { color: "transparent" }
+            alignment: Qt.AlignRight
+            spacing: Th.space2
+            topPadding: 0
+
+            // Danger action: solid red, white text (GitHub destructive style).
+            Button {
+                id: deleteConfirmButton
+                text: "删除"
+                onClicked: {
+                    confirmDialog.accept()
+                    bridge.removeVersion(page.kind, page.selected ? page.selected.version : "")
+                }
+                contentItem: Text {
+                    text: deleteConfirmButton.text
+                    color: "#ffffff"
+                    font.pixelSize: Th.fontSmall
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: deleteConfirmButton.hovered ? "#f85149" : "#b62324"
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+            }
+            Button {
+                id: cancelConfirmButton
+                text: "取消"
+                onClicked: confirmDialog.reject()
+                contentItem: Text {
+                    text: cancelConfirmButton.text
+                    color: Th.text
+                    font.pixelSize: Th.fontSmall
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: cancelConfirmButton.hovered ? Th.surfaceHover : Th.surfaceAlt
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+            }
+        }
+    }
+
     // --- shared toolbar pieces (same shapes as the games page) -----------
     component Track: Rectangle {
         id: track
@@ -555,17 +655,23 @@ Item {
     component BarButton: Button {
         id: bar
         property bool primary: false
+        // Destructive actions render as a red button, matching the danger
+        // style of the confirmation dialog's 删除.
+        property bool danger: false
         padding: 6
         opacity: enabled ? 1.0 : 0.45
         background: Rectangle {
             radius: Th.radiusControl
-            color: bar.primary
+            color: bar.danger
+                 ? (bar.hovered ? "#f85149" : "#b62324")
+                 : bar.primary
                  ? (bar.hovered ? Th.primaryHover : Th.primary)
                  : (bar.hovered ? Th.surfaceHover : Th.surfaceAlt)
+            Behavior on color { ColorAnimation { duration: 120 } }
         }
         contentItem: Text {
             text: bar.text
-            color: bar.primary ? Th.primaryText : Th.text
+            color: bar.danger || bar.primary ? Th.primaryText : Th.text
             font.pixelSize: Th.fontSmall
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter

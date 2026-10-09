@@ -191,14 +191,18 @@ def _fit(image: Any, size: tuple[int, int]) -> Any:
 def _rounded_top_mask(size: tuple[int, int], radius: int) -> Any:
     """Alpha mask: top corners rounded by `radius`, bottom corners square.
 
-    The bottom of a card cover sits against the card footer, so only the top
-    two corners are clipped (§22 cover rounding, scheme B).
+    The bottom of a card cover sits against the card footer, so only the
+    top two corners are clipped (§22 cover rounding, scheme B). Three fills
+    build the shape: everything below the corner arcs, the strip between
+    the two arcs (missing this made the whole top edge transparent - the
+    platform colour showed through as a "blue border"), and the arcs.
     """
     width, height = size
     radius = min(radius, width // 2, height // 2)
     mask = Image.new("L", size, 0)
     draw = ImageDraw.Draw(mask)
     draw.rectangle([0, radius, width - 1, height - 1], fill=255)
+    draw.rectangle([radius, 0, width - 1 - radius, radius - 1], fill=255)
     draw.pieslice([0, 0, 2 * radius, 2 * radius], 180, 270, fill=255)
     draw.pieslice([width - 2 * radius, 0, width - 1, 2 * radius], 270, 360, fill=255)
     return mask
