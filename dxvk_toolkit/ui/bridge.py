@@ -44,6 +44,10 @@ class Bridge(QObject):
     # as views that never created a single delegate.
     taskFinished = Signal(object, object)
 
+    # Fired when the config editor switches its editing target ("" = the shared
+    # default, otherwise a game key). The page reloads the model and preview.
+    configTargetChanged = Signal(str, str)  # key, display name
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.model = GameListModel(self)
@@ -58,6 +62,10 @@ class Bridge(QObject):
         self._games: dict[str, steam.Game] = {}
         self._urls: dict[str, list[str]] = {}
         self._cover_pending: set[str] = set()
+        # The config editor edits one target at a time: "" is the shared default
+        # that every game inherits, otherwise a game key (normcase install dir).
+        self._config_target: str = ""
+        self._config_target_name: str = "默认配置"
         self._patched: set[str] = set()
         self._lock = threading.Lock()
         self._busy = False
@@ -255,7 +263,10 @@ class Bridge(QObject):
 
         def done(result: "tuple[str, str]") -> None:
             with self._lock:
-                self._cover_pending.discard(key)
+                # The pending set stores cover keys, not game keys; discarding
+                # the game key left the cover pending forever, so a retry
+                # after a failed download was silently skipped.
+                self._cover_pending.discard(cover_key)
             card_uri, round_uri = result or ("", "")
             if card_uri or round_uri:
                 self.coverReady.emit(key, card_uri, round_uri)
@@ -363,6 +374,27 @@ class Bridge(QObject):
             {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
         )
 
+    @Slot(str, str)
+    def removeVersion(self, kind: str, version: str) -> None:
+        """Delete one downloaded version from the local cache."""
+        self._set_busy(True)
+
+        def work() -> str:
+            if not sources.is_installed(kind, version):
+                raise RuntimeError(f"{version} 不在本地，无需删除")
+            sources.remove_version(kind, version)
+            return version
+
+        def done(removed: str) -> None:
+            self.statusMessage.emit(f"已删除 {removed}", "ok")
+            self.loadVersions(kind)
+            self.localVersionsReady.emit(
+                {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
+            )
+            self._set_busy(False)
+
+        self._submit(work, done, "删除失败")
+
     # -- install / restore -----------------------------------------------
     @Slot(str, str, str)
     def installDxvk(self, key: str, kind: str, version: str) -> None:
@@ -436,9 +468,11 @@ class Bridge(QObject):
 
         def done(model: Any) -> None:
             self._config_model_data = model
+            self.config.values = self._load_target_values(self._config_target)
             self.config.set_groups(model.groups)
             stored = str(settings.get("config_mode") or "simple")
             self.config.apply_filter("", stored if stored in confspec.MODES else "simple")
+            self.configTargetChanged.emit(self._config_target, self._config_target_name)
             source = str(model.source_path) if model.source_path else "未找到参考文件"
             self.statusMessage.emit(
                 f"共 {len(model.groups)} 个选项（{source}）", "ok" if model.groups else "warn"
@@ -449,6 +483,9 @@ class Bridge(QObject):
     @Slot(str, bool, str)
     def setOption(self, key: str, enabled: bool, value: str) -> None:  # noqa: N802
         self.config.set_option(key, enabled, value)
+        # Every edit is persisted to the active target so closing the page (or
+        # the app) never loses work; only "applied to disk" is a separate step.
+        self._persist_target_values(self._config_target, self.config.values)
 
     @Slot(str, str)
     def filterConfig(self, search: str, mode: str) -> None:  # noqa: N802
@@ -550,6 +587,192 @@ class Bridge(QObject):
         settings.set("last_export_dir", str(Path(target).parent))
         self.statusMessage.emit(f"已导出到 {target}", "ok")
         return target
+
+    # -- per-game config targets ------------------------------------------
+    def _store_key(self, target: str) -> str:
+        """Settings key holding one target's selections ("" = shared default)."""
+        return "config_default" if not target else f"config_game:{target}"
+
+    def _load_target_values(self, target: str) -> dict[str, Any]:
+        data = settings.get(self._store_key(target))
+        return dict(data) if isinstance(data, dict) else {}
+
+    def _persist_target_values(self, target: str, values: dict[str, Any]) -> None:
+        settings.set(self._store_key(target), dict(values))
+
+    def _reload_target(self) -> None:
+        """Re-populate the model from the active target's stored selections."""
+        model = self._config_model_data
+        if model is not None:
+            self.config.values = self._load_target_values(self._config_target)
+            self.config.set_groups(model.groups)
+
+    @Slot(str, str)
+    def setConfigTarget(self, gameKey: str, name: str = "") -> None:  # noqa: N802
+        """Point the config editor at the shared default ("") or one game."""
+        self._config_target = gameKey or ""
+        self._config_target_name = name or ("默认配置" if not gameKey else gameKey)
+        model = self._config_model_data
+        if model is not None and gameKey:
+            stored = settings.get(self._store_key(gameKey))
+            if stored is None:
+                # First edit of this game: start from a copy of the default so
+                # the game inherits today's default instead of a blank page.
+                values = self._load_target_values("")
+                self._persist_target_values(gameKey, values)
+        self._reload_target()
+        self.configTargetChanged.emit(self._config_target, self._config_target_name)
+
+    @Slot(result=str)
+    def currentConfigTarget(self) -> str:  # noqa: N802
+        return self._config_target
+
+    @Slot(result=str)
+    def currentConfigTargetName(self) -> str:  # noqa: N802
+        return self._config_target_name
+
+    @Slot(str, result=str)
+    def gameConfigStatus(self, gameKey: str) -> str:  # noqa: N802
+        """Compare the edited config with the dxvk.conf on disk.
+
+        "default" = the shared default is being edited (no disk state),
+        "unknown" = game or reference not loaded, otherwise
+        "not-written" / "written" / "mismatch".
+        """
+        if not gameKey:
+            return "default"
+        game = self._games.get(gameKey)
+        model = self._config_model_data
+        if game is None or model is None:
+            return "unknown"
+        disk = installer.read_conf(game.install_dir)
+        if not disk.strip():
+            return "not-written"
+
+        def lines(text: str) -> list[str]:
+            return [line.strip() for line in text.splitlines() if line.strip()]
+
+        if gameKey == self._config_target:
+            expected = self.previewConfig()
+        else:
+            values = self._load_target_values(gameKey)
+            if not values:
+                values = self._load_target_values("")
+            expected = confbuild.build_conf(
+                model.groups,
+                values,
+                section_order=model.section_order,
+                comments=bool(settings.get("conf_comments", True)),
+            )
+        return "written" if lines(disk) == lines(expected) else "mismatch"
+
+    # -- presets -----------------------------------------------------------
+    # Option key -> True/False (booleans) or a value string. Keys are the bare
+    # option names from the catalogue (no dxvk./dxgi. prefix); keys that the
+    # loaded reference does not know are skipped on apply.
+    BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
+        "性能优先": {
+            "tearFree": False,
+            "syncInterval": "0",
+            "relaxedGraphicsBarriers": True,
+            "relaxedBarriers": True,
+            "enableGraphicsPipelineLibrary": True,
+        },
+        "兼容优先": {
+            "useRawSsbo": True,
+            "seamlessCubes": True,
+            "lenientClear": True,
+            "clampNegativeLodBias": True,
+            "deferSurfaceCreation": True,
+            "enableUe4Workarounds": True,
+        },
+    }
+
+    def _preset_values(self, name: str) -> dict[str, Any]:
+        if name in self.BUILTIN_PRESETS:
+            return dict(self.BUILTIN_PRESETS[name])
+        custom = settings.get("config_presets", {})
+        if isinstance(custom, dict) and isinstance(custom.get(name), dict):
+            return dict(custom[name])
+        return {}
+
+    @Slot(str, result=int)
+    def applyPreset(self, name: str) -> int:  # noqa: N802
+        """Apply a preset to the current target; returns how many options were set."""
+        if name == "纯净":
+            self.clearConfig()
+            return 0
+        preset = self._preset_values(name)
+        if not preset or self._config_model_data is None:
+            return 0
+        available = {row["key"] for row in self.config._all}
+        applied = 0
+        for key, value in preset.items():
+            if key not in available:
+                continue
+            if isinstance(value, bool):
+                self.config.set_option(key, value, "")
+            else:
+                self.config.set_option(key, True, str(value))
+            applied += 1
+        self._persist_target_values(self._config_target, self.config.values)
+        self._reload_target()
+        self.configTargetChanged.emit(self._config_target, self._config_target_name)
+        return applied
+
+    @Slot(result="QVariant")
+    def listPresets(self) -> Any:  # noqa: N802 - QML naming
+        custom = settings.get("config_presets", {})
+        names = [*self.BUILTIN_PRESETS, "纯净"]
+        if isinstance(custom, dict):
+            names.extend(key for key in custom if key not in names)
+        return names
+
+    @Slot(str)
+    def savePreset(self, name: str) -> None:  # noqa: N802
+        name = name.strip()
+        if not name or self._config_model_data is None:
+            return
+        if name in self.BUILTIN_PRESETS or name == "纯净":
+            self.statusMessage.emit("内置预设不能覆盖，请换一个名字", "warn")
+            return
+        custom = settings.get("config_presets", {})
+        custom = dict(custom) if isinstance(custom, dict) else {}
+        custom[name] = dict(self.config.values)
+        settings.set("config_presets", custom)
+        self.statusMessage.emit(f"已保存预设「{name}」", "ok")
+
+    @Slot(str)
+    def deletePreset(self, name: str) -> None:  # noqa: N802
+        custom = settings.get("config_presets", {})
+        if isinstance(custom, dict) and name in custom:
+            custom = dict(custom)
+            del custom[name]
+            settings.set("config_presets", custom)
+
+    # -- bulk actions ------------------------------------------------------
+    @Slot()
+    def clearConfig(self) -> None:  # noqa: N802
+        """Drop every selection of the current target."""
+        self.config.values = {}
+        self._persist_target_values(self._config_target, {})
+        self._reload_target()
+        self.configTargetChanged.emit(self._config_target, self._config_target_name)
+
+    @Slot()
+    def resetConfigToDefault(self) -> None:  # noqa: N802
+        """Copy the shared default over the current game's own config."""
+        if not self._config_target:
+            return
+        values = self._load_target_values("")
+        self.config.values = dict(values)
+        self._persist_target_values(self._config_target, values)
+        self._reload_target()
+        self.configTargetChanged.emit(self._config_target, self._config_target_name)
+
+    @Slot(str)
+    def toggleSection(self, label: str) -> None:  # noqa: N802
+        self.config.toggleSection(label)
 
     # -- settings and shell ----------------------------------------------
     @Slot(result=str)

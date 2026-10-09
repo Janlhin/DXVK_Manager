@@ -17,6 +17,57 @@ Item {
         return (saved === "advanced" || saved === "full") ? saved : "simple"
     }
 
+    // Editing target: "" is the shared default every game inherits, otherwise
+    // a game key. The page stays in sync through onConfigTargetChanged below.
+    property string gameKey: ""
+    property string gameName: ""
+    property string configStatus: "default"
+    property string statusLabel: "默认配置"
+    property string statusKind: "muted"
+    property var presetList: []
+    property var targetList: []
+    // Mirror of the model's folded sections, only for the header arrows.
+    property var collapsedSections: ({})
+
+    function refreshStatus() {
+        page.configStatus = bridge.gameConfigStatus(page.gameKey)
+        if (page.gameKey === "") {
+            page.statusLabel = "默认配置（所有游戏共用）"
+            page.statusKind = "muted"
+        } else if (page.configStatus === "written") {
+            page.statusLabel = "已写入"
+            page.statusKind = "ok"
+        } else if (page.configStatus === "mismatch") {
+            page.statusLabel = "与磁盘文件不同"
+            page.statusKind = "warn"
+        } else if (page.configStatus === "not-written") {
+            page.statusLabel = "未写入"
+            page.statusKind = "muted"
+        } else {
+            page.statusLabel = "状态未知"
+            page.statusKind = "warn"
+        }
+    }
+
+    function rebuildTargets() {
+        var games = bridge.gameOptions()
+        var list = [{ key: "", label: "默认配置（所有游戏共用）" }]
+        for (var i = 0; i < games.length; i++)
+            list.push({ key: games[i].key, label: games[i].label })
+        page.targetList = list
+        page.syncTargetPicker()
+    }
+
+    function syncTargetPicker() {
+        for (var i = 0; i < page.targetList.length; i++)
+            if (page.targetList[i].key === page.gameKey)
+                targetPicker.currentIndex = i
+    }
+
+    function openForGame(key, name) {
+        bridge.setConfigTarget(key, name)
+    }
+
     // The option column keeps a readable measure; the preview takes the rest
     // and can be dragged wider from the divider.
     readonly property real maxOptionWidth: 860
@@ -32,6 +83,9 @@ Item {
 
     Component.onCompleted: {
         bridge.loadConfig()
+        page.presetList = bridge.listPresets()
+        page.rebuildTargets()
+        page.refreshStatus()
         // The window has no width yet while the component is being created,
         // so the default is taken again on the first resize.
         if (page.width > 0)
@@ -79,6 +133,20 @@ Item {
     readonly property int catalogueSize: configModel.count
     onCatalogueSizeChanged: page.previewDirty = true
 
+    Connections {
+        target: bridge
+        function onConfigTargetChanged(key, name) {
+            page.gameKey = key
+            page.gameName = name
+            page.previewDirty = true
+            page.syncTargetPicker()
+            page.refreshStatus()
+        }
+        function onGamesReady(count) {
+            page.rebuildTargets()
+        }
+    }
+
     // --- custom tool tip --------------------------------------------------
     Timer {
         id: tipTimer
@@ -101,6 +169,24 @@ Item {
             var point = row.mapToItem(page, 0, offsetY + 24)
             x = Math.max(Th.space4, Math.min(point.x + 48, page.width - width - Th.space4))
             y = Math.max(Th.space4, Math.min(point.y, page.height - height - Th.space4))
+        }
+    }
+
+    component MiniButton: Button {
+        id: mini
+        padding: 6
+        opacity: enabled ? 1.0 : 0.45
+        background: Rectangle {
+            radius: Th.radiusControl
+            color: mini.hovered ? Th.surfaceHover : Th.surfaceAlt
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        contentItem: Text {
+            text: mini.text
+            color: Th.text
+            font.pixelSize: Th.fontCaption
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
         }
     }
 
@@ -173,7 +259,11 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "导入 dxvk.conf…"
                 padding: 6
-                onClicked: page.importMessage = bridge.importConfig()
+                onClicked: {
+                    page.importMessage = bridge.importConfig()
+                    page.previewDirty = true
+                    page.refreshStatus()
+                }
                 background: Rectangle {
                     radius: Th.radiusControl
                     color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
@@ -213,11 +303,207 @@ Item {
         color: Th.borderSubtle
     }
 
+    // --- context bar: editing target, disk status, presets, bulk actions --
+    Rectangle {
+        id: contextBar
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: toolbarLine.bottom
+        height: 46
+        color: Th.surface
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: Th.pad
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Th.space2
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "作用对象"
+                color: Th.textMuted
+                font.pixelSize: Th.fontCaption
+            }
+
+            ComboBox {
+                id: targetPicker
+                width: 240
+                model: page.targetList
+                textRole: "label"
+                currentIndex: 0
+                font.pixelSize: Th.fontSmall
+                onActivated: {
+                    var item = page.targetList[currentIndex]
+                    if (item)
+                        bridge.setConfigTarget(item.key, item.label)
+                }
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: Th.surfaceAlt
+                    border.width: 1
+                    border.color: targetPicker.activeFocus ? Th.accent : Th.border
+                }
+                contentItem: Text {
+                    leftPadding: Th.space2
+                    rightPadding: Th.space2
+                    text: targetPicker.displayText
+                    color: Th.text
+                    font.pixelSize: Th.fontSmall
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+                indicator: Text {
+                    x: targetPicker.width - width - Th.space2
+                    y: (targetPicker.height - height) / 2
+                    text: "▾"
+                    color: Th.textMuted
+                    font.pixelSize: Th.fontSmall
+                }
+                popup: Popup {
+                    y: targetPicker.height + 4
+                    width: targetPicker.width
+                    implicitHeight: Math.min(contentItem.implicitHeight + Th.space2, 340)
+                    padding: Th.space1
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: Th.surfaceAlt
+                        border.width: 1
+                        border.color: Th.borderStrong
+                    }
+                    contentItem: ListView {
+                        implicitHeight: contentHeight
+                        model: targetPicker.popup.visible ? targetPicker.delegateModel : null
+                        clip: true
+                        delegate: ItemDelegate {
+                            width: targetPicker.width - Th.space2
+                            contentItem: Text {
+                                text: modelData.label
+                                color: Th.text
+                                font.pixelSize: Th.fontSmall
+                                elide: Text.ElideRight
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                radius: Th.radiusControl - 2
+                                color: parent.hovered ? Th.surfaceHover : "transparent"
+                            }
+                        }
+                    }
+                }
+            }
+
+            StatusChip {
+                anchors.verticalCenter: parent.verticalCenter
+                text: page.statusLabel
+                kind: page.statusKind
+            }
+
+            Item { width: Th.space3; height: 1 }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "预设"
+                color: Th.textMuted
+                font.pixelSize: Th.fontCaption
+            }
+
+            ComboBox {
+                id: presetPicker
+                width: 150
+                model: page.presetList
+                currentIndex: -1
+                font.pixelSize: Th.fontSmall
+                displayText: currentIndex < 0 ? "选择预设…" : currentText
+                onActivated: {
+                    var name = page.presetList[currentIndex]
+                    presetPicker.currentIndex = -1
+                    if (name !== undefined && name !== "")
+                        bridge.applyPreset(name)
+                }
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: Th.surfaceAlt
+                    border.width: 1
+                    border.color: presetPicker.activeFocus ? Th.accent : Th.border
+                }
+                contentItem: Text {
+                    leftPadding: Th.space2
+                    rightPadding: Th.space2
+                    text: presetPicker.displayText
+                    color: presetPicker.currentIndex < 0 ? Th.textDim : Th.text
+                    font.pixelSize: Th.fontSmall
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+                indicator: Text {
+                    x: presetPicker.width - width - Th.space2
+                    y: (presetPicker.height - height) / 2
+                    text: "▾"
+                    color: Th.textMuted
+                    font.pixelSize: Th.fontSmall
+                }
+                popup: Popup {
+                    y: presetPicker.height + 4
+                    width: presetPicker.width + 40
+                    implicitHeight: Math.min(contentItem.implicitHeight + Th.space2, 280)
+                    padding: Th.space1
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: Th.surfaceAlt
+                        border.width: 1
+                        border.color: Th.borderStrong
+                    }
+                    contentItem: ListView {
+                        implicitHeight: contentHeight
+                        model: presetPicker.popup.visible ? presetPicker.delegateModel : null
+                        clip: true
+                        delegate: ItemDelegate {
+                            width: presetPicker.width + 40 - Th.space2
+                            contentItem: Text {
+                                text: modelData
+                                color: Th.text
+                                font.pixelSize: Th.fontSmall
+                                elide: Text.ElideRight
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                radius: Th.radiusControl - 2
+                                color: parent.hovered ? Th.surfaceHover : "transparent"
+                            }
+                        }
+                    }
+                }
+            }
+
+            MiniButton {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "存为预设"
+                onClicked: {
+                    presetNameField.text = ""
+                    presetDialog.open()
+                }
+            }
+
+            MiniButton {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "清空"
+                onClicked: bridge.clearConfig()
+            }
+
+            MiniButton {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: page.gameKey !== ""
+                text: "重置为默认"
+                onClicked: bridge.resetConfigToDefault()
+            }
+        }
+    }
+
     // --- option list ------------------------------------------------------
     ListView {
         id: optionList
         objectName: "optionList"
-        anchors.top: toolbarLine.bottom
+        anchors.top: contextBar.bottom
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: divider.left
@@ -239,6 +525,17 @@ Item {
         add: Transition {
             NumberAnimation { property: "opacity"; from: 0; to: 1
                               duration: 160; easing.type: Easing.OutCubic }
+        }
+
+        Text {
+            anchors.centerIn: parent
+            visible: configModel.optionCount === 0
+            width: Math.min(420, optionList.width - 48)
+            text: "还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。"
+            color: Th.textDim
+            font.pixelSize: Th.fontBody
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
         }
 
         WheelHandler {
@@ -299,10 +596,38 @@ Item {
                 }
             }
 
+            // Header rows fold/unfold their section (rowHover ignores buttons).
+            MouseArea {
+                anchors.fill: parent
+                enabled: optionRow.rowKind === "header"
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    var map = page.collapsedSections
+                    if (map[optionRow.label])
+                        delete map[optionRow.label]
+                    else
+                        map[optionRow.label] = true
+                    page.collapsedSections = map
+                    bridge.toggleSection(optionRow.label)
+                }
+            }
+
             Text {
+                id: headerArrow
                 visible: optionRow.rowKind === "header"
                 anchors.left: parent.left
-                anchors.leftMargin: Th.space4
+                anchors.leftMargin: Th.space3
+                anchors.bottom: headerLine.top
+                anchors.bottomMargin: Th.space1
+                text: page.collapsedSections[optionRow.label] ? "▸" : "▾"
+                color: Th.textMuted
+                font.pixelSize: Th.fontCaption
+            }
+
+            Text {
+                visible: optionRow.rowKind === "header"
+                anchors.left: headerArrow.right
+                anchors.leftMargin: Th.space1
                 anchors.bottom: headerLine.top
                 anchors.bottomMargin: Th.space1
                 text: optionRow.label
@@ -331,7 +656,11 @@ Item {
                 anchors.leftMargin: Th.space3
                 anchors.verticalCenter: parent.verticalCenter
                 checked: optionRow.optionEnabled
-                onToggled: bridge.setOption(optionRow.optionKey, checked, valueField.text)
+                onToggled: {
+                    bridge.setOption(optionRow.optionKey, checked, valueField.text)
+                    page.importMessage = ""
+                    page.previewDirty = true
+                }
                 contentItem: Item {}
 
                 indicator: Rectangle {
@@ -437,7 +766,10 @@ Item {
                 }
                 onTextEdited: {
                     page.importMessage = ""
-                    bridge.setOption(optionRow.optionKey, true, text)
+                    // Clearing the value also unticks the option: an enabled
+                    // row with no value would build a broken "key =" line.
+                    bridge.setOption(optionRow.optionKey, text !== "", text)
+                    page.previewDirty = true
                 }
             }
         }
@@ -446,7 +778,7 @@ Item {
     Rectangle {
         id: divider
         anchors.right: preview.left
-        anchors.top: toolbarLine.bottom
+        anchors.top: contextBar.bottom
         anchors.bottom: parent.bottom
         width: 1
         color: dividerDrag.containsMouse || dividerDrag.pressed ? Th.accent : Th.borderSubtle
@@ -483,7 +815,7 @@ Item {
         id: preview
         objectName: "previewPane"
         anchors.right: parent.right
-        anchors.top: toolbarLine.bottom
+        anchors.top: contextBar.bottom
         anchors.bottom: parent.bottom
         width: page.previewWidth
 
@@ -530,9 +862,17 @@ Item {
                 }
 
                 Button {
-                    text: "写入游戏…"
+                    id: writeButton
                     padding: 6
-                    onClicked: gamePicker.open()
+                    text: page.gameKey !== "" ? "应用并写入 " + page.gameName : "写入游戏…"
+                    onClicked: {
+                        if (page.gameKey !== "") {
+                            bridge.writeConfToGame(page.gameKey)
+                            page.refreshStatus()
+                        } else {
+                            gamePicker.open()
+                        }
+                    }
                     background: Rectangle {
                         radius: Th.radiusControl
                         color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
@@ -726,6 +1066,131 @@ Item {
                     font.pixelSize: Th.fontCaption
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
+                }
+            }
+        }
+    }
+
+    // --- save the current selection as a named preset ----------------------
+    Dialog {
+        id: presetDialog
+        modal: true
+        anchors.centerIn: parent
+        width: 400
+        padding: 0
+
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        background: Rectangle {
+            color: Th.surface
+            radius: Th.radiusPanel
+            border.width: 1
+            border.color: Th.borderStrong
+        }
+
+        header: Item {
+            height: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "保存为预设"
+                color: Th.text
+                font.pixelSize: Th.fontTitle
+                font.bold: true
+            }
+        }
+
+        contentItem: Column {
+            leftPadding: Th.space4
+            rightPadding: Th.space4
+            topPadding: Th.space1
+            bottomPadding: Th.space2
+            spacing: Th.space2
+
+            Text {
+                width: presetDialog.availableWidth - Th.space6
+                text: "把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。"
+                color: Th.textMuted
+                font.pixelSize: Th.fontCaption
+                wrapMode: Text.WordWrap
+            }
+
+            TextField {
+                id: presetNameField
+                width: presetDialog.availableWidth - Th.space6
+                placeholderText: "预设名称，例如：赛博朋克专用"
+                color: Th.text
+                placeholderTextColor: Th.textDim
+                font.pixelSize: Th.fontSmall
+                background: Rectangle {
+                    radius: Th.radiusControl
+                    color: Th.surfaceAlt
+                    border.width: 1
+                    border.color: presetNameField.activeFocus ? Th.accent : Th.border
+                }
+                onAccepted: savePresetButton.clicked()
+            }
+        }
+
+        footer: Item {
+            height: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。"
+                color: Th.textDim
+                font.pixelSize: Th.fontCaption
+            }
+
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Th.space2
+
+                Button {
+                    id: savePresetButton
+                    text: "保存"
+                    padding: 6
+                    onClicked: {
+                        if (presetNameField.text.trim() !== "") {
+                            bridge.savePreset(presetNameField.text)
+                            page.presetList = bridge.listPresets()
+                        }
+                        presetDialog.close()
+                    }
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.primaryHover : Th.primary
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.primaryText
+                        font.pixelSize: Th.fontCaption
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                Button {
+                    text: "取消"
+                    padding: 6
+                    onClicked: presetDialog.close()
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: Th.textMuted
+                        font.pixelSize: Th.fontCaption
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
         }

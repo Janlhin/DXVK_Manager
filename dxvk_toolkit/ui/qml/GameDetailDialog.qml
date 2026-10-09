@@ -352,6 +352,27 @@ Dialog {
                     }
 
                     Button {
+                        text: "DXVK 配置"
+                        padding: 6
+                        onClicked: {
+                            // Switches the config editor to this game and the
+                            // main window to the config page (bridge signal).
+                            bridge.setConfigTarget(sheet.gameKey, sheet.gameName)
+                            sheet.close()
+                        }
+                        background: Rectangle {
+                            radius: Th.radiusControl
+                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                        }
+                        contentItem: Text {
+                            text: parent.text; color: Th.text
+                            font.pixelSize: Th.fontSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Button {
                         text: "还原原始 DLL"
                         padding: 6
                         onClicked: { bridge.restoreGame(sheet.gameKey); sheet.close() }

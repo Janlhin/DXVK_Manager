@@ -458,6 +458,8 @@ class ConfigListModel(QAbstractListModel):
         self._option_count = 0
         self._search = ""
         self._mode = "simple"
+        # Section header labels the user folded away (see toggleSection).
+        self._collapsed: set[str] = set()
         self.values: dict[str, Any] = {}
 
     @Property(int, notify=countChanged)
@@ -562,6 +564,8 @@ class ConfigListModel(QAbstractListModel):
             # Group by purpose: a section header per option would just flicker
             # between dxvk / dxgi / d3d9 because most options exist in several.
             for purpose in confspec.PURPOSE_ORDER:
+                if purpose in self._collapsed:
+                    continue
                 bucket = [r for r in visible if confspec.purpose_of(r["key"]) == purpose]
                 if not bucket:
                     continue
@@ -570,16 +574,28 @@ class ConfigListModel(QAbstractListModel):
         else:
             # Technical modes list everything grouped by section, which needs a
             # stable order to be readable.
-            ordered = sorted(visible, key=lambda r: (r["section"], r["key"]))
-            current = ""
-            for row in ordered:
-                if row["section"] != current:
-                    current = row["section"]
-                    rows.append({"kind": "header", "label": f"[{current}]", "key": ""})
-                rows.append(row)
+            grouped: dict[str, list[dict[str, Any]]] = {}
+            for row in sorted(visible, key=lambda r: (r["section"], r["key"])):
+                grouped.setdefault(row["section"], []).append(row)
+            for section, bucket in grouped.items():
+                if section in self._collapsed:
+                    continue
+                rows.append({"kind": "header", "label": f"[{section}]", "key": ""})
+                rows.extend(bucket)
 
         self._rows = rows
         self._option_count = len(visible)
+
+    def toggleSection(self, label: str) -> None:
+        """Fold/unfold one catalogue section (identified by its header label)."""
+        if label in self._collapsed:
+            self._collapsed.discard(label)
+        else:
+            self._collapsed.add(label)
+        self.beginResetModel()
+        self._apply_filter()
+        self.endResetModel()
+        self.countChanged.emit()
 
     @Property(int, notify=countChanged)
     def optionCount(self) -> int:  # noqa: N802 - QML naming

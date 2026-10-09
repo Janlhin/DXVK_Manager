@@ -32,6 +32,12 @@ ApplicationWindow {
             window.statusKind = kind
         }
         function onBusyChanged(value) { window.busy = value }
+        // A game-specific config target (set from the detail dialog or the
+        // picker on the config page) brings the config editor to the front.
+        function onConfigTargetChanged(key, name) {
+            if (key !== "")
+                window.currentPage = 2
+        }
     }
 
     // A light scan on start-up: it only reads the launcher manifests, so the
