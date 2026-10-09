@@ -335,8 +335,12 @@ Dialog {
                             leftPadding: Th.space3
                             text: {
                                 if (versionPicker.count > 0 && versionPicker.currentIndex >= 0
-                                        && versionPicker.model[versionPicker.currentIndex])
-                                    return versionPicker.model[versionPicker.currentIndex].display
+                                        && versionPicker.model[versionPicker.currentIndex]) {
+                                    var row = versionPicker.model[versionPicker.currentIndex]
+                                    var state = row.name === sheet.downloading ? " · 下载中…"
+                                            : (row.installed ? " · 已下载" : " · 未下载")
+                                    return row.display + state
+                                }
                                 return sheet.downloading !== "" ? sheet.downloading + "（下载中…）" : "（没有可用版本）"
                             }
                             color: versionPicker.count > 0 ? Th.text : Th.textDim
