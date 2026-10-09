@@ -5,6 +5,12 @@ __pycache__/
 
 # Local data / logs
 *.log
+启动日志.txt
+安装日志.txt
+诊断日志.txt
+
+# Windows artifact accidentally created by shell redirects
+nul
 
 # Dev tooling caches
 .venv/
