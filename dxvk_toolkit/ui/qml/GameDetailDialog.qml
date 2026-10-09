@@ -21,21 +21,65 @@ Dialog {
     property string statusKind: "muted"
     property string coverUrl: ""
 
-    property var versions: []
+    property var versions: []        // kind -> locally installed names
+    property var remote: []          // release dicts for the current kind, newest first
     property string kind: "dxvk"
     property string version: ""
+    property string downloading: ""  // version currently auto-downloading
 
     readonly property var kindValues: ["dxvk", "gplasync"]
     readonly property var kindLabels: ["官方 DXVK", "DXVK-GPLAsync"]
 
-    function loadVersions() {
-        bridge.loadLocalVersions()
+    // A picked release is only applicable once it exists locally; gplasync
+    // installs under the version without the leading "v".
+    function installedHere(releaseVersion) {
+        var display = sheet.kind === "gplasync" ? releaseVersion.replace(/^v/, "") : releaseVersion
+        return (sheet.versions[sheet.kind] || []).indexOf(display) !== -1
     }
 
+    readonly property bool versionInstalled: sheet.version !== "" && sheet.installedHere(sheet.version)
+
+    function loadVersions() {
+        bridge.loadLocalVersions()
+        // The cached remote listing appears at once; a stale one refreshes
+        // quietly in the background.
+        bridge.loadVersions(sheet.kind)
+    }
+
+    // Combine the remote catalogue with the local cache: every downloadable
+    // version is listed (DLSS Swapper style) and flagged with what is already
+    // on disk. Locally installed versions survive a stale or empty remote list.
     function applyKind() {
-        var list = sheet.versions[sheet.kind] || []
-        versionPicker.model = list
-        sheet.version = list.length > 0 ? list[0] : ""
+        var rows = []
+        var seen = {}
+        for (var i = 0; i < sheet.remote.length; i++) {
+            var name = String(sheet.remote[i].version || "")
+            if (name === "" || seen[name])
+                continue
+            seen[name] = true
+            rows.push({
+                name: name,
+                display: sheet.kind === "gplasync" ? name.replace(/^v/, "") : name,
+                installed: sheet.installedHere(name)
+            })
+        }
+        var installed = sheet.versions[sheet.kind] || []
+        for (var j = 0; j < installed.length; j++) {
+            var local = installed[j]
+            var full = sheet.kind === "gplasync" ? "v" + local : local
+            if (!seen[full])
+                rows.push({ name: full, display: local, installed: true })
+        }
+        versionPicker.model = rows
+        // Default to the newest downloaded version, else the newest known one.
+        var pick = -1
+        for (var k = 0; k < rows.length; k++) {
+            if (rows[k].installed) { pick = k; break }
+        }
+        if (pick < 0 && rows.length > 0)
+            pick = 0
+        versionPicker.currentIndex = pick
+        sheet.version = pick >= 0 ? rows[pick].name : ""
     }
 
     modal: true
@@ -56,8 +100,20 @@ Dialog {
     Connections {
         target: bridge
         function onLocalVersionsReady(payload) {
+            // downloadVersion emits this once its download finishes.
+            sheet.downloading = ""
             sheet.versions = payload
             sheet.applyKind()
+        }
+        function onVersionsReady(payload) {
+            if (payload.kind !== sheet.kind)
+                return
+            sheet.remote = payload.releases || []
+            sheet.applyKind()
+        }
+        function onStatusMessage(text, kind) {
+            if (kind === "error")
+                sheet.downloading = ""   // a failed download frees the picker
         }
     }
 
@@ -196,7 +252,9 @@ Dialog {
                         currentIndex: sheet.kindValues.indexOf(sheet.kind)
                         onActivated: {
                             sheet.kind = sheet.kindValues[currentIndex]
+                            sheet.remote = []
                             sheet.applyKind()
+                            bridge.loadVersions(sheet.kind)
                         }
                         font.pixelSize: Th.fontSmall
                         background: Rectangle {
@@ -254,7 +312,18 @@ Dialog {
                     ComboBox {
                         id: versionPicker
                         Layout.preferredWidth: 220
-                        onActivated: sheet.version = currentText
+                        onActivated: {
+                            var row = versionPicker.model[versionPicker.currentIndex]
+                            if (!row)
+                                return
+                            sheet.version = row.name
+                            // Picking something that is not on disk downloads it
+                            // first; the apply button unlocks when it arrives.
+                            if (!row.installed && sheet.downloading === "") {
+                                bridge.downloadVersion(sheet.kind, row.name)
+                                sheet.downloading = row.name
+                            }
+                        }
                         font.pixelSize: Th.fontSmall
                         background: Rectangle {
                             radius: Th.radiusControl
@@ -264,7 +333,12 @@ Dialog {
                         }
                         contentItem: Text {
                             leftPadding: Th.space3
-                            text: versionPicker.count > 0 ? versionPicker.displayText : "（没有已下载版本）"
+                            text: {
+                                if (versionPicker.count > 0 && versionPicker.currentIndex >= 0
+                                        && versionPicker.model[versionPicker.currentIndex])
+                                    return versionPicker.model[versionPicker.currentIndex].display
+                                return sheet.downloading !== "" ? sheet.downloading + "（下载中…）" : "（没有可用版本）"
+                            }
                             color: versionPicker.count > 0 ? Th.text : Th.textDim
                             font.pixelSize: Th.fontSmall
                             verticalAlignment: Text.AlignVCenter
@@ -293,11 +367,21 @@ Dialog {
                                 clip: true
                                 delegate: ItemDelegate {
                                     width: versionPicker.width - Th.space2
-                                    contentItem: Text {
-                                        text: modelData
-                                        color: Th.text
-                                        font.pixelSize: Th.fontSmall
-                                        verticalAlignment: Text.AlignVCenter
+                                    contentItem: Row {
+                                        spacing: Th.space2
+                                        Text {
+                                            text: modelData.display
+                                            color: Th.text
+                                            font.pixelSize: Th.fontSmall
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                        Text {
+                                            text: modelData.name === sheet.downloading ? "下载中…"
+                                                  : (modelData.installed ? "已下载" : "未下载 · 选后自动下载")
+                                            color: modelData.installed ? Th.textMuted : Th.accent
+                                            font.pixelSize: Th.fontCaption
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
                                     }
                                     background: Rectangle {
                                         radius: Th.radiusControl - 2
@@ -313,9 +397,12 @@ Dialog {
                     Layout.fillWidth: true
                     text: {
                         var count = (sheet.versions[sheet.kind] || []).length
-                        if (count === 0)
-                            return "还没有下载任何版本。先到「版本库」下载，再回来应用。"
-                        return "已下载 " + count + " 个版本。应用时会自动备份原有 DLL（.bkp）。"
+                        if (sheet.downloading !== "")
+                            return "正在下载 " + sheet.downloading + " …完成后即可「应用 DXVK」，请稍候。"
+                        if (sheet.remote.length === 0 && count === 0)
+                            return "没有可用版本：离线且本地无缓存。联网后可到「版本库」点「强制刷新」。"
+                        return "共 " + sheet.remote.length + " 个可下载版本，已下载 " + count +
+                               " 个。选择未下载的版本会自动下载；应用时会自动备份原有 DLL（.bkp）。"
                     }
                     color: Th.textDim
                     font.pixelSize: Th.fontCaption
@@ -331,7 +418,7 @@ Dialog {
                     Button {
                         text: "应用 DXVK"
                         padding: 6
-                        enabled: sheet.version !== ""
+                        enabled: sheet.versionInstalled && sheet.downloading === ""
                         opacity: enabled ? 1.0 : 0.5
                         onClicked: {
                             bridge.installDxvk(sheet.gameKey, sheet.kind, sheet.version)
