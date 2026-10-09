@@ -12,7 +12,7 @@
 | T5 | 声明 PySide6/Pillow 运行时依赖清单 | chore | — | 低 | 待做 | `MANIFEST.md` 补精确版本 SHA |
 | T6 | 静态检查达标（ruff 零警告） | chore | T3 | 中 | 待做（首跑可能需修） | `ruff check .` 退出 0 |
 | T7 | 死代码治理（等价 knip：vulture/ruff unused） | chore | T6 | 中 | 待做 | bridge 上帝对象、GameCard.selected 等清理 |
-| T8 | 运行时边界 schema 校验 | feat | — | 中 | 待做 | 配置解析/网络响应/CLI 参数显式校验 |
+| T8 | 运行时边界 schema 校验（confkit 解析入口） | feat | — | 中 | ✅ 已建（本次） | `validate.py` + `parse`/`confspec` 守卫 + `tests/test_validate.py`；push 后 CI 跑绿 |
 | T9 | 引入 pyright 类型检查（Python 无编译期类型） | chore | — | 中 | 待做 | `pyright` 接入 verify |
 | T10 | UI：封面圆角方案 B（缓存切片） | feat | — | 中 | 待裁决（§22，已选 B 未实现） | 卡片/列表/弹窗圆角像素验证 |
 | T11 | UI：列表右侧太空（§24 A/B） | feat | — | 中 | 待裁决 | 用户选 A 或 B |

@@ -37,6 +37,7 @@ from .confkit import (  # re-exported for existing call sites
     purpose_of,
     tier_of,
 )
+from .confkit.validate import ValidationError, MAX_CONF_BYTES
 from .paths import asset_path, settings
 from .sources import list_installed, reference_conf
 
@@ -98,6 +99,11 @@ def load_model(path: Path | None = None) -> ConfModel:
     else:
         label = "custom file"
     try:
+        if Path(path).stat().st_size > MAX_CONF_BYTES:
+            raise ValidationError(
+                f"reference file too large: {Path(path).stat().st_size} bytes "
+                f"exceeds limit of {MAX_CONF_BYTES}"
+            )
         text = Path(path).read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
         return build_model("", source=f"unreadable reference: {exc}")

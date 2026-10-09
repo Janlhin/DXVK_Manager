@@ -8,6 +8,12 @@ from typing import Any, Sequence
 from .base import COMMENT_RE, KEY_RE, SECTION_RE, _clean_value, _default_example, _infer_type
 from .curate import _FORK_CONF
 from .model import ConfModel, Member, OptionGroup
+from .validate import (
+    ValidationError,
+    validate_conf_text,
+    validate_model_counts,
+    validate_section_name,
+)
 
 
 def _alias_group(key: str) -> list[str]:
@@ -19,6 +25,7 @@ def _alias_group(key: str) -> list[str]:
 
 def parse_conf_text(text: str) -> tuple[dict[str, list[Member]], list[Member], list[str]]:
     """Parse the reference document into sections, an ordered list and order."""
+    validate_conf_text(text)
     sections: dict[str, list[Member]] = {}
     ordered: list[Member] = []
     section_order: list[str] = []
@@ -28,10 +35,11 @@ def parse_conf_text(text: str) -> tuple[dict[str, list[Member]], list[Member], l
     last_comments: list[str] = []
     last_raw: list[str] = []
 
-    for line in text.splitlines():
+    for line_no, line in enumerate(text.splitlines(), start=1):
         section_match = SECTION_RE.match(line)
         if section_match:
             section = section_match.group(1).strip()
+            validate_section_name(section, line=line_no)
             if section not in section_order:
                 section_order.append(section)
             pending_comments, pending_raw = [], []
@@ -39,6 +47,13 @@ def parse_conf_text(text: str) -> tuple[dict[str, list[Member]], list[Member], l
             continue
 
         key_match = KEY_RE.match(line)
+        # A bracketed line that is not a valid section header is malformed
+        # (e.g. an empty ``[]`` or one containing ``]``) and must be rejected
+        # rather than silently ignored.
+        if line.strip().startswith("[") and line.strip().endswith("]"):
+            raise ValidationError(
+                f"line {line_no}: malformed section header {line.strip()!r}"
+            )
         if key_match:
             section, key, raw_value = key_match.group(1), key_match.group(2), key_match.group(3)
             example = _clean_value(raw_value)
@@ -77,9 +92,10 @@ def parse_conf_text(text: str) -> tuple[dict[str, list[Member]], list[Member], l
             # Blank lines keep the pending comment block alive on purpose.
             continue
 
-        pending_comments, pending_raw = [], []
-        last_comments, last_raw = [], []
+            pending_comments, pending_raw = [], []
+            last_comments, last_raw = [], []
 
+    validate_model_counts(len(section_order), len(ordered))
     return sections, ordered, section_order
 
 
@@ -160,6 +176,7 @@ def parse_config_values(text: str, model: "ConfModel") -> tuple[dict[str, Any], 
     skipped; a boolean set to False is reported as not-set because the export
     side cannot express False either (an omitted line means the same thing).
     """
+    validate_conf_text(text)
     known = {group.key: group for group in model.groups}
     values: dict[str, Any] = {}
     unknown: list[str] = []
