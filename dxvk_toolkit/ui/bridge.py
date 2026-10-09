@@ -509,6 +509,17 @@ class Bridge(QObject):
         return len([value for value in self.config.values.values() if value not in (None, "")])
 
     @Slot(result=str)
+    def modifiedSummary(self) -> str:  # noqa: N802
+        """Human-readable summary of modified options (§33 change summary)."""
+        return self.config.modifiedSummary()
+
+    @Slot(str)
+    def resetOption(self, key: str) -> None:  # noqa: N802
+        """Revert one option to default (§33 modified-list revert button)."""
+        self.config.resetOption(key)
+        self.statusMessage.emit(f"已还原：{key}", "info")
+
+    @Slot(result=str)
     def importConfig(self) -> str:  # noqa: N802
         """Load an existing dxvk.conf and tick the options it contains."""
         from PySide6.QtWidgets import QFileDialog

@@ -638,6 +638,52 @@ class ConfigListModel(QAbstractListModel):
                 self.dataChanged.emit(model_index, model_index)
             return
 
+    # --- §33: modified-options tracking (user perspective layer) ----------
+
+    @Property(int, notify=countChanged)
+    def modifiedCount(self) -> int:  # noqa: N802 - QML naming
+        """How many options the user has changed from defaults."""
+        return sum(1 for v in self.values.values() if v is not None and v != "")
+
+    @Slot(result=str)
+    def modifiedSummary(self) -> str:
+        """Human-readable summary of what the user changed, for the preview.
+
+        Returns one line per modified option: 'key = value (purpose)'.
+        Empty string when nothing is modified.
+        """
+        lines: list[str] = []
+        for row in self._all:
+            key = row["key"]
+            val = self.values.get(key)
+            if val is None or val == "":
+                continue
+            purpose = confspec.purpose_of(key)
+            display = "True" if row["isBoolean"] else str(val)
+            lines.append(f"{key} = {display}  ({purpose})")
+        return "\n".join(lines)
+
+    @Slot(str)
+    def resetOption(self, key: str) -> None:  # noqa: N802 - QML naming
+        """Revert a single option to its default (remove from selection)."""
+        if key in self.values:
+            self.values[key] = None
+        for index, row in enumerate(self._all):
+            if row["key"] != key:
+                continue
+            row["enabled"] = False
+            if not row["isBoolean"]:
+                row["value"] = ""
+            try:
+                position = self._rows.index(row)
+            except ValueError:
+                position = -1
+            if position >= 0:
+                model_index = self.index(position, 0)
+                self.dataChanged.emit(model_index, model_index)
+            break
+        self.countChanged.emit()
+
 
 def _placeholder_for(group: Any) -> str:
     example = str(getattr(group, "example", "") or "").strip()

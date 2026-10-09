@@ -17,7 +17,7 @@
 | T10 | UI：封面圆角方案 B（缓存切片） | feat | — | 中 | ✅ 已建（本次，待真机验证） | `covers.ensure_card/ensure_round` 切圆角变体；`models` 暴露 `coverCardUrl`/`coverRoundUrl`；`bridge` 取封面时生成；QML 卡片绑 card、列表头像绑 round；详情弹窗保持原图（§22.5 待定） |
 | T11 | UI：列表右侧太空（§24 A/B） | feat | — | 中 | ✅ 已完成（待真机验证） | 方案 A：名称列限宽 42%（max 480px）+ 元数据列从名称右侧延伸到状态徽标左侧；Column 改为两个独立 Text 水平排列 |
 | T12 | UI：列头排序回归（§27） | feat | T11 | 中 | 待裁决 | 资源管理器式列头 |
-| T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | 待裁决 | 场景分组+作用域+已改清单 |
+| T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | 进行中（Phase 1） | Python 数据层已建：ConfigListModel 新增 `modifiedCount`/`modifiedSummary`/`resetOption`；bridge 暴露 `modifiedSummary()`/`resetOption(key)`；QML UI 改动待真机验证 |
 | T14 | UI：注释开关入配置页（§29） | feat | — | 低 | 待裁决 | 配置页直接选 |
 | T15 | 英文版 i18n（§28） | feat | — | 高 | 待裁决 | qsTr / 字典路线 |
 | T16 | 作者身份改写（公开前） | chore | — | 低 | ✅ 已完成 | git-filter-repo 改写 77 个提交：`agent@local` → `Janlhin <72262030+Janlhin@users.noreply.github.com>`；备份在 `dxvk-version-manager-py-backup-20261009-182318`；本地 git config 已设；待 force push（需 token 刷新） |
