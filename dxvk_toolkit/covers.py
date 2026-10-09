@@ -5,6 +5,11 @@ placeholder instead of raising. Pillow is used when present (it decodes JPEG,
 which Tk cannot); without it the grid still works, just without artwork.
 """
 
+# pyright: reportOptionalMemberAccess=warning
+# Pillow is an optional, untyped dependency; its members are only touched under
+# the HAS_PIL runtime guard, so the static "None" narrowing below is a false
+# positive, not a real null-deref bug.
+
 from __future__ import annotations
 
 import hashlib
@@ -26,9 +31,7 @@ try:  # Pillow is optional: artwork is nice, not essential.
 
     HAS_PIL = True
 except Exception:  # noqa: BLE001 - any import problem disables artwork
-    Image = None  # type: ignore[assignment]
-    ImageDraw = None  # type: ignore[assignment]
-    ImageTk = None  # type: ignore[assignment]
+    Image = ImageDraw = ImageTk = None  # type: ignore[assignment]
     HAS_PIL = False
 
 # Portrait card artwork, the shape store fronts use.

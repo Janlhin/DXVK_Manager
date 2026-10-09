@@ -27,7 +27,7 @@ class Bridge(QObject):
     statusMessage = Signal(str, str)          # text, kind (info/ok/warn/error)
     progressChanged = Signal(float, str)      # 0..1 (negative = hide), label
     gamesReady = Signal(int)                  # row count, after a scan
-    statusesReady = Signal("QVariantList")
+    statusesReady = Signal("QVariantList")  # pyright: ignore[reportArgumentType]
     # Localized (Chinese) store name for one game.
     nameZhReady = Signal(str, str)    # list of (key, text, kind)
     detected = Signal(str, str, str)          # key, direct3d, arch
@@ -35,8 +35,8 @@ class Bridge(QObject):
     # QVariantMap matters: a bare Python dict arrives in QML as an opaque
     # object, so payload.kind was undefined and the page silently discarded
     # every result.
-    versionsReady = Signal("QVariantMap")     # kind / releases / installed
-    localVersionsReady = Signal("QVariantMap")  # {"dxvk": [...], "gplasync": [...]}
+    versionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # kind / releases / installed
+    localVersionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # {"dxvk": [...], "gplasync": [...]}
     busyChanged = Signal(bool)
     # Worker threads hand results back through this signal so every callback
     # (and therefore every model reset) runs on the interface thread. Qt drops

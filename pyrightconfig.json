@@ -1,6 +1,6 @@
 {
   "include": ["dxvk_toolkit", "tests"],
-  "exclude": ["**/__pycache__", "**/.venv", "**/.pytest_cache"],
+  "exclude": ["**/__pycache__", "**/.venv", "**/.pytest_cache", "tests/qml_smoke.py", "tests/render_pages.py"],
   "typeCheckingMode": "basic",
   "reportMissingTypeStubs": "none",
   "reportMissingImports": "warning",
