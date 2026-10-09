@@ -1,6 +1,6 @@
 # DXVK Version Manager · Python edition
 
-一个**纯标准库**（无需 pip 安装任何依赖）的 Windows 桌面工具：
+一个**核心层纯标准库**的 Windows 桌面工具（图形界面需 PySide6、封面需 Pillow，均已在 `MANIFEST.md` 登记；核心层与命令行零第三方依赖）：
 
 * 检测 Steam 游戏（含所有库文件夹）与手动添加的游戏目录
 * 下载 / 管理官方 DXVK 与 DXVK-GPLAsync 版本
@@ -15,7 +15,7 @@
 
 ## 快速开始
 
-需要 Python 3.10+（本机 `py -3.13` 已验证）。没有任何第三方依赖：不用 pip install。
+需要 Python 3.10+（本机 `py -3.13` 已验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
 
     :: 启动图形界面
     py -3.13 main.py
@@ -33,7 +33,7 @@
 | **DXVK 版本** | 列出官方 DXVK 全部发布版本，下载 / 删除本地副本，显示大小与日期 |
 | **GPLAsync 版本** | 同上，来源为 GitLab 上的 Ph42oN/dxvk-gplasync（async 分支） |
 | **已安装游戏** | Steam + 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录 |
-| **DXVK 配置** | 配置生成器：基础 / 高级模式、搜索、实时预览、复制、导出、写入游戏目录 |
+| **DXVK 配置** | 配置生成器：简单 / 进阶 / 完全 模式、搜索、实时预览、复制、导出、写入游戏目录 |
 | **设置** | 代理、参考文件（内置 / 自定义 / 按 tag 在线获取）、数据目录、缓存清理 |
 
 ## 命令行
@@ -93,11 +93,28 @@
 * 所有 Steam 库文件夹都会扫描（原版硬编码 `C:\Program Files (x86)\Steam\steamapps`）
 * 游戏识别完全离线（原版依赖 PCGamingWiki 接口；这里作为兜底，结果缓存 45 天）
 * GitHub 限流不影响使用（原版只调 API 且未分页，最多只能看到 30 个版本）
-* 配置生成器：基础模式覆盖 9 个常用项（原版 3 个）、支持搜索、
-  切换基础/高级模式不会清空已填内容、生成文件带注释小节
+* 配置生成器：简单模式覆盖 9 个常用项（原版 3 个）、支持搜索、
+  切换 简单/进阶/完全 模式不会清空已填内容、生成文件带注释小节
 * 中文界面、命令行接口、纯标准库（原版需要 Node/Electron 运行时）
 
 未实现：封面图显示（元数据里有 URL，但界面暂不渲染图片）。
+
+## 开发 / 校验
+
+本项目遵循《用 AI 做项目：强制工程校验方案》。本地与 CI 共用唯一验收入口 `verify`：
+
+    # Windows
+    py -3 -m pip install -r requirements-dev.txt
+    .\verify.ps1
+
+    # Linux / CI
+    python -m pip install -r requirements-dev.txt
+    bash verify.sh
+
+推送（或开 PR）后由 GitHub Actions（`.github/workflows/verify.yml`）权威判定：跑 `pytest` 核心套件、
+`ruff` 静态检查、以及 PR 提交信息的 Conventional Commits 规范。GUI 冒烟测试 `tests/qml_smoke.py`
+需要显示环境，不在无显示 CI 的必过门禁内。第三方来源登记见 `MANIFEST.md`；AI 协作约束见 `AGENTS.md`；
+决策与待裁决项见 `DECISIONS.md` / `TAKEOVER.md` / `TASKS.md`。
 
 ## 许可证与致谢
 
