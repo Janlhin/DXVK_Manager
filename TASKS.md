@@ -22,6 +22,7 @@
 | T15 | 英文版 i18n（§28） | feat | — | 高 | 待裁决 | qsTr / 字典路线 |
 | T16 | 作者身份改写（公开前） | chore | — | 低 | 待裁决（公开前） | `git filter-repo` 或压初始提交 |
 | T17 | node-app / web-configurator 处置 | chore | — | 低 | 待裁决 | 维持外部参考 / 或明确排除 |
+| T18 | 核心层测试覆盖率（build/model/parse round-trip） | test | — | 中 | ✅ 已建（本次） | `tests/test_build.py` 15 例全绿；纳入 `verify` 门禁；push 后 CI 跑绿 |
 
 > 可执行项（状态非「待裁决」）≥ 3，满足阶段 3 退出判据。待裁决项占多数属接手期正常现象，
 > 不得为压低阻塞指标而擅设默认。
