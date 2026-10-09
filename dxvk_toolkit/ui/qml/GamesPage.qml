@@ -439,31 +439,38 @@ Item {
                             }
                         }
 
-                        Column {
+                        // Name column: capped at 42% of row width so the
+                        // metadata column gets a fixed starting point and the
+                        // 1400px void disappears (§24 scheme A).
+                        Text {
+                            id: nameText
                             anchors.left: avatar.right
+                            anchors.leftMargin: Th.space3
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(parent.width * 0.42, 480)
+                            text: row.isHeader ? "" : row.name
+                            color: Th.text
+                            font.pixelSize: Th.fontBody
+                            elide: Text.ElideRight
+                        }
+
+                        // Metadata column: platform · Direct3D · arch on one
+                        // line, starting right after the name and filling up
+                        // to the status chip.
+                        Text {
+                            id: metaText
+                            anchors.left: nameText.right
                             anchors.leftMargin: Th.space3
                             anchors.right: statusChip.left
                             anchors.rightMargin: Th.space3
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: 1
-
-                            Text {
-                                width: parent.width
-                                text: row.isHeader ? "" : row.name
-                                color: Th.text
-                                font.pixelSize: Th.fontBody
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                width: parent.width
-                                text: row.platformLabel + " · " +
-                                      (row.direct3d === "" ? "识别中…"
-                                       : (row.direct3d === "Unknown" ? "Direct3D 未知" : row.direct3d)) +
-                                      (row.arch !== "" ? " · " + row.arch : "")
-                                color: Th.textMuted
-                                font.pixelSize: Th.fontCaption
-                                elide: Text.ElideRight
-                            }
+                            text: row.platformLabel + " · " +
+                                  (row.direct3d === "" ? "识别中…"
+                                   : (row.direct3d === "Unknown" ? "Direct3D 未知" : row.direct3d)) +
+                                  (row.arch !== "" ? " · " + row.arch : "")
+                            color: Th.textMuted
+                            font.pixelSize: Th.fontCaption
+                            elide: Text.ElideRight
                         }
 
                         StatusChip {

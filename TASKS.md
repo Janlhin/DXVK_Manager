@@ -15,7 +15,7 @@
 | T8 | 运行时边界 schema 校验（confkit 解析入口） | feat | — | 中 | ✅ 已建（本次） | `validate.py` + `parse`/`confspec` 守卫 + `tests/test_validate.py`；push 后 CI 跑绿 |
 | T9 | 引入 pyright 类型检查（Python 无编译期类型） | chore | — | 中 | ✅ 已完成 | pyright 1.1.414 接入 verify.ps1/verify.sh + CI typecheck job；basic 模式；核心层零错误零警告；reportAttributeAccessIssue 降为 warning（PySide6/QML 动态属性假阳性）；util.py 类型注释修复（4 元组声明错误） |
 | T10 | UI：封面圆角方案 B（缓存切片） | feat | — | 中 | ✅ 已建（本次，待真机验证） | `covers.ensure_card/ensure_round` 切圆角变体；`models` 暴露 `coverCardUrl`/`coverRoundUrl`；`bridge` 取封面时生成；QML 卡片绑 card、列表头像绑 round；详情弹窗保持原图（§22.5 待定） |
-| T11 | UI：列表右侧太空（§24 A/B） | feat | — | 中 | 待裁决 | 用户选 A 或 B |
+| T11 | UI：列表右侧太空（§24 A/B） | feat | — | 中 | ✅ 已完成（待真机验证） | 方案 A：名称列限宽 42%（max 480px）+ 元数据列从名称右侧延伸到状态徽标左侧；Column 改为两个独立 Text 水平排列 |
 | T12 | UI：列头排序回归（§27） | feat | T11 | 中 | 待裁决 | 资源管理器式列头 |
 | T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | 待裁决 | 场景分组+作用域+已改清单 |
 | T14 | UI：注释开关入配置页（§29） | feat | — | 低 | 待裁决 | 配置页直接选 |
