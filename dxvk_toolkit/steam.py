@@ -11,9 +11,10 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from . import net
 from .paths import data_root
@@ -95,7 +96,7 @@ class Game:
         return PLATFORM_LABELS.get(self.source, self.source.title())
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "Game":
+    def from_dict(cls, payload: dict[str, Any]) -> Game:
         return cls(
             appid=str(payload.get("appid") or "manual"),
             name=str(payload.get("name") or Path(str(payload.get("install_dir", ""))).name),
@@ -560,7 +561,6 @@ def describe_game(
     The folder modification time invalidates the entry, so a reinstalled or
     patched game is re-detected automatically.
     """
-    import json
 
     path = Path(game_dir)
     key = os.path.normcase(os.path.abspath(str(path)))

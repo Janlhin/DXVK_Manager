@@ -5,8 +5,6 @@ supply its own key sets."""
 
 from __future__ import annotations
 
-
-
 BASIC_KEYS = (
     # frame pacing and sync
     "maxFrameRate",

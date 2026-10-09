@@ -247,7 +247,7 @@ class Bridge(QObject):
             self._cover_pending.add(cover_key)
         urls = self._urls.get(key) or covers.source_urls(game)
 
-        def work() -> "tuple[str, str]":
+        def work() -> tuple[str, str]:
             if not urls:
                 return ("", "")
             card_uri = round_uri = ""
@@ -261,7 +261,7 @@ class Bridge(QObject):
                     round_uri = round_.as_uri()
             return (card_uri, round_uri)
 
-        def done(result: "tuple[str, str]") -> None:
+        def done(result: tuple[str, str]) -> None:
             with self._lock:
                 # The pending set stores cover keys, not game keys; discarding
                 # the game key left the cover pending forever, so a retry

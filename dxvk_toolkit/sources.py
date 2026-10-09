@@ -8,9 +8,10 @@ import shutil
 import tarfile
 import threading
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from . import net
 from .paths import archives_dir, cache_dir, data_root, settings

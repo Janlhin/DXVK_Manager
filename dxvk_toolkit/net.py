@@ -11,13 +11,13 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import threading
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .paths import settings
 from .util import log

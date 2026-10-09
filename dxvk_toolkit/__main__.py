@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from . import confbuild, confspec, installer, sources, steam
-from .util import human_size, log, setup_logging
+from .util import human_size, setup_logging
 
 
 def _parse_set(values: list[str] | None) -> dict[str, str]:

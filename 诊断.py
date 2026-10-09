@@ -66,7 +66,7 @@ def pip_install(vpy: str) -> bool:
     try:
         r = subprocess.run([vpy, "-m", "pip", "install", "--upgrade", "pip"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
-        line("pip upgrade: rc=%s" % r.returncode)
+        line(f"pip upgrade: rc={r.returncode}")
         r = subprocess.run([vpy, "-m", "pip", "install", "PySide6", "Pillow"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     except subprocess.TimeoutExpired:

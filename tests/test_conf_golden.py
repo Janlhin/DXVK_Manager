@@ -15,8 +15,9 @@ from pathlib import Path
 os.environ.setdefault("DXVK_MANAGER_HOME", str(Path(tempfile.gettempdir()) / "dxvk-golden"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from dxvk_toolkit import confbuild, confspec  # noqa: E402
 from capture_golden import CASES, normalize  # noqa: E402
+
+from dxvk_toolkit import confbuild, confspec  # noqa: E402
 
 GOLDEN = Path(__file__).resolve().parent / "golden"
 

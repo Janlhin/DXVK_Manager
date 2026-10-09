@@ -105,7 +105,6 @@ def main() -> int:
     check(games_page is not None, "list view present")
     if games_page is not None:
         window.setProperty("currentPage", 0)
-        page_item = window.contentItem().childItems()[0] if False else None
         # Flip the mode the way the toolbar button does.
         for obj_name in ("gameGrid",):
             pass

@@ -6,13 +6,13 @@ talks to the network or the disk on its own.
 
 from __future__ import annotations
 
-from typing import Any, Iterable
-
-from ..paths import settings
+from collections.abc import Iterable
+from typing import Any
 
 from PySide6.QtCore import Property, QAbstractListModel, QModelIndex, Qt, Signal, Slot
 
 from .. import confspec, covers, installer, steam
+from ..paths import settings
 
 
 class GameListModel(QAbstractListModel):

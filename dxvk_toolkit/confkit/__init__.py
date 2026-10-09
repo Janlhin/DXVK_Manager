@@ -21,11 +21,6 @@ from .base import (
     KEY_RE,
     NUMBER_RE,
     SECTION_RE,
-    _clean_value,
-    _default_example,
-    _has_value,
-    _infer_type,
-    _pretty_label,
 )
 from .build import (
     HEADER,

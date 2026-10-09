@@ -11,9 +11,10 @@ import struct
 import subprocess
 import sys
 import time
+from collections.abc import Iterable, Iterator
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from .paths import logs_dir
 

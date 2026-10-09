@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 from .base import NUMBER_RE
 from .i18n import documentation_overrides

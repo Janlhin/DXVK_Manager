@@ -11,7 +11,6 @@ Existing call sites keep importing this module, so the split changed no API.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from . import confkit
 from .confkit import (  # re-exported for existing call sites
@@ -37,9 +36,17 @@ from .confkit import (  # re-exported for existing call sites
     purpose_of,
     tier_of,
 )
-from .confkit.validate import ValidationError, MAX_CONF_BYTES
+from .confkit.validate import MAX_CONF_BYTES, ValidationError
 from .paths import asset_path, settings
 from .sources import list_installed, reference_conf
+
+__all__ = [
+    "BASIC_KEYS", "BOOLEAN_RE", "COMMENT_RE", "ConfModel", "GPLASYNC_ONLY",
+    "KEY_RE", "LEGACY_KEYS", "MAX_CONF_BYTES", "MODES", "Member", "NUMBER_RE",
+    "OptionGroup", "PURPOSE", "PURPOSE_ORDER", "SECTION_RE", "ValidationError",
+    "build_model", "build_of", "consolidate", "parse_conf_text",
+    "parse_config_values", "purpose_of", "tier_of",
+]
 
 
 def _configure() -> None:

@@ -11,12 +11,11 @@ import hashlib
 import os
 import queue
 import re
-import threading
-import time
 from collections import OrderedDict
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 from . import net
 from .paths import covers_dir
@@ -65,7 +64,7 @@ PLATFORM_COLORS = {
     "unknown": "#3a4150",
 }
 
-_PHOTO_CACHE: "OrderedDict[str, Any]" = OrderedDict()
+_PHOTO_CACHE: OrderedDict[str, Any] = OrderedDict()
 _PHOTO_LIMIT = 90
 
 
@@ -403,8 +402,8 @@ class CoverLoader:
     def __init__(self, root: Any, *, workers: int = 4, interval_ms: int = 70) -> None:
         self._root = root
         self._pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="cover")
-        self._queue: "queue.Queue[tuple[str, list[str], Callable[[str, bool], None]]]" = queue.Queue()
-        self._results: "queue.Queue[tuple[str, bool, Callable[[str, bool], None]]]" = queue.Queue()
+        self._queue: queue.Queue[tuple[str, list[str], Callable[[str, bool], None]]] = queue.Queue()
+        self._results: queue.Queue[tuple[str, bool, Callable[[str, bool], None]]] = queue.Queue()
         self._pending: set[str] = set()
         self._stopped = False
         self._timer: str | None = None

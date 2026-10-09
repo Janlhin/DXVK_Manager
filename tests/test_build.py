@@ -106,7 +106,7 @@ def test_wrap_comment_latin_token_integrity():
     lines = wrap_comment("hello world this is a fairly long sentence to wrap", width=24)
     for line in lines:
         assert len(line) <= 24  # latin chars are single width -> char count == column count
-    joined = " ".join(l[2:] if l.startswith("# ") else l for l in lines)
+    joined = " ".join(ln[2:] if ln.startswith("# ") else ln for ln in lines)
     assert "hello" in joined and "sentence" in joined
 
 
@@ -118,7 +118,7 @@ def test_wrap_comment_cjk_double_width():
         # strip the "# " prefix before measuring
         body = line[2:] if line.startswith("# ") else line
         assert display_width(body) <= 12
-    flat = "".join(l[2:] if l.startswith("# ") else l for l in lines)
+    flat = "".join(ln[2:] if ln.startswith("# ") else ln for ln in lines)
     assert "中文换行" in flat
 
 

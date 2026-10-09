@@ -10,7 +10,7 @@
 | T3 | CI 跑测试 + lint + commitlint | ci | T1 | 高 | ✅ 已建（本次基线） | push 后 GitHub Actions 全绿 |
 | T4 | commitlint 提交门禁配置 | chore | — | 低 | ✅ 已建（本次基线） | PR 提交信息符合约定式 |
 | T5 | 声明 PySide6/Pillow 运行时依赖清单 | chore | — | 低 | 待做 | `MANIFEST.md` 补精确版本 SHA |
-| T6 | 静态检查达标（ruff 零警告） | chore | T3 | 中 | 待做（首跑可能需修） | `ruff check .` 退出 0 |
+| T6 | 静态检查达标（ruff 零警告） | chore | T3 | 中 | ✅ 已完成 | `ruff check .` 退出 0；67 项违规已清零（38 F401+9 UP035+9 UP037+5 I001+2 E741+2 W292+1 UP031+1 F841）；`verify.ps1`/`verify.sh` 已接入 ruff 门禁；confspec re-export 加 `__all__` |
 | T7 | 死代码治理（等价 knip：vulture/ruff unused） | chore | T6 | 中 | 待做 | bridge 上帝对象、GameCard.selected 等清理 |
 | T8 | 运行时边界 schema 校验（confkit 解析入口） | feat | — | 中 | ✅ 已建（本次） | `validate.py` + `parse`/`confspec` 守卫 + `tests/test_validate.py`；push 后 CI 跑绿 |
 | T9 | 引入 pyright 类型检查（Python 无编译期类型） | chore | — | 中 | 待做 | `pyright` 接入 verify |

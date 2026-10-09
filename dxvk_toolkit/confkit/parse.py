@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from .base import COMMENT_RE, KEY_RE, SECTION_RE, _clean_value, _default_example, _infer_type
 from .curate import _FORK_CONF
@@ -148,7 +149,7 @@ def consolidate(ordered: Sequence[Member]) -> list[OptionGroup]:
     return groups
 
 
-def _fork_groups(existing: list["OptionGroup"]) -> list["OptionGroup"]:
+def _fork_groups(existing: list[OptionGroup]) -> list[OptionGroup]:
     """Option groups that only the GPLAsync fork provides."""
     known = {group.key for group in existing}
     parsed = consolidate(parse_conf_text(_FORK_CONF)[1])
@@ -169,7 +170,7 @@ def build_model(text: str, *, source: str = "", path: Path | None = None) -> Con
     )
 
 
-def parse_config_values(text: str, model: "ConfModel") -> tuple[dict[str, Any], list[str]]:
+def parse_config_values(text: str, model: ConfModel) -> tuple[dict[str, Any], list[str]]:
     """Read an existing dxvk.conf and return the options it actually sets.
 
     Returns (values, unknown_keys). Commented lines and section headers are
