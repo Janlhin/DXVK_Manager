@@ -14,7 +14,7 @@
 | T7 | 死代码治理（等价 knip：vulture/ruff unused） | chore | T6 | 中 | 待做 | bridge 上帝对象、GameCard.selected 等清理 |
 | T8 | 运行时边界 schema 校验（confkit 解析入口） | feat | — | 中 | ✅ 已建（本次） | `validate.py` + `parse`/`confspec` 守卫 + `tests/test_validate.py`；push 后 CI 跑绿 |
 | T9 | 引入 pyright 类型检查（Python 无编译期类型） | chore | — | 中 | 待做 | `pyright` 接入 verify |
-| T10 | UI：封面圆角方案 B（缓存切片） | feat | — | 中 | 待裁决（§22，已选 B 未实现） | 卡片/列表/弹窗圆角像素验证 |
+| T10 | UI：封面圆角方案 B（缓存切片） | feat | — | 中 | ✅ 已建（本次，待真机验证） | `covers.ensure_card/ensure_round` 切圆角变体；`models` 暴露 `coverCardUrl`/`coverRoundUrl`；`bridge` 取封面时生成；QML 卡片绑 card、列表头像绑 round；详情弹窗保持原图（§22.5 待定） |
 | T11 | UI：列表右侧太空（§24 A/B） | feat | — | 中 | 待裁决 | 用户选 A 或 B |
 | T12 | UI：列头排序回归（§27） | feat | T11 | 中 | 待裁决 | 资源管理器式列头 |
 | T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | 待裁决 | 场景分组+作用域+已改清单 |

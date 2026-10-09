@@ -73,7 +73,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source: card.coverUrl
+                source: card.coverCardUrl
                 asynchronous: true
                 fillMode: Image.PreserveAspectCrop
                 sourceSize.width: Math.round(Th.cardWidth * 2)
@@ -88,7 +88,7 @@ Item {
                 color: "#e7e9ec"
                 font.pixelSize: Th.fontDisplay
                 font.bold: true
-                visible: card.coverUrl === ""
+                visible: card.coverCardUrl === ""
             }
 
             // platform chip

@@ -31,7 +31,7 @@ class Bridge(QObject):
     # Localized (Chinese) store name for one game.
     nameZhReady = Signal(str, str)    # list of (key, text, kind)
     detected = Signal(str, str, str)          # key, direct3d, arch
-    coverReady = Signal(str, str)             # key, file url
+    coverReady = Signal(str, str, str)        # key, card_url, round_url (§22 scheme B)
     # QVariantMap matters: a bare Python dict arrives in QML as an opaque
     # object, so payload.kind was undefined and the page silently discarded
     # every result.
@@ -207,11 +207,20 @@ class Bridge(QObject):
 
             cover_key = covers.cover_key(game)
             try:
-                if covers.original_path(cover_key).is_file():
-                    if not row.get("coverUrl"):
-                        self.model.update(
-                            key, coverUrl=covers.original_path(cover_key).as_uri()
-                        )
+                original = covers.original_path(cover_key)
+                if original.is_file():
+                    # Slice rounded variants now so the cached original needs
+                    # no re-download; fall back to the original if Pillow is
+                    # missing. (§22 scheme B)
+                    card = covers.ensure_card(cover_key) or original
+                    round_ = covers.ensure_round(cover_key) or original
+                    updates = {}
+                    if not row.get("coverCardUrl"):
+                        updates["coverCardUrl"] = card.as_uri()
+                    if not row.get("coverRoundUrl"):
+                        updates["coverRoundUrl"] = round_.as_uri()
+                    if updates:
+                        self.model.update(key, **updates)
                     continue
             except OSError:
                 pass
@@ -230,20 +239,26 @@ class Bridge(QObject):
             self._cover_pending.add(cover_key)
         urls = self._urls.get(key) or covers.source_urls(game)
 
-        def work() -> str:
+        def work() -> "tuple[str, str]":
             if not urls:
-                return ""
+                return ("", "")
+            card_uri = round_uri = ""
             if covers.download_cover(cover_key, urls):
-                target = covers.original_path(cover_key)
-                if target.is_file():
-                    return target.as_uri()
-            return ""
+                original = covers.original_path(cover_key)
+                if original.is_file():
+                    # Generate both rounded variants, then hand their URLs back.
+                    card = covers.ensure_card(cover_key) or original
+                    round_ = covers.ensure_round(cover_key) or original
+                    card_uri = card.as_uri()
+                    round_uri = round_.as_uri()
+            return (card_uri, round_uri)
 
-        def done(url: str) -> None:
+        def done(result: "tuple[str, str]") -> None:
             with self._lock:
                 self._cover_pending.discard(key)
-            if url:
-                self.coverReady.emit(key, url)
+            card_uri, round_uri = result or ("", "")
+            if card_uri or round_uri:
+                self.coverReady.emit(key, card_uri, round_uri)
 
         self._submit(work, done, None, quiet=True)
 
@@ -826,8 +841,15 @@ class Bridge(QObject):
             else:
                 self._patched.discard(key)
 
-    def _apply_cover(self, key: str, url: str) -> None:
-        self.model.update(key, coverUrl=url)
+    def _apply_cover(self, key: str, card_uri: str, round_uri: str) -> None:
+        """Apply the sliced cover URLs (card + round) to the row (§22 B)."""
+        updates = {}
+        if card_uri:
+            updates["coverCardUrl"] = card_uri
+        if round_uri:
+            updates["coverRoundUrl"] = round_uri
+        if updates:
+            self.model.update(key, **updates)
 
     def _set_busy(self, value: bool) -> None:
         if value != self._busy:

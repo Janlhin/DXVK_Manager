@@ -423,7 +423,7 @@ Item {
 
                             Image {
                                 anchors.fill: parent
-                                source: row.coverUrl
+                                source: row.coverRoundUrl
                                 asynchronous: true
                                 fillMode: Image.PreserveAspectCrop
                                 visible: status === Image.Ready
@@ -434,7 +434,7 @@ Item {
                                 color: "#ffffff"
                                 font.pixelSize: Th.fontSubtitle
                                 font.bold: true
-                                visible: row.coverUrl === ""
+                                visible: row.coverRoundUrl === ""
                             }
                         }
 

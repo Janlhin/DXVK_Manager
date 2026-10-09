@@ -34,6 +34,11 @@ except Exception:  # noqa: BLE001 - any import problem disables artwork
 
 # Portrait card artwork, the shape store fronts use.
 CARD_SIZE = (168, 252)
+# Only the top two corners are rounded: the bottom meets the card footer, so
+# rounding it would expose the card background. (§22 cover rounding, scheme B.)
+CARD_RADIUS = 6
+# List avatar: a full circle. (§22 cover rounding, scheme B.)
+ROUND_SIZE = (36, 36)
 # The Cloudflare host is canonical but is frequently slow or unreachable in
 # some regions, so every asset is tried on each host in turn.
 STEAM_CDN_HOSTS = (
@@ -100,8 +105,13 @@ def original_path(key: str) -> Path:
 
 
 def card_path(key: str) -> Path:
-    size = f"{CARD_SIZE[0]}x{CARD_SIZE[1]}"
-    return covers_dir() / f"{safe_key(key)}_{size}.png"
+    """Pre-sliced card cover: portrait, top corners rounded (§22 scheme B)."""
+    return covers_dir() / f"{safe_key(key)}_card.png"
+
+
+def round_path(key: str) -> Path:
+    """Pre-sliced list avatar: a full circle (§22 scheme B)."""
+    return covers_dir() / f"{safe_key(key)}_round.png"
 
 
 def source_urls(game: Any) -> list[str]:
@@ -178,8 +188,42 @@ def _fit(image: Any, size: tuple[int, int]) -> Any:
     return image.resize((target_w, target_h), resample)
 
 
-def ensure_card(key: str, size: tuple[int, int] = CARD_SIZE) -> Path | None:
-    """Create the pre-scaled PNG used by the grid (requires Pillow)."""
+def _rounded_top_mask(size: tuple[int, int], radius: int) -> Any:
+    """Alpha mask: top corners rounded by `radius`, bottom corners square.
+
+    The bottom of a card cover sits against the card footer, so only the top
+    two corners are clipped (§22 cover rounding, scheme B).
+    """
+    width, height = size
+    radius = min(radius, width // 2, height // 2)
+    mask = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rectangle([0, radius, width - 1, height - 1], fill=255)
+    draw.pieslice([0, 0, 2 * radius, 2 * radius], 180, 270, fill=255)
+    draw.pieslice([width - 2 * radius, 0, width - 1, 2 * radius], 270, 360, fill=255)
+    return mask
+
+
+def _circle_mask(size: tuple[int, int]) -> Any:
+    width, height = size
+    mask = Image.new("L", size, 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, width - 1, height - 1], fill=255)
+    return mask
+
+
+def _apply_alpha(image: Any, mask: Any) -> Any:
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    image.putalpha(mask)
+    return image
+
+
+def ensure_card(key: str, size: tuple[int, int] = CARD_SIZE, radius: int = CARD_RADIUS) -> Path | None:
+    """Create the pre-sliced, top-rounded PNG used by the card grid (Pillow).
+
+    The rounded corners are baked into the cached file (§22 scheme B), so the
+    Qt UI just loads this PNG and needs no shader mask. (§22)
+    """
     if not HAS_PIL:
         return None
     source = original_path(key)
@@ -191,11 +235,38 @@ def ensure_card(key: str, size: tuple[int, int] = CARD_SIZE) -> Path | None:
             return target
         with Image.open(source) as image:
             card = _fit(image.convert("RGB"), size)
+            card = _apply_alpha(card, _rounded_top_mask(size, radius))
             target.parent.mkdir(parents=True, exist_ok=True)
             card.save(target, "PNG", optimize=True)
         return target
     except Exception as exc:  # noqa: BLE001 - a broken image must not break the grid
         log.debug("cover resize failed for %s: %s", key, exc)
+        return None
+
+
+def ensure_round(key: str, size: tuple[int, int] = ROUND_SIZE) -> Path | None:
+    """Create the pre-sliced circular PNG used by the list avatar (Pillow).
+
+    Baked as a transparent circle so the Qt row just loads it over the
+    platform-coloured disc (§22 scheme B). (§22)
+    """
+    if not HAS_PIL:
+        return None
+    source = original_path(key)
+    if not source.is_file():
+        return None
+    target = round_path(key)
+    try:
+        if target.is_file() and target.stat().st_mtime >= source.stat().st_mtime:
+            return target
+        with Image.open(source) as image:
+            thumb = _fit(image.convert("RGB"), size)
+            thumb = _apply_alpha(thumb, _circle_mask(size))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            thumb.save(target, "PNG", optimize=True)
+        return target
+    except Exception as exc:  # noqa: BLE001 - a broken image must not break the list
+        log.debug("cover round failed for %s: %s", key, exc)
         return None
 
 

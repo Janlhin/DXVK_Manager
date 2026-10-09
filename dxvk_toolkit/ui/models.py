@@ -39,6 +39,8 @@ class GameListModel(QAbstractListModel):
     AppIdRole = Qt.UserRole + 11
     SubtitleRole = Qt.UserRole + 12
     GameKindRole = Qt.UserRole + 13
+    CoverCardRole = Qt.UserRole + 14      # top-rounded card cover (§22 scheme B)
+    CoverRoundRole = Qt.UserRole + 15     # circular list avatar (§22 scheme B)
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -68,6 +70,8 @@ class GameListModel(QAbstractListModel):
             self.AppIdRole: b"appId",
             self.SubtitleRole: b"subtitle",
             self.GameKindRole: b"gameKind",
+            self.CoverCardRole: b"coverCardUrl",
+            self.CoverRoundRole: b"coverRoundUrl",
         }
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
@@ -91,6 +95,8 @@ class GameListModel(QAbstractListModel):
             self.AppIdRole: "appId",
             self.SubtitleRole: "subtitle",
             self.GameKindRole: "gameKind",
+            self.CoverCardRole: "coverCardUrl",
+            self.CoverRoundRole: "coverRoundUrl",
         }
         field = mapping.get(role)
         return row.get(field) if field else None
@@ -143,6 +149,8 @@ class GameListModel(QAbstractListModel):
                 "statusText": "",
                 "statusKind": "muted",
                 "coverUrl": _cover_url(game),
+                "coverCardUrl": _cover_card_url(game),
+                "coverRoundUrl": _cover_round_url(game),
                 "installPath": str(game.install_dir),
                 "appId": game.appid,
                 "subtitle": "",
@@ -625,15 +633,47 @@ def _placeholder_for(group: Any) -> str:
 
 
 def _cover_url(game: steam.Game) -> str:
-    """Local file URL of a cached cover, or empty when there is none."""
+    """Local file URL of the full-resolution original cover.
+
+    Used by the detail dialog, which shows the un-cropped image (§22.5).
+    """
     key = covers.cover_key(game)
-    for candidate in (covers.card_path(key), covers.original_path(key)):
-        try:
-            if candidate.is_file() and candidate.stat().st_size > 1024:
-                return candidate.as_uri()
-        except OSError:
-            continue
+    try:
+        candidate = covers.original_path(key)
+        if candidate.is_file() and candidate.stat().st_size > 1024:
+            return candidate.as_uri()
+    except OSError:
+        pass
     return ""
+
+
+def _cover_variant_url(game: steam.Game, path_fn: Any) -> str:
+    """File URL of a pre-sliced cover variant, only when it is fresh."""
+    key = covers.cover_key(game)
+    try:
+        candidate = path_fn(key)
+        original = covers.original_path(key)
+        fresh = (
+            candidate.is_file()
+            and candidate.stat().st_size > 256
+            and original.is_file()
+            and candidate.stat().st_mtime >= original.stat().st_mtime
+        )
+        if fresh:
+            return candidate.as_uri()
+    except OSError:
+        pass
+    return ""
+
+
+def _cover_card_url(game: steam.Game) -> str:
+    """Top-rounded card cover (§22 scheme B)."""
+    return _cover_variant_url(game, covers.card_path)
+
+
+def _cover_round_url(game: steam.Game) -> str:
+    """Circular list avatar (§22 scheme B)."""
+    return _cover_variant_url(game, covers.round_path)
 
 
 def status_for(game: steam.Game, status: installer.GameStatus | None = None) -> tuple[str, str]:
