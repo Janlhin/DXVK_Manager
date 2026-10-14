@@ -20,10 +20,40 @@
 | T13 | UI：配置页信息模型重构（§33） | feat | — | 高 | ✅ Phase 1 已完成 / Phase 2 进行中 | Phase 1 Python 数据层已建：ConfigListModel 新增 `modifiedCount`/`modifiedSummary`/`resetOption`；bridge 暴露 `modifiedSummary()`/`resetOption(key)`；Phase 2 QML「已改清单」面板已落于 `ConfigPage.qml`，待真机显示环境验证 |
 | T14 | UI：注释开关入配置页（§29） | feat | — | 低 | ✅ 已完成（2026-10-14 裁决） | 候选 A + 方案 ①：预览栏「带注释」开关（`ConfigPage.qml` DarkSwitch + `conf_comments` 设置键），与设置页原开关共用同一键；SettingsPage 判断放宽为 `!== false` 与 Python 默认 True 对齐；标题绑定控件行左缘 + elide，杜绝英文长文案重叠 |
 | T15 | 英文版 i18n（§28） | feat | — | 高 | ✅ 已完成（2026-10-14 裁决：全量落地，待真机验证） | 路线 A（qsTr/lupdate/lrelease）：8 个 QML 上下文 + bridge 71 处 tr() + GameListModel `_tr()`；`assets/i18n/app_en.ts/.qm` 236 条全译；设置页「界面语言」卡片（`ui_lang`，重启生效）；选项说明语言独立（confkit `_en` 后缀字段）、预设名保持逻辑键不译、SLANG 搜索别名为数据不译；英文离屏四页渲染验证（分组头/状态徽章/版本类别徽章均已随语言切换），修复预览栏标题重叠与「版本更新」徽章漏译；维护工具 `tests/i18n_fill.py`（词条回填）+ `tests/i18n_probe.py`（抽查+渲染） |
-| T16 | 作者身份改写（公开前） | chore | — | 低 | ✅ 已完成 | git-filter-repo 改写 77 个提交：`agent@local` → `Janlhin <72262030+Janlhin@users.noreply.github.com>`；备份在 `dxvk-version-manager-py-backup-20261009-182318`；本地 git config 已设；待 force push（需 token 刷新） |
+| T16 | 作者身份改写（公开前） | chore | — | 低 | ✅ 已完成 | git-filter-repo 改写 77 个提交：`agent@local` → `Janlhin <72262030+Janlhin@users.noreply.github.com>`；备份在 `dxvk-version-manager-py-backup-20261009-182318`；本地 git config 已设；重写后历史已在远端（2026-10-14 常规推送 `7030660..18f19ac` 确认 origin 即改写后基线，无需 force push） |
 | T17 | node-app / web-configurator 处置 | chore | — | 低 | ✅ 已完成（2026-10-14 裁决） | **明确排除出仓库**（许可隔离依 PLAN.md §30 / DECISIONS.md「2026-10-09 仓库结构与接手基线」）；2026-10-14 迁移精简时已删除 `D:\Projects\DXVK_Manager` 下的两份副本（伞形库提交 `e7de9b8`，删除前与 C 盘正本逐字节比对一致），正本保留在 C 盘源目录；伞形库根 `.gitignore` 排除 `/node-app/`、`/web-configurator/` 防再入库 |
 | T18 | 核心层测试覆盖率（build/model/parse round-trip） | test | — | 中 | ✅ 已建（本次） | `tests/test_build.py` 15 例全绿；纳入 `verify` 门禁；push 后 CI 跑绿 |
 | T19 | pyright 门禁修复（消除动态库假阳性 error） | chore | T9 | 低 | ✅ 已完成 | 排除 GUI 测试脚本（`qml_smoke.py`/`render_pages.py`）出类型门禁；`bridge.py` 的 `Signal("QVariantList"/"QVariantMap")` 加 `reportArgumentType` ignore；`covers.py` 文件级放宽 `reportOptionalMemberAccess`（Pillow 可选且无 stub）；pyright 现 **0 errors** |
+| T20 | **整体重写：编译语言 + 从零 I18N（终极形态评估）** | refactor | — | 特大 | 待裁决（**最核心长线项**） | 语言候选 Go / Rust / C++ / C#；i18n 自首日起为架构约束而非事后补丁；裁决点与可复用资产见下方附注 |
+
+## T20 附注：编译语言重写 + 从零 I18N
+
+**定位**：PySide6 版功能待办清零、界面稳定后的终极形态选项。承接 DECISIONS.md
+「2026-09-13 架构决策：暂不换前端」——该决策明确「等功能待办清完、界面不再大改后再评估重构」，
+本项即该评估的正式立项，**非近期工程**，标记待裁决挂起直至触发条件满足。
+
+### 裁决点（启动前须逐项拍板）
+
+1. **语言与 UI 栈**（初步对比，届时以原型验证为准）：
+   - **C#**（Avalonia / WPF）——Windows 单平台最顺，GUI 生态与本地化资源体系（resx）成熟；
+   - **Rust**（Slint / egui / Tauri）——内存安全 + 单文件分发；Slint 自带翻译体系，GUI 生态较新；
+   - **Go**（Wails / Fyne / Qt bindings）——构建与分发最简，GUI 绑定层质量参差；
+   - **C++ / Qt**——自 PySide6 迁移最平缓（QML 可大量直接复用），代价是内存安全与开发效率。
+2. **重写范围**：整体重写 vs 核心层先行移植（`parse`/`build`/`validate`/`sources` 为纯标准库逻辑，与 UI 完全解耦，可独立先行）。
+3. **时机**：T13 收尾、真机验证清单清零后启动评估；与 bridge 拆分议题合并考虑。
+
+### 从零 I18N 基线（T15 的经验前置为架构约束）
+
+- **源语言不硬编码**：源串即键或独立键名，文案全部外置——T15 的 71 处 tr() 逐文件补包、3 处漏译返工，即「事后 i18n」的代价实证；
+- **词条校验进 CI**：缺失/漏译 key 直接红（`tests/i18n_fill.py` 逐键断言思路升格为门禁）；
+- **复数 / 占位符 / 日期数字走 CLDR**，禁止拼接串；预留 RTL；**语言热切换**（现 `ui_lang` 需重启生效，是已知欠账）；
+- **伪本地化测试**：拉长串 + 变音符暴露布局硬编码（T14 预览栏标题重叠即此类缺陷）；
+- **逻辑键与展示文案分离**：预设名/模式名不得作为逻辑判断依据（对应「性能优先/纯净」不译的权宜之计）。
+
+### 可复用资产
+
+`confspec`/`curate` 的 dxvk.conf 知识库与 PURPOSE 数据、SLANG 别名表、设置/账本 schema、
+现有测试用例语义均可直接导出；QML 界面结构（若最终选 Qt 系）可参照移植。
 
 > 可执行项（状态非「待裁决」）≥ 3，满足阶段 3 退出判据。待裁决项占多数属接手期正常现象，
 > 不得为压低阻塞指标而擅设默认。
