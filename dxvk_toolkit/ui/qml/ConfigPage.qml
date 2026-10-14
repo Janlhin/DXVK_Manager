@@ -68,9 +68,6 @@ Item {
         bridge.setConfigTarget(key, name)
     }
 
-    // The option column keeps a readable measure; the preview takes the rest
-    // and can be dragged wider from the divider.
-    readonly property real maxOptionWidth: 860
     property real previewWidth: 560
 
     function clampPreview(value) {
@@ -429,11 +426,21 @@ Item {
 
             StatusChip {
                 anchors.verticalCenter: parent.verticalCenter
+                // 默认目标下徽章文案与左侧下拉框完全重复；仅游戏目标时
+                // 显示磁盘同步状态（已写入 / 与磁盘文件不同 / 未写入）。
+                visible: page.gameKey !== ""
                 text: page.statusLabel
                 kind: page.statusKind
             }
+        }
 
-            Item { width: Th.space3; height: 1 }
+        // Bulk actions live on the right, visually separate from the
+        // "what am I editing" group on the left.
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: Th.pad
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Th.space2
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -576,7 +583,7 @@ Item {
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: function (wheel) {
-                var step = 58 * 3
+                var step = 48 * 3
                 var delta = wheel.pixelDelta.y !== 0
                           ? wheel.pixelDelta.y * 2
                           : (wheel.angleDelta.y / 120) * step
@@ -600,8 +607,8 @@ Item {
             required property string value
             required property string build
 
-            width: Math.min(optionList.width, page.maxOptionWidth)
-            height: optionRow.rowKind === "header" ? 40 : 58
+            width: optionList.width
+            height: optionRow.rowKind === "header" ? 32 : 48
             color: optionRow.rowKind === "header"
                    ? Th.surface
                    : (rowHover.containsMouse ? Th.surfaceHover
@@ -684,66 +691,27 @@ Item {
                 opacity: 0.5
             }
 
-            CheckBox {
-                id: check
-                visible: optionRow.rowKind !== "header"
-                anchors.left: parent.left
-                anchors.leftMargin: Th.space3
-                anchors.verticalCenter: parent.verticalCenter
-                checked: optionRow.optionEnabled
-                onToggled: {
-                    bridge.setOption(optionRow.optionKey, checked, valueField.text)
-                    page.importMessage = ""
-                    page.previewDirty = true
-                }
-                contentItem: Item {}
-
-                indicator: Rectangle {
-                    implicitWidth: 16
-                    implicitHeight: 16
-                    x: check.leftPadding
-                    y: check.height / 2 - height / 2
-                    radius: Th.radiusMicro
-                    color: check.checked ? Th.accentDark : Th.surfaceAlt
-                    border.width: 1
-                    border.color: check.checked
-                                  ? Th.accent
-                                  : (check.hovered ? Th.borderStrong : Th.border)
-
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    Behavior on border.color { ColorAnimation { duration: 120 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: "#ffffff"
-                        font.pixelSize: Th.fontCaption
-                        font.bold: true
-                        visible: check.checked
-                    }
-                }
-            }
-
             Column {
                 visible: optionRow.rowKind !== "header"
                 anchors.left: parent.left
-                anchors.leftMargin: 40
-                anchors.right: valueField.visible ? valueField.left : parent.right
-                anchors.rightMargin: Th.space4
+                anchors.leftMargin: Th.space3
+                anchors.right: optionControls.left
+                anchors.rightMargin: Th.space3
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 1
+                spacing: 2
 
                 Row {
                     width: parent.width
                     spacing: Th.space2
 
                     Text {
-                        text: optionRow.label + (optionRow.isBoolean ? qsTr("   · 开关") : "")
+                        text: optionRow.label
                         color: optionRow.optionEnabled ? Th.text : Th.textMuted
                         font.pixelSize: Th.fontSubtitle
                         font.bold: true
                         elide: Text.ElideRight
-                        width: Math.min(implicitWidth, parent.width - forkBadge.width - Th.space2)
+                        width: Math.min(implicitWidth, parent.width
+                                        - (forkBadge.visible ? forkBadge.width + Th.space2 : 0))
                     }
 
                     // Only the GPLAsync fork provides this option; upstream
@@ -780,31 +748,52 @@ Item {
                 }
             }
 
-            TextField {
-                id: valueField
-                width: 120
-                visible: optionRow.rowKind !== "header" && !optionRow.isBoolean
+            // 每行右缘统一是开关（启用状态一眼可见，不再是最左侧的 16px
+            // 复选框）；非布尔选项在开关左侧放值输入框。开关沿用原复选框
+            // 语义（传当前输入框的值），行为不变。
+            Row {
+                id: optionControls
                 anchors.right: parent.right
-                anchors.rightMargin: Th.space4
+                anchors.rightMargin: Th.space3
                 anchors.verticalCenter: parent.verticalCenter
-                text: optionRow.value
-                placeholderText: optionRow.example
-                color: optionRow.optionEnabled ? Th.text : Th.textMuted
-                placeholderTextColor: Th.textDim
-                font.pixelSize: Th.fontSmall
-                background: Rectangle {
-                    radius: Th.radiusControl
-                    color: Th.surfaceAlt
-                    border.width: 1
-                    border.color: valueField.activeFocus ? Th.accent : Th.border
-                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                spacing: Th.space2
+
+                TextField {
+                    id: valueField
+                    width: 140
+                    visible: optionRow.rowKind !== "header" && !optionRow.isBoolean
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: optionRow.value
+                    placeholderText: optionRow.example
+                    color: optionRow.optionEnabled ? Th.text : Th.textMuted
+                    placeholderTextColor: Th.textDim
+                    font.pixelSize: Th.fontSmall
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: Th.surfaceAlt
+                        border.width: 1
+                        border.color: valueField.activeFocus ? Th.accent : Th.border
+                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                    }
+                    onTextEdited: {
+                        page.importMessage = ""
+                        // Clearing the value also unticks the option: an enabled
+                        // row with no value would build a broken "key =" line.
+                        bridge.setOption(optionRow.optionKey, text !== "", text)
+                        page.previewDirty = true
+                    }
                 }
-                onTextEdited: {
-                    page.importMessage = ""
-                    // Clearing the value also unticks the option: an enabled
-                    // row with no value would build a broken "key =" line.
-                    bridge.setOption(optionRow.optionKey, text !== "", text)
-                    page.previewDirty = true
+
+                DarkSwitch {
+                    id: optionSwitch
+                    visible: optionRow.rowKind !== "header"
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: optionRow.optionEnabled
+                    onToggled: {
+                        bridge.setOption(optionRow.optionKey, checked, valueField.text)
+                        page.importMessage = ""
+                        page.previewDirty = true
+                    }
                 }
             }
         }

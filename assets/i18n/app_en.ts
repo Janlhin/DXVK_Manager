@@ -380,84 +380,79 @@
         <translation>State unknown</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="243" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="244" />
         <source>搜索选项…</source>
         <translation>Search options…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="262" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="263" />
         <source>简单</source>
         <translation>Simple</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="263" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="264" />
         <source>进阶</source>
         <translation>Advanced</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="264" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="265" />
         <source>完全</source>
         <translation>Full</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="291" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="292" />
         <source>导入 dxvk.conf…</source>
         <translation>Import dxvk.conf…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="319" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="320" />
         <source>共 %1 项，已选 %2</source>
         <translation>%1 options in total, %2 selected</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="354" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="355" />
         <source>作用对象</source>
         <translation>Applies to</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="436" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="447" />
         <source>预设</source>
         <translation>Preset</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="447" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="458" />
         <source>选择预设…</source>
         <translation>Pick a preset…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="511" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="522" />
         <source>存为预设</source>
         <translation>Save as preset</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="520" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="531" />
         <source>清空</source>
         <translation>Clear all</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="527" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="538" />
         <source>重置为默认</source>
         <translation>Reset to defaults</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="565" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="576" />
         <source>还没有可用的配置选项。
 先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。</source>
         <translation>No config options available yet.
 Download any DXVK version on the Versions page first (it bundles a reference file), or point to a dxvk.conf manually in Settings.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="737" />
-        <source>   · 开关</source>
-        <translation>   · toggle</translation>
-    </message>
-    <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="762" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="734" />
         <source>GPLAsync 专有</source>
         <translation>GPLAsync only</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="865" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="864" />
         <source>dxvk.conf 预览</source>
         <translation>dxvk.conf preview</translation>
     </message>
@@ -787,54 +782,54 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
         <translation>Scan</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="329" />
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="590" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="336" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="597" />
         <source>识别中…</source>
         <translation>Detecting…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="330" />
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="591" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="337" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="598" />
         <source>Direct3D 未知</source>
         <translation>Direct3D unknown</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="414" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="421" />
         <source>名称</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="420" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="427" />
         <source>平台</source>
         <translation>Platform</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="432" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="439" />
         <source>架构</source>
         <translation>Arch</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="610" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="617" />
         <source>详情</source>
         <translation>Details</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="621" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="628" />
         <source>打开目录</source>
         <translation>Open folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="640" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="647" />
         <source>还没有游戏</source>
         <translation>No games yet</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="647" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="654" />
         <source>点「扫描」读取 Steam 库（含所有库文件夹），或「＋ 添加文件夹」指定任意游戏目录。</source>
         <translation>Press "Scan" to read the Steam library (including every library folder), or use "＋ Add folder" to pick any game directory.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="655" />
+        <location filename="../../dxvk_toolkit/ui/qml/GamesPage.qml" line="662" />
         <source>开始扫描</source>
         <translation>Start scan</translation>
     </message>
@@ -842,137 +837,137 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="184" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="190" />
         <source>离线模式</source>
         <translation>Offline mode</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="196" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="202" />
         <source>打开后程序不发起任何网络请求：版本列表与封面只使用本地已有内容，下载会直接提示离线模式已开启。</source>
         <translation>When on, the app makes no network requests: version lists and covers come from local content only, and downloads report that offline mode is on.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="209" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="215" />
         <source>网络与下载源</source>
         <translation>Network and download source</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="216" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="222" />
         <source>代理</source>
         <translation>Proxy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="226" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
         <source>自动</source>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="226" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
         <source>直连</source>
         <translation>Direct</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="226" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
         <source>自定义</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="251" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="257" />
         <source>探测本地代理</source>
         <translation>Detect local proxy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="267" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="273" />
         <source>下载源</source>
         <translation>Download source</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="295" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="301" />
         <source>官方源被墙时自动改用镜像</source>
         <translation>Falls back to mirrors automatically when the official source is unreachable</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="305" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="311" />
         <source>测试连接</source>
         <translation>Test connection</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="308" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="314" />
         <source>测试中…</source>
         <translation>Testing…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="332" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="338" />
         <source>点「测试连接」会真实拉取一次版本列表</source>
         <translation>"Test connection" actually fetches the version list once</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="356" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="362" />
         <source>导出的 dxvk.conf</source>
         <translation>Exported dxvk.conf</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="368" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="374" />
         <source>开启后每个选项上方会写入中文说明（与原版工具一致）；关闭则只输出选项本身。预览与导出使用同一份内容。</source>
         <translation>When on, each option gets a comment above it (like the original tool); when off, only the options are written. Preview and export share the same content.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="391" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="397" />
         <source>界面语言</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="398" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="404" />
         <source>简体中文</source>
         <translation>简体中文</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="406" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="412" />
         <source>切换界面文字，重启应用后生效；选项说明的语言独立设置，互不影响。</source>
         <translation>Switches the UI text; takes effect after a restart. The option-description language is set separately and is unaffected.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="419" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="425" />
         <source>数据目录</source>
         <translation>Data folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="427" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="433" />
         <source>已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。</source>
         <translation>Downloaded versions live here; a game folder only ever shows the DXVK DLLs and the .bkp backups created on install.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="431" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="437" />
         <source>打开数据目录</source>
         <translation>Open data folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="445" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="451" />
         <source>官方资源</source>
         <translation>Official resources</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="470" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="476" />
         <source>鸣谢</source>
         <translation>Credits</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="518" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="524" />
         <source>许可：%1</source>
         <translation>License: %1</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="535" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="541" />
         <source>查看完整第三方声明</source>
         <translation>View full third-party notices</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="549" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="555" />
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="552" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="558" />
         <source>DXVK Version Manager · Python edition v%1
 界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。</source>
         <translation>DXVK Version Manager · Python edition v%1
@@ -1164,4 +1159,4 @@ DLLs already installed into games are unaffected; you can always download it aga
         <translation>Working…</translation>
     </message>
 </context>
-<context><name>GameListModel</name><message><source>目录缺失</source><translation>Folder missing</translation></message><message><source>已装 DXVK</source><translation>DXVK installed</translation></message><message><source>可还原</source><translation>Restorable</translation></message><message><source>未安装</source><translation>Not installed</translation></message><message><source>帧率与同步</source><translation>Framerate and sync</translation></message><message><source>画面与输出</source><translation>Display and output</translation></message><message><source>性能优化</source><translation>Performance</translation></message><message><source>兼容性</source><translation>Compatibility</translation></message><message><source>显示与诊断</source><translation>Rendering and diagnostics</translation></message><message><source>其他</source><translation>Other</translation></message><message><source>未知</source><translation>Unknown</translation></message></context></TS>
+<context><name>GameListModel</name><message><source>目录缺失</source><translation>Folder missing</translation></message><message><source>已装 DXVK</source><translation>DXVK installed</translation></message><message><source>可还原</source><translation>Restorable</translation></message><message><source>未安装</source><translation>Not installed</translation></message><message><source>未知</source><translation>Unknown</translation></message><message><source>帧率与同步</source><translation>Framerate and sync</translation></message><message><source>画面与输出</source><translation>Display and output</translation></message><message><source>性能优化</source><translation>Performance</translation></message><message><source>兼容性</source><translation>Compatibility</translation></message><message><source>显示与诊断</source><translation>Rendering and diagnostics</translation></message><message><source>其他</source><translation>Other</translation></message></context></TS>
