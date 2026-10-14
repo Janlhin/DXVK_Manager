@@ -288,6 +288,12 @@ class Bridge(QObject):
         Switching between 官方 DXVK and DXVK-GPLAsync used to leave the list
         empty until 刷新列表 was pressed; now the cache appears immediately and
         a stale one is refreshed silently.
+
+        The Python defaults only apply to Python callers. The Qt meta-object
+        system cannot see them, so every QML caller must pass BOTH arguments -
+        a one-argument call is rejected with "Error: Insufficient arguments"
+        and the slot silently never runs (that was the "共 0 个可下载版本"
+        bug in the game dialog).
         """
         cached = sources.cached_releases(kind)
         if cached and not force:

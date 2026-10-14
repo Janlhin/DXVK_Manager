@@ -26,6 +26,11 @@ Dialog {
     property string kind: "dxvk"
     property string version: ""
     property string downloading: ""  // version currently auto-downloading
+    property var versionRows: []      // rows shown in versionPicker, mirrored
+                                     // off its model so the box can render
+                                     // without reading model[currentIndex]
+    property int versionCurrent: -1   // selected row index, mirrors
+                                     // versionPicker.currentIndex
 
     readonly property var kindValues: ["dxvk", "gplasync"]
     readonly property var kindLabels: ["官方 DXVK", "DXVK-GPLAsync"]
@@ -42,8 +47,11 @@ Dialog {
     function loadVersions() {
         bridge.loadLocalVersions()
         // The cached remote listing appears at once; a stale one refreshes
-        // quietly in the background.
-        bridge.loadVersions(sheet.kind)
+        // quietly in the background. The bridge slot is @Slot(str, bool) and
+        // the Qt meta-object system cannot see Python default values, so both
+        // arguments must be passed - a one-argument call is rejected with
+        // "Error: Insufficient arguments" and the list silently never loads.
+        bridge.loadVersions(sheet.kind, false)
     }
 
     // Combine the remote catalogue with the local cache: every downloadable
@@ -70,6 +78,7 @@ Dialog {
             if (!seen[full])
                 rows.push({ name: full, display: local, installed: true })
         }
+        sheet.versionRows = rows
         versionPicker.model = rows
         // Default to the newest downloaded version, else the newest known one.
         var pick = -1
@@ -78,8 +87,13 @@ Dialog {
         }
         if (pick < 0 && rows.length > 0)
             pick = 0
-        versionPicker.currentIndex = pick
+        sheet.versionCurrent = pick      // drives the box text; set right away so it
+                                         // is correct even before the index lands
         sheet.version = pick >= 0 ? rows[pick].name : ""
+        // Assigning model and currentIndex in the same tick makes Qt reset the
+        // index to -1 (count is not settled yet); defer it to the next event
+        // loop turn so the popup selection actually sticks.
+        Qt.callLater(function() { versionPicker.currentIndex = pick })
     }
 
     modal: true
@@ -254,7 +268,7 @@ Dialog {
                             sheet.kind = sheet.kindValues[currentIndex]
                             sheet.remote = []
                             sheet.applyKind()
-                            bridge.loadVersions(sheet.kind)
+                            bridge.loadVersions(sheet.kind, false)
                         }
                         font.pixelSize: Th.fontSmall
                         background: Rectangle {
@@ -316,6 +330,7 @@ Dialog {
                             var row = versionPicker.model[versionPicker.currentIndex]
                             if (!row)
                                 return
+                            sheet.versionCurrent = versionPicker.currentIndex
                             sheet.version = row.name
                             // Picking something that is not on disk downloads it
                             // first; the apply button unlocks when it arrives.
@@ -334,16 +349,16 @@ Dialog {
                         contentItem: Text {
                             leftPadding: Th.space3
                             text: {
-                                if (versionPicker.count > 0 && versionPicker.currentIndex >= 0
-                                        && versionPicker.model[versionPicker.currentIndex]) {
-                                    var row = versionPicker.model[versionPicker.currentIndex]
+                                var idx = sheet.versionCurrent
+                                if (idx >= 0 && sheet.versionRows[idx]) {
+                                    var row = sheet.versionRows[idx]
                                     var state = row.name === sheet.downloading ? " · 下载中…"
                                             : (row.installed ? " · 已下载" : " · 未下载")
                                     return row.display + state
                                 }
                                 return sheet.downloading !== "" ? sheet.downloading + "（下载中…）" : "（没有可用版本）"
                             }
-                            color: versionPicker.count > 0 ? Th.text : Th.textDim
+                            color: sheet.versionCurrent >= 0 ? Th.text : Th.textDim
                             font.pixelSize: Th.fontSmall
                             verticalAlignment: Text.AlignVCenter
                         }

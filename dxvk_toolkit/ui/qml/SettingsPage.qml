@@ -306,7 +306,9 @@ Item {
                             padding: 8
                             onClicked: {
                                 netStatus.text = "测试中…"
-                                bridge.loadVersions("dxvk")
+                                // @Slot(str, bool): Qt cannot see Python
+                                // defaults, so pass both arguments.
+                                bridge.loadVersions("dxvk", false)
                             }
                             background: Rectangle {
                                 radius: Th.radiusSmall
