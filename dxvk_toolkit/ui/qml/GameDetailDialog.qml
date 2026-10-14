@@ -31,6 +31,7 @@ Dialog {
                                      // without reading model[currentIndex]
     property int versionCurrent: -1   // selected row index, mirrors
                                      // versionPicker.currentIndex
+    property var fp: ({})             // DXVK fingerprint payload (bridge)
 
     readonly property var kindValues: ["dxvk", "gplasync"]
     readonly property var kindLabels: [qsTr("官方 DXVK"), "DXVK-GPLAsync"]
@@ -43,6 +44,19 @@ Dialog {
     }
 
     readonly property bool versionInstalled: sheet.version !== "" && sheet.installedHere(sheet.version)
+
+    readonly property bool fpHasDxvk: (sheet.fp.dllNames || []).length > 0
+    readonly property bool fpShow: sheet.fpHasDxvk && !sheet.fp.managed
+    readonly property string fpVerdict: {
+        if (!sheet.fpHasDxvk)
+            return ""
+        var names = (sheet.fp.dllNames || []).join(" + ")
+        if (sheet.fp.official)
+            return qsTr("已装 %1（%2）· 哈希与官方缓存一致，未经修改").arg(sheet.fp.version || "?").arg(names)
+        if (sheet.fp.version !== "")
+            return qsTr("已装 DXVK v%1（%2）· 与本地缓存不符：魔改或非官方构建，也可能是本地未下载该版本").arg(sheet.fp.version).arg(names)
+        return qsTr("已装 DXVK（%1）· 二进制未带版本标记，无法核对来源").arg(names)
+    }
 
     function loadVersions() {
         bridge.loadLocalVersions()
@@ -129,9 +143,17 @@ Dialog {
             if (kind === "error")
                 sheet.downloading = ""   // a failed download frees the picker
         }
+        function onFingerprintReady(key, payload) {
+            if (key === sheet.gameKey)
+                sheet.fp = payload
+        }
     }
 
-    onOpened: sheet.loadVersions()
+    onOpened: {
+        sheet.loadVersions()
+        sheet.fp = {}
+        bridge.requestFingerprint(sheet.gameKey)
+    }
 
     contentItem: Rectangle {
         color: Th.surface
@@ -248,6 +270,70 @@ Dialog {
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
+
+                // --- fingerprint / takeover ----------------------------------
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Th.space2
+                    visible: sheet.fpShow || (sheet.fpHasDxvk && sheet.fp.managed && sheet.fp.version !== "")
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: sheet.fpHasDxvk
+                        text: sheet.fpVerdict
+                        color: sheet.fp.official ? Th.ok : (sheet.fpShow ? Th.warn : Th.textDim)
+                        font.pixelSize: Th.fontCaption
+                        wrapMode: Text.WordWrap
+                    }
+
+                    RowLayout {
+                        spacing: Th.space2
+                        visible: sheet.fpShow
+
+                        Button {
+                            text: qsTr("接管此安装")
+                            padding: 6
+                            onClicked: { bridge.adoptDxvk(sheet.gameKey, false); sheet.close() }
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: parent.hovered ? Th.primaryHover : Th.primary
+                            }
+                            contentItem: Text {
+                                text: parent.text; color: Th.primaryText
+                                font.pixelSize: Th.fontSmall
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
+                        Button {
+                            text: qsTr("接管并补还原点")
+                            padding: 6
+                            onClicked: { bridge.adoptDxvk(sheet.gameKey, true); sheet.close() }
+                            background: Rectangle {
+                                radius: Th.radiusControl
+                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                            }
+                            contentItem: Text {
+                                text: parent.text; color: Th.text
+                                font.pixelSize: Th.fontSmall
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: sheet.fpShow
+                        text: qsTr("接管后此 DXVK 归本工具管理：显示版本、可直接升级；还原点从 Windows 系统目录补建（并非游戏原始文件）。")
+                        color: Th.textMuted
+                        font.pixelSize: Th.fontMicro
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle; visible: sheet.fpShow }
 
                 // --- pickers -------------------------------------------------
                 GridLayout {

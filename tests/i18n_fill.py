@@ -16,6 +16,8 @@ from pathlib import Path
 TS = Path(__file__).resolve().parent.parent / "assets" / "i18n" / "app_en.ts"
 
 BRIDGE = {
+    "指纹识别失败": "Fingerprinting failed",
+    "接管失败": "Adoption failed",
     "默认配置": "Default configuration",
     "正在扫描游戏库…": "Scanning the game library…",
     "发现 {} 款游戏": "Found {} games",
@@ -187,6 +189,16 @@ GAME_DETAIL = {
     "还原原始 DLL": "Restore original DLLs",
     "移除 DXVK": "Remove DXVK",
     "关闭": "Close",
+    "已装 %1（%2）· 哈希与官方缓存一致，未经修改":
+        "Installed %1 (%2) · hashes match the official cache, unmodified",
+    "已装 DXVK v%1（%2）· 与本地缓存不符：魔改或非官方构建，也可能是本地未下载该版本":
+        "Installed DXVK v%1 (%2) · differs from the local cache: modified or unofficial build, or simply a version not downloaded here",
+    "已装 DXVK（%1）· 二进制未带版本标记，无法核对来源":
+        "Installed DXVK (%1) · the binaries carry no version banner, source cannot be verified",
+    "接管此安装": "Adopt this installation",
+    "接管并补还原点": "Adopt + build restore points",
+    "接管后此 DXVK 归本工具管理：显示版本、可直接升级；还原点从 Windows 系统目录补建（并非游戏原始文件）。":
+        "After adoption this DXVK is managed here: its version is shown and upgrades work directly; restore points are built from the Windows system directories (they are not the game's original files).",
 }
 
 GAMES_PAGE = {
@@ -295,6 +307,7 @@ MAIN = {
 GAME_LIST_MODEL = {
     "目录缺失": "Folder missing",
     "已装 DXVK": "DXVK installed",
+    "已装·未接管": "Installed · unmanaged",
     "可还原": "Restorable",
     "未安装": "Not installed",
     "未知": "Unknown",

@@ -8,6 +8,8 @@ Examples
     python -m dxvk_toolkit --download v2.7.1    # fetch one version into the cache
     python -m dxvk_toolkit --install v2.7.1 --game "D:\Games\Foo"
     python -m dxvk_toolkit --restore --game "D:\Games\Foo"
+    python -m dxvk_toolkit --fingerprint --game "D:\Games\Foo"
+    python -m dxvk_toolkit --adopt --game "D:\Games\Foo" [--backup-system]
     python -m dxvk_toolkit --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
 """
 
@@ -17,7 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import confbuild, confspec, installer, sources, steam
+from . import confbuild, confspec, fingerprint, installer, sources, steam
 from .util import human_size, setup_logging
 
 
@@ -116,6 +118,37 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fingerprint(args: argparse.Namespace) -> int:
+    exit_code = 0
+    for raw in args.game or []:
+        game_dir = Path(raw).expanduser()
+        fp = fingerprint.fingerprint_game(game_dir)
+        print(f"{game_dir}")
+        verdict = "official" if fp.official else ("unverifiable" if fp.unverifiable else "clean")
+        managed = "managed" if fp.managed else "NOT managed by this tool"
+        print(f"  dxvk     : {fp.version or '?'} [{fp.arch or '?'}] {verdict} ({managed})")
+        for dll in fp.dlls:
+            if not dll.present:
+                continue
+            state = f"dxvk v{dll.embedded_version}" if dll.is_dxvk else "not dxvk"
+            match = f" = {dll.matched}" if dll.matched else " (no cache match)"
+            print(f"  {dll.name:15} {state:14} {dll.arch:3} {dll.sha256[:16]}{match}")
+    return exit_code
+
+
+def cmd_adopt(args: argparse.Namespace) -> int:
+    exit_code = 0
+    for raw in args.game or []:
+        game_dir = Path(raw).expanduser()
+        message, backed = fingerprint.adopt(game_dir, backup_from_system_dirs=args.backup_system)
+        print(message)
+        if backed:
+            print(f"  system restore points: {', '.join(backed)}")
+        if "not found" in message or "No DXVK" in message:
+            exit_code = 1
+    return exit_code
+
+
 def cmd_gen_conf(args: argparse.Namespace) -> int:
     model = confspec.load_model(Path(args.reference) if args.reference else None)
     if model.option_count == 0:
@@ -148,6 +181,10 @@ def build_parser() -> argparse.ArgumentParser:
                        help="install a cached version into --game")
     group.add_argument("--restore", action="store_true", help="restore backups in --game")
     group.add_argument("--status", action="store_true", help="show the state of --game folders")
+    group.add_argument("--fingerprint", action="store_true",
+                       help="identify the DXVK DLLs inside --game (version + hash match)")
+    group.add_argument("--adopt", action="store_true",
+                       help="take over an existing DXVK installation in --game")
     group.add_argument("--gen-conf", action="store_true", help="generate a dxvk.conf")
 
     parser.add_argument("--kind", choices=("dxvk", "gplasync"), default="dxvk")
@@ -155,6 +192,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--arch", choices=("x32", "x64"), default="")
     parser.add_argument("--d3d", default="")
     parser.add_argument("--force-backup", action="store_true")
+    parser.add_argument("--backup-system", action="store_true",
+                        help="with --adopt: build restore points from the Windows system directories")
     parser.add_argument("--limit", type=int, default=0, help="limit --versions output")
     parser.add_argument("--reference", help="dxvk.conf used by --gen-conf")
     parser.add_argument("--set", action="append", metavar="KEY=VALUE",
@@ -184,6 +223,14 @@ def main(argv: list[str] | None = None) -> int:
         if not args.game:
             parser.error("--status needs --game")
         return cmd_status(args)
+    if args.fingerprint:
+        if not args.game:
+            parser.error("--fingerprint needs --game")
+        return cmd_fingerprint(args)
+    if args.adopt:
+        if not args.game:
+            parser.error("--adopt needs --game")
+        return cmd_adopt(args)
     if args.gen_conf:
         return cmd_gen_conf(args)
 

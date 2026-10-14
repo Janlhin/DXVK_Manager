@@ -248,6 +248,23 @@ def install(
     if not root.is_dir():
         return InstallResult(False, f"Game folder not found: {root}")
 
+    # Guard: DXVK present but never installed through this tool. Backing it up
+    # now would archive the DXVK DLLs as "originals", destroying the restore
+    # semantics - the user must adopt the installation first.
+    record = ledger.get(root)
+    if not record.get("patched"):
+        foreign = [
+            dll for dll in KNOWN_DLLS
+            if (root / dll).is_file() and looks_like_dxvk(root / dll)
+        ]
+        if foreign:
+            return InstallResult(
+                False,
+                "DXVK is already present in this folder but was not installed here "
+                f"({', '.join(foreign)}). Adopt the existing installation in the "
+                "game details first, then install a new version.",
+            )
+
     plan = dlls_for_direct3d(d3d_hint or guess_direct3d(root))
     wanted = list(dlls) if dlls else list(plan.required)
     chosen_arch = choose_arch(root, arch)

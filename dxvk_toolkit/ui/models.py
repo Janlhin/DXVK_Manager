@@ -788,7 +788,7 @@ def status_for(game: steam.Game, status: installer.GameStatus | None = None) -> 
             return (f"{status.kind or 'dxvk'} {status.version}".strip(), "ok")
         # The files carry the DXVK signature but we did not install them, so
         # the version is unknown - still installed, not "clean".
-        return _tr("已装 DXVK"), "ok"
+        return _tr("已装·未接管"), "warn"
     if status.backuped:
         return _tr("可还原"), "warn"
     return _tr("未安装"), "muted"

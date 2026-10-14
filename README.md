@@ -32,7 +32,7 @@
 | --- | --- |
 | **DXVK 版本** | 列出官方 DXVK 全部发布版本，下载 / 删除本地副本，显示大小与日期 |
 | **GPLAsync 版本** | 同上，来源为 GitLab 上的 Ph42oN/dxvk-gplasync（async 分支） |
-| **已安装游戏** | Steam + 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录 |
+| **已安装游戏** | Steam + 多平台（Epic / GOG / Ubisoft / WeGame / 米哈游）+ 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录 |
 | **DXVK 配置** | 配置生成器：简单 / 进阶 / 完全 模式、搜索、实时预览、复制、导出、写入游戏目录 |
 | **设置** | 代理、参考文件（内置 / 自定义 / 按 tag 在线获取）、数据目录、缓存清理 |
 
@@ -46,6 +46,8 @@
     py -3.13 main.py --install v2.7.1 --game "D:\Games\Foo"
     py -3.13 main.py --restore  --game "D:\Games\Foo"
     py -3.13 main.py --status   --game "D:\Games\Foo"
+    py -3.13 main.py --fingerprint --game "D:\Games\Foo"     # 识别已有的 DXVK：版本 + 哈希比对
+    py -3.13 main.py --adopt --game "D:\Games\Foo"           # 接管已有安装（--backup-system 补还原点）
     py -3.13 main.py --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
 
 ## 它把文件写到哪里
@@ -73,6 +75,14 @@
   主 exe 的 PE 导入表、其余 exe 的导入表，最后才是 exe 中出现的模块名字符串
   （引擎常在次要代码路径里提到别的 D3D 模块，所以放在最后以防误判）。
 * **架构识别**：直接读 PE 头（`IMAGE_FILE_MACHINE`），不依赖外部库。
+* **DXVK 指纹识别与接管**：游戏目录里「不是本工具装的」DXVK 也能认出来 ——
+  VERSIONINFO 资源读 `ProductName="DXVK"`（判定是 DXVK），
+  真实版本号从二进制内嵌的 banner 字符串（`…DXVK: \0v3.1.1\0…`）提取
+  （DXVK 故意把 FileVersion 伪装成 Windows 系统版本，资源里读不到），
+  再对本地下载缓存里的全部官方 DLL 做 SHA-256 比对：
+  命中 = 「官方原版 vX.Y 未经修改」，不命中 = 「与本地缓存不符（魔改/非官方构建，或该版本未下载过）」。
+  确认后可一键「接管」：写入安装记录、（可选）从 System32/SysWOW64 补建还原点、
+  之后即可正常升级。未接管的目录会被安装流程拦截，避免把 DXVK 的 DLL 备份成"原始文件"。
 * **网络**：标准库 `urllib`，失败时自动重试，并回退到系统 `curl.exe`；
   代理默认「先直连，失败后尝试 Windows 系统代理」。
 * **版本列表**：优先 GitHub API；触发限流（未认证 60 次/小时）时自动改用
@@ -96,6 +106,7 @@
 * 配置生成器：简单模式覆盖 9 个常用项（原版 3 个）、支持搜索、
   切换 简单/进阶/完全 模式不会清空已填内容、生成文件带注释小节
 * 中文界面、命令行接口、纯标准库（原版需要 Node/Electron 运行时）
+* 外来 DXVK 安装可指纹识别并接管（原版没有安装记录概念，混装后无法升级/还原）
 
 未实现：封面图显示（元数据里有 URL，但界面暂不渲染图片）。
 

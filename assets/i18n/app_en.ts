@@ -3,345 +3,356 @@
 <context>
     <name>Bridge</name>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="68" />
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="631" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="69" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="700" />
         <source>默认配置</source>
         <translation>Default configuration</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="85" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="86" />
         <source>正在扫描游戏库…</source>
         <translation>Scanning the game library…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="118" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="119" />
         <source>发现 {} 款游戏</source>
         <translation>Found {} games</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="123" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="124" />
         <source>扫描游戏库失败</source>
         <translation>Failed to scan the game library</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="130" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="131" />
         <source>选择游戏目录（包含游戏 exe）</source>
         <translation>Choose the game folder (containing the game exe)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="136" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="137" />
         <source>该目录已在列表中</source>
         <translation>That folder is already in the list</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="140" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="141" />
         <source>已添加 {}</source>
         <translation>Added {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="164" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="165" />
         <source>识别 Direct3D 版本失败</source>
         <translation>Failed to detect the Direct3D version</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="313" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="314" />
         <source>离线模式：本地还没有版本缓存</source>
         <translation>Offline: no local version cache yet</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="315" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="316" />
         <source>离线模式：使用本地版本缓存</source>
         <translation>Offline: using the local version cache</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="318" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="319" />
         <source>正在强制刷新版本列表…</source>
         <translation>Force-refreshing the version list…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="335" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="336" />
         <source>已获取 {} 个版本</source>
         <translation>Fetched {} versions</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="338" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="339" />
         <source>获取版本列表失败</source>
         <translation>Failed to fetch the version list</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="357" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="358" />
         <source>找不到版本 {}</source>
         <translation>Version {} not found</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="368" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="369" />
         <source>{} 下载完成</source>
         <translation>{} downloaded</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="375" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="377" />
         <source>下载失败</source>
         <translation>Download failed</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="390" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="392" />
         <source>{} 不在本地，无需删除</source>
         <translation>{} is not stored locally, nothing to delete</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="395" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="397" />
         <source>已删除 {}</source>
         <translation>Deleted {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="402" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="405" />
         <source>删除失败</source>
         <translation>Delete failed</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="409" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="423" />
+        <source>指纹识别失败</source>
+        <translation>Fingerprinting failed</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="430" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="478" />
         <source>请先选择一款游戏</source>
         <translation>Select a game first</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="422" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="444" />
+        <source>接管失败</source>
+        <translation>Adoption failed</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="491" />
         <source>安装失败</source>
         <translation>Install failed</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="440" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="509" />
         <source>还原失败</source>
         <translation>Restore failed</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="453" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="522" />
         <source>已移除 {} 个文件</source>
         <translation>Removed {} files</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="456" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="525" />
         <source>移除失败</source>
         <translation>Removal failed</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="470" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="539" />
         <source>正在载入 dxvk.conf 选项…</source>
         <translation>Loading dxvk.conf options…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="482" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="551" />
         <source>未找到参考文件</source>
         <translation>reference file not found</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="484" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="553" />
         <source>共 {} 个选项（{}）</source>
         <translation>{} options ({})</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="487" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="556" />
         <source>载入配置选项失败</source>
         <translation>Failed to load the config options</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="504" />
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="535" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="573" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="604" />
         <source>还没有载入参考文件</source>
         <translation>No reference file loaded yet</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="526" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="595" />
         <source>已还原：{}</source>
         <translation>Restored: {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="539" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="608" />
         <source>导入 dxvk.conf</source>
         <translation>Import dxvk.conf</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="546" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="615" />
         <source>读取失败：{}</source>
         <translation>Failed to read: {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="551" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="620" />
         <source>已从 {} 导入 {} 个选项</source>
         <translation>Imported {} options from {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="553" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="622" />
         <source>，另有 {} 个选项不在参考文件里（已忽略）</source>
         <translation>; another {} options are not in the reference file (ignored)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="573" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="642" />
         <source>找不到这款游戏，请先扫描游戏库</source>
         <translation>Game not found; scan the game library first</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="579" />
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="602" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="648" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="671" />
         <source>写入失败：{}</source>
         <translation>Failed to write: {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="581" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="650" />
         <source>已写入 {}</source>
         <translation>Written to {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="595" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="664" />
         <source>导出 dxvk.conf</source>
         <translation>Export dxvk.conf</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="605" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="674" />
         <source>已导出到 {}</source>
         <translation>Exported to {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="760" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="829" />
         <source>已保存预设「{}」</source>
         <translation>Saved preset "{}"</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="813" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="882" />
         <source>找到本地代理 {}，已切换为自定义代理</source>
         <translation>Found a local proxy at {}; switched to the custom proxy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="815" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="884" />
         <source>没有在常见端口上发现本地代理</source>
         <translation>No local proxy found on the usual ports</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="822" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="891" />
         <source>自动（优先官方，失败走镜像）</source>
         <translation>Auto (official first, mirrors on failure)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="823" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="892" />
         <source>仅官方 GitHub</source>
         <translation>Official GitHub only</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="826" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="895" />
         <source>只用镜像 {}</source>
         <translation>Mirror only: {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="836" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="905" />
         <source>下载源：{}</source>
         <translation>Download source: {}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="878" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="947" />
         <source>DXVK 官方仓库</source>
         <translation>DXVK official repository</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="879" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="948" />
         <source>DXVK Wiki（文档）</source>
         <translation>DXVK Wiki (documentation)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="880" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="949" />
         <source>DXVK 发布页</source>
         <translation>DXVK releases page</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="881" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="950" />
         <source>dxvk.conf 原文</source>
         <translation>Original dxvk.conf</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="892" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="961" />
         <source>doitsujin 及贡献者</source>
         <translation>doitsujin and contributors</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="894" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="963" />
         <source>本工具下载并安装它的发布版本；选项说明来自其 dxvk.conf。</source>
         <translation>This tool downloads and installs its releases; the option descriptions come from its dxvk.conf.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="899" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="968" />
         <source>Ph42oN 维护</source>
         <translation>maintained by Ph42oN</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="900" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="969" />
         <source>随项目</source>
         <translation>follows the project</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="901" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="970" />
         <source>带 async 补丁的 DXVK 分支，作为可选下载来源。</source>
         <translation>DXVK fork carrying the async patch, offered as an optional download source.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="908" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="977" />
         <source>功能蓝本：Steam 库扫描、版本管理、DLL 备份与还原。本项目为其 Python 重写。</source>
         <translation>Functional blueprint: Steam library scan, version management, DLL backup and restore. This project is a Python rewrite of it.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="915" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="984" />
         <source>功能蓝本：从 dxvk.conf 生成配置界面。本项目独立实现，未复制其代码。</source>
         <translation>Functional blueprint: a configuration UI generated from dxvk.conf. Implemented independently; no code was copied.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="922" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="991" />
         <source>界面框架（QML / Qt Quick）。</source>
         <translation>UI framework (QML / Qt Quick).</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="927" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="996" />
         <source>Python Imaging Library 社区</source>
         <translation>Python Imaging Library community</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="929" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="998" />
         <source>旧版封面缩略图使用；QML 版已能自行缩放，仅在命令行路径仍会用到。</source>
         <translation>Used by the legacy cover thumbnails; the QML UI scales images itself, only the command-line path still uses it.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="936" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1005" />
         <source>运行环境。</source>
         <translation>Runtime.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="940" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1009" />
         <source>数据与网络来源</source>
         <translation>Data and network sources</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="942" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1011" />
         <source>各自条款</source>
         <translation>their respective terms</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="943" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1012" />
         <source>封面图、发布版本列表、版本列表兜底、可选的兼容性信息。</source>
         <translation>Cover art, release listings, version list fallback, optional compatibility info.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="974" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1043" />
         <source>已复制到剪贴板</source>
         <translation>Copied to the clipboard</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1017" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1086" />
         <source>正在补齐中文名 {}/{}</source>
         <translation>Fetching Chinese names {}/{}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1024" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1093" />
         <source>已补齐 {} 个中文名</source>
         <translation>Fetched {} Chinese names</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1061" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1130" />
         <source>已识别 {} 款游戏的 Direct3D 版本</source>
         <translation>Detected the Direct3D version of {} games</translation>
     </message>
@@ -639,117 +650,147 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
 <context>
     <name>GameDetailDialog</name>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="36" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="37" />
         <source>官方 DXVK</source>
         <translation>Official DXVK</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="193" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="55" />
+        <source>已装 %1（%2）· 哈希与官方缓存一致，未经修改</source>
+        <translation>Installed %1 (%2) · hashes match the official cache, unmodified</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="57" />
+        <source>已装 DXVK v%1（%2）· 与本地缓存不符：魔改或非官方构建，也可能是本地未下载该版本</source>
+        <translation>Installed DXVK v%1 (%2) · differs from the local cache: modified or unofficial build, or simply a version not downloaded here</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="58" />
+        <source>已装 DXVK（%1）· 二进制未带版本标记，无法核对来源</source>
+        <translation>Installed DXVK (%1) · the binaries carry no version banner, source cannot be verified</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="215" />
         <source>安装路径</source>
         <translation>Install path</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="211" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="233" />
         <source>打开目录</source>
         <translation>Open folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="242" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="264" />
         <source>Direct3D 识别中…</source>
         <translation>Detecting Direct3D…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="243" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="265" />
         <source>Direct3D 未知</source>
         <translation>Direct3D unknown</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="259" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="294" />
+        <source>接管此安装</source>
+        <translation>Adopt this installation</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="310" />
+        <source>接管并补还原点</source>
+        <translation>Adopt + build restore points</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="329" />
+        <source>接管后此 DXVK 归本工具管理：显示版本、可直接升级；还原点从 Windows 系统目录补建（并非游戏原始文件）。</source>
+        <translation>After adoption this DXVK is managed here: its version is shown and upgrades work directly; restore points are built from the Windows system directories (they are not the game's original files).</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="345" />
         <source>DXVK 来源</source>
         <translation>DXVK source</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="260" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="346" />
         <source>版本</source>
         <translation>Version</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="355" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="441" />
         <source> · 下载中…</source>
         <translation> · downloading…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="356" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="442" />
         <source> · 已下载</source>
         <translation> · downloaded</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="356" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="442" />
         <source> · 未下载</source>
         <translation> · not downloaded</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="359" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="445" />
         <source>（下载中…）</source>
         <translation> (downloading…)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="359" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="445" />
         <source>（没有可用版本）</source>
         <translation>(no versions available)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="398" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="484" />
         <source>下载中…</source>
         <translation>Downloading…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="399" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="485" />
         <source>已下载</source>
         <translation>Downloaded</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="399" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="485" />
         <source>未下载 · 选后自动下载</source>
         <translation>Not downloaded · picked versions download automatically</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="420" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="506" />
         <source>正在下载 %1 …完成后即可「应用 DXVK」，请稍候。</source>
         <translation>Downloading %1 … you can "Apply DXVK" once it finishes; please wait.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="422" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="508" />
         <source>没有可用版本：离线且本地无缓存。联网后可到「版本库」点「强制刷新」。</source>
         <translation>No versions available: offline with no local cache. Go online and press "Force refresh" on the Versions page.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="423" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="509" />
         <source>共 %1 个可下载版本，已下载 %2 个。选择未下载的版本会自动下载；应用时会自动备份原有 DLL（.bkp）。</source>
         <translation>%1 downloadable versions, %2 downloaded. Picking a version that is not downloaded fetches it automatically; applying backs up the original DLLs (.bkp).</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="438" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="524" />
         <source>应用 DXVK</source>
         <translation>Apply DXVK</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="461" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="547" />
         <source>DXVK 配置</source>
         <translation>DXVK config</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="482" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="568" />
         <source>还原原始 DLL</source>
         <translation>Restore original DLLs</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="498" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="584" />
         <source>移除 DXVK</source>
         <translation>Remove DXVK</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="516" />
+        <location filename="../../dxvk_toolkit/ui/qml/GameDetailDialog.qml" line="602" />
         <source>关闭</source>
         <translation>Close</translation>
     </message>
@@ -1179,4 +1220,4 @@ DLLs already installed into games are unaffected; you can always download it aga
         <translation>Working…</translation>
     </message>
 </context>
-<context><name>GameListModel</name><message><source>目录缺失</source><translation>Folder missing</translation></message><message><source>已装 DXVK</source><translation>DXVK installed</translation></message><message><source>可还原</source><translation>Restorable</translation></message><message><source>未安装</source><translation>Not installed</translation></message><message><source>未知</source><translation>Unknown</translation></message><message><source>帧率与同步</source><translation>Framerate and sync</translation></message><message><source>画面与输出</source><translation>Display and output</translation></message><message><source>性能优化</source><translation>Performance</translation></message><message><source>兼容性</source><translation>Compatibility</translation></message><message><source>显示与诊断</source><translation>Rendering and diagnostics</translation></message><message><source>其他</source><translation>Other</translation></message></context></TS>
+<context><name>GameListModel</name><message><source>目录缺失</source><translation>Folder missing</translation></message><message><source>已装 DXVK</source><translation>DXVK installed</translation></message><message><source>已装·未接管</source><translation>Installed · unmanaged</translation></message><message><source>可还原</source><translation>Restorable</translation></message><message><source>未安装</source><translation>Not installed</translation></message><message><source>未知</source><translation>Unknown</translation></message><message><source>帧率与同步</source><translation>Framerate and sync</translation></message><message><source>画面与输出</source><translation>Display and output</translation></message><message><source>性能优化</source><translation>Performance</translation></message><message><source>兼容性</source><translation>Compatibility</translation></message><message><source>显示与诊断</source><translation>Rendering and diagnostics</translation></message><message><source>其他</source><translation>Other</translation></message></context></TS>

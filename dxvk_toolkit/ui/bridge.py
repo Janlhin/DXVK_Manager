@@ -15,7 +15,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from .. import APP_VERSION, confbuild, confspec, covers, installer, net, sources, steam
+from .. import APP_VERSION, confbuild, confspec, covers, fingerprint, installer, net, sources, steam
 from ..paths import data_root, settings
 from ..util import log
 from .models import ConfigListModel, GameListModel, status_for
@@ -37,6 +37,7 @@ class Bridge(QObject):
     # every result.
     versionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # kind / releases / installed
     localVersionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # {"dxvk": [...], "gplasync": [...]}
+    fingerprintReady = Signal(str, "QVariantMap")  # pyright: ignore[reportArgumentType]  # key / fingerprint payload
     busyChanged = Signal(bool)
     # Worker threads hand results back through this signal so every callback
     # (and therefore every model reset) runs on the interface thread. Qt drops
@@ -366,6 +367,7 @@ class Bridge(QObject):
         def done(installed: str) -> None:
             self.progressChanged.emit(-1.0, "")
             self.statusMessage.emit(self.tr("{} 下载完成").format(installed), "ok")
+            fingerprint.forget_cache_index()
             self.loadVersions(kind)
             self.localVersionsReady.emit(
                 {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
@@ -393,6 +395,7 @@ class Bridge(QObject):
 
         def done(removed: str) -> None:
             self.statusMessage.emit(self.tr("已删除 {}").format(removed), "ok")
+            fingerprint.forget_cache_index()
             self.loadVersions(kind)
             self.localVersionsReady.emit(
                 {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
@@ -400,6 +403,72 @@ class Bridge(QObject):
             self._set_busy(False)
 
         self._submit(work, done, self.tr("删除失败"))
+
+    # -- fingerprint / takeover -------------------------------------------
+    @Slot(str)
+    def requestFingerprint(self, key: str) -> None:
+        """Classify the DXVK DLLs sitting in a game folder (maybe foreign)."""
+        game = self._games.get(key)
+        if game is None:
+            return
+        self._set_busy(True)
+
+        def work() -> Any:
+            return self._fingerprint_payload(game.install_dir)
+
+        def done(payload: Any) -> None:
+            self.fingerprintReady.emit(key, payload)
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("指纹识别失败"))
+
+    @Slot(str, bool)
+    def adoptDxvk(self, key: str, backupFromSystem: bool) -> None:
+        """Adopt a foreign DXVK installation into this tool's ledger."""
+        game = self._games.get(key)
+        if game is None:
+            self.statusMessage.emit(self.tr("请先选择一款游戏"), "warn")
+            return
+        self._set_busy(True)
+
+        def work() -> Any:
+            installer.invalidate(game.install_dir)
+            return fingerprint.adopt(game.install_dir, backup_from_system_dirs=backupFromSystem)
+
+        def done(result: Any) -> None:
+            message, _backed = result
+            self.statusMessage.emit(message, "ok")
+            self._refresh_one(game)
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("接管失败"))
+
+    def _fingerprint_payload(self, install_dir: Path) -> dict[str, Any]:
+        fp = fingerprint.fingerprint_game(install_dir)
+        return {
+            "version": fp.version,
+            "kind": fp.kind,
+            "arch": fp.arch,
+            "managed": fp.managed,
+            "backuped": fp.backuped,
+            "confPresent": fp.conf_present,
+            "official": fp.official,
+            "unverifiable": fp.unverifiable,
+            "dllNames": [dll.name for dll in fp.dxvk_dlls],
+            "dlls": [
+                {
+                    "name": dll.name,
+                    "arch": dll.arch,
+                    "size": dll.size,
+                    "sha256": dll.sha256[:16],
+                    "fileDescription": dll.file_description,
+                    "embeddedVersion": dll.embedded_version,
+                    "matched": dll.matched,
+                }
+                for dll in fp.dlls
+                if dll.present
+            ],
+        }
 
     # -- install / restore -----------------------------------------------
     @Slot(str, str, str)
