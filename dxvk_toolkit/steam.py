@@ -1,9 +1,12 @@
-"""Steam library discovery and appmanifest parsing.
+"""Game discovery across launchers: Steam library parsing plus the Epic
+Games Launcher, GOG and Ubisoft Connect registries.
 
 The original Electron application only looked at one hardcoded path. This
-module walks every library listed in libraryfolders.vdf, understands the
-Unicode-escaped quoted format Valve uses, and keeps manual (non-Steam) folders
-as first-class citizens because the config generator is useful for them too.
+module walks every Steam library listed in libraryfolders.vdf, understands
+the Unicode-escaped quoted format Valve uses, and reads the other launchers'
+install manifests/registries so a machine's whole library shows up. Manual
+(non-launcher) folders stay first-class citizens because the config
+generator is useful for them too.
 """
 
 from __future__ import annotations
@@ -311,6 +314,272 @@ def game_from_folder(folder: str | os.PathLike[str], name: str = "") -> Game:
         install_dir=path,
         source="manual",
     )
+
+
+# --------------------------------------------------------------------------
+# Other launchers: Epic, GOG, Ubisoft
+# --------------------------------------------------------------------------
+
+def _epic_manifest_dir() -> Path | None:
+    """Where the Epic Games Launcher stores its installed-game manifests."""
+    candidates = (
+        Path(os.environ.get("ProgramData", r"C:\ProgramData"))
+        / "Epic" / "EpicGamesLauncher" / "Data" / "Manifests",
+        Path(r"C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests"),
+    )
+    for candidate in candidates:
+        try:
+            if candidate.is_dir():
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
+def _read_epic_manifest(path: Path) -> Game | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("bIsIncomplete"):
+        return None
+    install = str(data.get("InstallLocation") or "").strip()
+    name = str(data.get("DisplayName") or "").strip()
+    if not install or not name:
+        return None
+    appid = (
+        str(data.get("CatalogItemId") or "").strip()
+        or str(data.get("AppName") or "").strip()
+        or path.stem
+    )
+    return Game(appid=appid, name=name, install_dir=Path(install), source="epic")
+
+
+def scan_epic_games(manifest_dir: str | os.PathLike[str] | None = None) -> list[Game]:
+    """Epic Games Launcher titles from their .item manifests."""
+    directory = Path(manifest_dir) if manifest_dir is not None else _epic_manifest_dir()
+    if directory is None:
+        return []
+    try:
+        manifests = sorted(directory.glob("*.item"))
+    except OSError:
+        return []
+    games: list[Game] = []
+    seen: set[str] = set()
+    for manifest in manifests:
+        game = _read_epic_manifest(manifest)
+        if game is None or game.key in seen:
+            continue
+        seen.add(game.key)
+        games.append(game)
+    return games
+
+
+def _registry_subkey_values(hive: int, subkey_path: str) -> list[tuple[str, dict[str, str]]]:
+    """String values of every subkey below subkey_path. Empty off-Windows.
+
+    Kept data-only (no Game construction) so the per-launcher mappers stay
+    testable without a registry.
+    """
+    if os.name != "nt":
+        return []
+    try:
+        import winreg  # noqa: WPS433
+    except ImportError:
+        return []
+    entries: list[tuple[str, dict[str, str]]] = []
+    try:
+        with winreg.OpenKey(hive, subkey_path) as root:
+            index = 0
+            while True:
+                try:
+                    name = winreg.EnumKey(root, index)
+                except OSError:
+                    break
+                index += 1
+                try:
+                    with winreg.OpenKey(root, name) as child:
+                        values: dict[str, str] = {}
+                        value_index = 0
+                        while True:
+                            try:
+                                value_name, value, _kind = winreg.EnumValue(child, value_index)
+                            except OSError:
+                                break
+                            value_index += 1
+                            if isinstance(value, str):
+                                values[value_name] = value
+                            elif isinstance(value, int):
+                                values[value_name] = str(value)
+                        entries.append((name, values))
+                except OSError:
+                    continue
+    except OSError:
+        return entries
+    return entries
+
+
+def _gog_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> list[Game]:
+    games: list[Game] = []
+    for key_name, values in entries:
+        install = str(values.get("path") or "").strip()
+        if not install:
+            continue
+        name = str(values.get("gameName") or "").strip() or Path(install).name
+        games.append(Game(appid=key_name, name=name, install_dir=Path(install), source="gog"))
+    return games
+
+
+def scan_gog_games() -> list[Game]:
+    """GOG titles (Galaxy or offline installers) from the shared registry tree."""
+    if os.name != "nt":
+        return []
+    import winreg  # noqa: WPS433
+
+    entries = _registry_subkey_values(
+        winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\GOG.com\Games"
+    )
+    entries += _registry_subkey_values(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\GOG.com\Games")
+    games: list[Game] = []
+    seen: set[str] = set()
+    for game in _gog_games_from_entries(entries):
+        if game.key in seen:
+            continue
+        seen.add(game.key)
+        games.append(game)
+    return games
+
+
+def _ubisoft_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> list[Game]:
+    games: list[Game] = []
+    seen: set[str] = set()
+    for _key_name, values in entries:
+        install = str(values.get("InstallDir") or "").strip().strip('"')
+        if not install:
+            continue
+        path = Path(install)
+        try:
+            key = os.path.normcase(os.path.abspath(install))
+        except OSError:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        games.append(Game(appid=path.name.lower(), name=path.name, install_dir=path,
+                          source="ubisoft"))
+    return games
+
+
+def scan_ubisoft_games() -> list[Game]:
+    """Ubisoft Connect titles from the launcher's registry install table."""
+    if os.name != "nt":
+        return []
+    import winreg  # noqa: WPS433
+
+    entries = _registry_subkey_values(
+        winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs"
+    )
+    return _ubisoft_games_from_entries(entries)
+
+
+# HoYoPlay biz ids whose display names are stable across install paths.
+# Anything unknown falls back to the install folder's name.
+_MIHOYO_GAME_NAMES = {
+    "hk4e_cn": "原神",
+    "hkrpg_cn": "崩坏：星穹铁道",
+    "nap_cn": "绝区零",
+    "hglb_cn": "未定事件簿",
+}
+
+
+def _mihoyo_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> list[Game]:
+    games: list[Game] = []
+    seen: set[str] = set()
+    for key_name, values in entries:
+        install = str(values.get("GameInstallPath") or "").strip()
+        if not install:
+            continue
+        path = Path(install)
+        try:
+            key = os.path.normcase(os.path.abspath(install))
+        except OSError:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        name = _MIHOYO_GAME_NAMES.get(key_name) or path.name
+        games.append(Game(appid=key_name, name=name, install_dir=path, source="mihoyo"))
+    return games
+
+
+def scan_mihoyo_games() -> list[Game]:
+    """HoYoPlay-installed games (原神 / 星穹铁道 / 绝区零…) from their
+    per-title registry records under HKCU\\Software\\miHoYo\\HYP."""
+    if os.name != "nt":
+        return []
+    import winreg  # noqa: WPS433
+
+    entries = _registry_subkey_values(winreg.HKEY_CURRENT_USER, r"Software\miHoYo\HYP\1_1")
+    return _mihoyo_games_from_entries(entries)
+
+
+def _wegame_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> list[Game]:
+    """Every HKCU\\Software\\Tencent\\{app} record carrying both an
+    InstallLocation and a DisplayName is a WeGame/rail game (无畏契约…);
+    QQ/DeskGo and friends have neither and drop out naturally."""
+    games: list[Game] = []
+    seen: set[str] = set()
+    for key_name, values in entries:
+        install = str(values.get("InstallLocation") or "").strip()
+        name = str(values.get("DisplayName") or "").strip()
+        if not install or not name:
+            continue
+        path = Path(install)
+        try:
+            key = os.path.normcase(os.path.abspath(install))
+        except OSError:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        games.append(Game(appid=str(values.get("ManifestId") or key_name), name=name,
+                          install_dir=path, source="wegame"))
+    return games
+
+
+def scan_wegame_games() -> list[Game]:
+    """WeGame / rail titles from their per-app HKCU registry records."""
+    if os.name != "nt":
+        return []
+    import winreg  # noqa: WPS433
+
+    entries = _registry_subkey_values(winreg.HKEY_CURRENT_USER, r"Software\Tencent")
+    return _wegame_games_from_entries(entries)
+
+
+def scan_all_games(extra_libraries: Iterable[str] = ()) -> list[Game]:
+    """Every installed game we can discover.
+
+    Steam first (richest names and covers), then Epic, GOG, Ubisoft,
+    WeGame and miHoYo; duplicates by install folder are dropped so a game
+    registered by two launchers appears once.
+    """
+    games: list[Game] = []
+    seen: set[str] = set()
+    for game in (
+        scan_steam_games(extra_libraries)
+        + scan_epic_games()
+        + scan_gog_games()
+        + scan_ubisoft_games()
+        + scan_wegame_games()
+        + scan_mihoyo_games()
+    ):
+        if game.key in seen:
+            continue
+        seen.add(game.key)
+        games.append(game)
+    games.sort(key=lambda g: g.name.lower())
+    return games
 
 
 # --------------------------------------------------------------------------

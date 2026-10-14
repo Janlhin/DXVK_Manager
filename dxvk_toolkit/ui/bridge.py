@@ -87,7 +87,7 @@ class Bridge(QObject):
         extra = list(settings.get("steam_extra_libraries") or [])
 
         def work() -> tuple[list[steam.Game], list[tuple[str, str, str]]]:
-            found = steam.scan_steam_games(extra)
+            found = steam.scan_all_games(extra)
             known = {game.key for game in found}
             for entry in manual:
                 if not isinstance(entry, dict):
