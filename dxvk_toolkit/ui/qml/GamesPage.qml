@@ -37,14 +37,14 @@ Item {
     function filterSummary() {
         var parts = []
         if (page.dxtkFilter === "patched")
-            parts.push("已装 DXVK")
+            parts.push(qsTr("已装 DXVK"))
         else if (page.dxtkFilter === "clean")
-            parts.push("未安装")
+            parts.push(qsTr("未安装"))
         if (page.filterPlatform !== "")
             parts.push(page.platformLabel(page.filterPlatform))
         if (parts.length === 0)
-            return "筛选"
-        return "筛选：" + parts.join(" · ")
+            return qsTr("筛选")
+        return qsTr("筛选：%1").arg(parts.join(" · "))
     }
 
     function applyFilters() {
@@ -133,6 +133,40 @@ Item {
     }
 
     // Toolbar buttons (text button and icon button) share one look.
+    // §27: one clickable column heading. Bold with an ↑/↓ arrow while its key
+    // is the active sort; the click goes to bridge.setSort, and the model
+    // itself flips direction when the same column is clicked again.
+    component SortHead: Item {
+        id: head
+        property string label: ""
+        property string key: ""
+        property bool alignLeft: false
+        height: 32
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Th.radiusControl - 2
+            color: headMouse.containsMouse ? Th.surfaceHover : "transparent"
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            x: head.alignLeft ? 0 : (head.width - width) / 2
+            text: head.label + (gameModel.sortKey === head.key
+                                ? (gameModel.sortDescending ? " ↓" : " ↑") : "")
+            color: gameModel.sortKey === head.key ? Th.text : Th.textMuted
+            font.pixelSize: Th.fontCaption
+            font.bold: gameModel.sortKey === head.key
+        }
+        MouseArea {
+            id: headMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: bridge.setSort(head.key)
+        }
+    }
+
     component BarButton: Button {
         id: bar
         property bool primary: false
@@ -172,7 +206,7 @@ Item {
                     id: search
                     Layout.preferredWidth: 220
                     Layout.alignment: Qt.AlignVCenter
-                    placeholderText: "搜索游戏…"
+                    placeholderText: qsTr("搜索游戏…")
                     color: Th.text
                     placeholderTextColor: Th.textDim
                     font.pixelSize: Th.fontSmall
@@ -196,13 +230,13 @@ Item {
 
                 BarButton {
                     Layout.alignment: Qt.AlignVCenter
-                    text: "＋ 添加文件夹"
+                    text: qsTr("＋ 添加文件夹")
                     onClicked: bridge.addManualGame()
                 }
 
                 BarButton {
                     Layout.alignment: Qt.AlignVCenter
-                    text: "扫描"
+                    text: qsTr("扫描")
                     primary: true
                     onClicked: bridge.scanGames()
                 }
@@ -292,8 +326,8 @@ Item {
                                 title: model.name
                                 platform: model.platform
                                 platformLabel: model.platformLabel
-                                subtitle: (model.direct3d === "" ? "识别中…"
-                                           : (model.direct3d === "Unknown" ? "Direct3D 未知" : model.direct3d))
+                                subtitle: (model.direct3d === "" ? qsTr("识别中…")
+                                           : (model.direct3d === "Unknown" ? qsTr("Direct3D 未知") : model.direct3d))
                                 statusText: model.statusText
                                 statusKind: model.statusKind
                                 coverUrl: model.coverUrl
@@ -321,10 +355,98 @@ Item {
                 clip: true
                 model: gameModel
                 spacing: Th.space1
-                topMargin: Th.pad
+                topMargin: 33 + Th.pad
                 bottomMargin: Th.pad
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: SlimBar {}
+
+                // §27: Explorer-style column headings, pinned above the list.
+                // Column edges mirror the row layout below: 名称 starts where
+                // the row's name text starts, the three metadata headings
+                // share the metadata strip, and DXVK lines up with the status
+                // chip via the invisible placeholders (same fixed 96px chip
+                // and same buttons, so the edge is exact without touching the
+                // row delegates). OverlayHeader keeps it fixed while the list
+                // scrolls; the solid background covers rows passing under it.
+                headerPositioning: ListView.OverlayHeader
+                header: Rectangle {
+                    // OverlayHeader pins the item but does NOT size it, so the
+                    // width must follow the view explicitly.
+                    width: gameList.width
+                    color: Th.surface
+                    height: 33
+
+                    readonly property real nameLeft: Th.pad + Th.space3 + 36 + Th.space3
+                    readonly property real nameWidth: Math.min((gameList.width - 2 * Th.pad) * 0.42, 480)
+                    readonly property real metaLeft: nameLeft + nameWidth + Th.space3
+                    readonly property real metaRight: chipPH.x - Th.space3
+
+                    BarButton {
+                        id: folderPH
+                        visible: false
+                        text: "打开目录"
+                        anchors.right: parent.right
+                        anchors.rightMargin: Th.space3
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    BarButton {
+                        id: detailPH
+                        visible: false
+                        text: "详情"
+                        anchors.right: folderPH.left
+                        anchors.rightMargin: Th.space2
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    StatusChip {
+                        id: chipPH
+                        visible: false
+                        fixedWidth: true
+                        text: "已装 DXVK"
+                        anchors.right: detailPH.left
+                        anchors.rightMargin: Th.space2
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    SortHead {
+                        x: parent.nameLeft
+                        width: parent.nameWidth
+                        alignLeft: true
+                        label: qsTr("名称")
+                        key: "name"
+                    }
+                    SortHead {
+                        x: parent.metaLeft
+                        width: (parent.metaRight - parent.metaLeft) / 3
+                        label: qsTr("平台")
+                        key: "platform"
+                    }
+                    SortHead {
+                        x: parent.metaLeft + (parent.metaRight - parent.metaLeft) / 3
+                        width: (parent.metaRight - parent.metaLeft) / 3
+                        label: "Direct3D"
+                        key: "direct3d"
+                    }
+                    SortHead {
+                        x: parent.metaLeft + (parent.metaRight - parent.metaLeft) * 2 / 3
+                        width: (parent.metaRight - parent.metaLeft) / 3
+                        label: qsTr("架构")
+                        key: "arch"
+                    }
+                    SortHead {
+                        x: chipPH.x
+                        width: 96
+                        label: "DXVK"
+                        key: "dxtk"
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Th.borderSubtle
+                    }
+                }
 
                 onContentYChanged: page.requestVisible()
                 onHeightChanged: page.requestVisible()
@@ -465,8 +587,8 @@ Item {
                             anchors.rightMargin: Th.space3
                             anchors.verticalCenter: parent.verticalCenter
                             text: row.platformLabel + " · " +
-                                  (row.direct3d === "" ? "识别中…"
-                                   : (row.direct3d === "Unknown" ? "Direct3D 未知" : row.direct3d)) +
+                                  (row.direct3d === "" ? qsTr("识别中…")
+                                   : (row.direct3d === "Unknown" ? qsTr("Direct3D 未知") : row.direct3d)) +
                                   (row.arch !== "" ? " · " + row.arch : "")
                             color: Th.textMuted
                             font.pixelSize: Th.fontCaption
@@ -485,7 +607,7 @@ Item {
 
                         BarButton {
                             id: detailButton
-                            text: "详情"
+                            text: qsTr("详情")
                             anchors.right: folderButton.left
                             anchors.rightMargin: Th.space2
                             anchors.verticalCenter: parent.verticalCenter
@@ -496,7 +618,7 @@ Item {
 
                         BarButton {
                             id: folderButton
-                            text: "打开目录"
+                            text: qsTr("打开目录")
                             anchors.right: parent.right
                             anchors.rightMargin: Th.space3
                             anchors.verticalCenter: parent.verticalCenter
@@ -515,14 +637,14 @@ Item {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "还没有游戏"
+                    text: qsTr("还没有游戏")
                     color: Th.text
                     font.pixelSize: Th.fontTitle
                     font.bold: true
                 }
                 Text {
                     width: parent.width
-                    text: "点「扫描」读取 Steam 库（含所有库文件夹），或「＋ 添加文件夹」指定任意游戏目录。"
+                    text: qsTr("点「扫描」读取 Steam 库（含所有库文件夹），或「＋ 添加文件夹」指定任意游戏目录。")
                     color: Th.textMuted
                     font.pixelSize: Th.fontBody
                     horizontalAlignment: Text.AlignHCenter
@@ -530,7 +652,7 @@ Item {
                 }
                 BarButton {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "开始扫描"
+                    text: qsTr("开始扫描")
                     primary: true
                     onClicked: bridge.scanGames()
                 }
