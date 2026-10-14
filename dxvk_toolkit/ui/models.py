@@ -9,7 +9,15 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from PySide6.QtCore import Property, QAbstractListModel, QCoreApplication, QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import (
+    Property,
+    QAbstractListModel,
+    QCoreApplication,
+    QModelIndex,
+    Qt,
+    Signal,
+    Slot,
+)
 
 from .. import confspec, covers, installer, steam
 from ..paths import settings
