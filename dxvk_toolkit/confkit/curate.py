@@ -119,6 +119,7 @@ PURPOSE: dict[str, str] = {
     "hud": "显示与诊断",
     "enableDebugUtils": "显示与诊断",
     "dpiAware": "显示与诊断",
+    "enablePresentTiming": "显示与诊断",
 }
 
 

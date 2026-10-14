@@ -8,6 +8,7 @@
     "deferSurfaceCreation": "延迟创建绘制表面",
     "maxFrameLatency": "最大预渲染帧数",
     "maxFrameRate": "帧率上限",
+    "enablePresentTiming": "呈现计时",
     "latencySleep": "低延迟休眠（Reflex）",
     "latencyTolerance": "延迟容差",
     "disableNvLowLatency2": "禁用 NV 低延迟2",
@@ -174,5 +175,6 @@
   "batching": "绘制调用批处理：针对大量相似绘制的游戏做专门的合批优化。",
   "placeP8InScratch": "P8 纹理支持变通：面向早期 Nvidia 显卡（GeForce 4 时代）的兼容处理。",
   "forceLegacyBuffers": "旧式缓冲行为：老程序可能依赖「D3DLOCK_DISCARD 被忽略」这一行为。",
-  "maxMemoryBudget": "覆盖显存预算，用来限制 DXVK 实际会使用的显存上限（MB）。"
+  "maxMemoryBudget": "覆盖显存预算，用来限制 DXVK 实际会使用的显存上限（MB）。",
+  "enablePresentTiming": "开启呈现计时特性。可在模拟非原生显示模式（如高刷屏上模拟 60 Hz）时改善帧时间一致性，也供帧率限制器使用；仅在 VRR（可变刷新率）环境生效，其他情况不建议开启。"
 }

@@ -720,6 +720,20 @@
   "example": "True"
  },
  {
+  "key": "enablePresentTiming",
+  "label": "呈现计时",
+  "type": "boolean",
+  "tier": "advanced",
+  "sections": [
+   "dxvk"
+  ],
+  "qualified": [
+   "dxvk.enablePresentTiming"
+  ],
+  "summary": "开启呈现计时特性。可在模拟非原生显示模式（如高刷屏上模拟 60 Hz）时改善帧时间一致性，也供帧率限制器使用；仅在 VRR（可变刷新率）环境生效，其他情况不建议开启。",
+  "example": "False"
+ },
+ {
   "key": "trackPipelineLifetime",
   "label": "管线生命周期跟踪",
   "type": "string",
