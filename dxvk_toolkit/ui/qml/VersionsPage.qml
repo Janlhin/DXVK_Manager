@@ -62,7 +62,7 @@ Item {
                     size: r.size,
                     notes: r.notes || "",
                     summary: r.summary || "",
-                    kindZh: r.kindZh || "",
+                    kindLabel: r.kindLabel || "",
                     installed: page.installedHere.indexOf(
                         page.kind === "gplasync" ? r.version.replace(/^v/, "") : r.version) !== -1
                 })
@@ -109,7 +109,7 @@ Item {
                 Track {
                     Layout.alignment: Qt.AlignVCenter
                     Segment {
-                        text: "官方 DXVK"
+                        text: qsTr("官方 DXVK")
                         checked: page.kind === "dxvk"
                         onClicked: page.chooseKind("dxvk")
                     }
@@ -125,15 +125,15 @@ Item {
                 Text {
                     Layout.alignment: Qt.AlignVCenter
                     text: page.installedHere.length > 0
-                          ? "已下载 " + page.installedHere.length + " 个"
-                          : "还没有下载版本"
+                          ? qsTr("已下载 %1 个").arg(page.installedHere.length)
+                          : qsTr("还没有下载版本")
                     color: page.installedHere.length > 0 ? Th.ok : Th.textMuted
                     font.pixelSize: Th.fontCaption
                 }
 
                 BarButton {
                     Layout.alignment: Qt.AlignVCenter
-                    text: page.loading ? "获取中…" : "强制刷新"
+                    text: page.loading ? qsTr("获取中…") : qsTr("强制刷新")
                     onClicked: page.reload(true)
                 }
             }
@@ -176,7 +176,7 @@ Item {
                         required property bool installed
                         required property string summary
                         required property string notes
-                        required property string kindZh
+                        required property string kindLabel
 
                         readonly property bool active: page.selected !== null
                                                        && page.selected.version === versionCard.version
@@ -202,7 +202,7 @@ Item {
                                 "size": versionCard.size,
                                 "installed": versionCard.installed,
                                 "notes": versionCard.notes,
-                                "kindZh": versionCard.kindZh
+                                "kindLabel": versionCard.kindLabel
                             }
                         }
 
@@ -224,15 +224,15 @@ Item {
                                 }
                                 StatusChip {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    visible: versionCard.kindZh !== ""
-                                    text: versionCard.kindZh
+                                    visible: versionCard.kindLabel !== ""
+                                    text: versionCard.kindLabel
                                     kind: "muted"
                                 }
                             }
 
                             Text {
                                 width: parent.width
-                                text: versionCard.summary !== "" ? versionCard.summary : "（官方未提供说明）"
+                                text: versionCard.summary !== "" ? versionCard.summary : qsTr("（官方未提供说明）")
                                 color: Th.textDim
                                 font.pixelSize: Th.fontCaption
                                 elide: Text.ElideRight
@@ -263,7 +263,7 @@ Item {
                             StatusChip {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: versionCard.installed
-                                text: "已下载"
+                                text: qsTr("已下载")
                                 kind: "ok"
                             }
                         }
@@ -278,7 +278,7 @@ Item {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: page.loading ? "正在获取版本列表…" : "还没有版本列表"
+                        text: page.loading ? qsTr("正在获取版本列表…") : qsTr("还没有版本列表")
                         color: Th.text
                         font.pixelSize: Th.fontTitle
                         font.bold: true
@@ -286,8 +286,8 @@ Item {
                     Text {
                         width: parent.width
                         text: page.loading
-                              ? "首次获取需要联网；之后会立即显示本地缓存。"
-                              : "点「强制刷新」从官方源获取；已下载的版本在本地，离线也能用。"
+                              ? qsTr("首次获取需要联网；之后会立即显示本地缓存。")
+                              : qsTr("点「强制刷新」从官方源获取；已下载的版本在本地，离线也能用。")
                         color: Th.textMuted
                         font.pixelSize: Th.fontBody
                         horizontalAlignment: Text.AlignHCenter
@@ -315,7 +315,7 @@ Item {
                         anchors.centerIn: parent
                         width: parent.width - Th.space6
                         visible: page.selected === null
-                        text: "点一个版本卡片，这里显示它的完整更新说明与操作"
+                        text: qsTr("点一个版本卡片，这里显示它的完整更新说明与操作")
                         color: Th.textDim
                         font.pixelSize: Th.fontBody
                         horizontalAlignment: Text.AlignHCenter
@@ -339,8 +339,8 @@ Item {
                             }
                             StatusChip {
                                 anchors.verticalCenter: parent.verticalCenter
-                                visible: page.selected && page.selected.kindZh !== ""
-                                text: page.selected ? page.selected.kindZh : ""
+                                visible: page.selected && page.selected.kindLabel !== ""
+                                text: page.selected ? page.selected.kindLabel : ""
                                 kind: "muted"
                             }
                         }
@@ -350,7 +350,7 @@ Item {
                             text: page.selected
                                   ? ((page.selected.date || "-") + "   ·   " +
                                      (page.selected.size ? (page.selected.size / 1048576).toFixed(1) + " MB" : "-") +
-                                     (page.selected.installed ? "   ·   已下载到本地" : ""))
+                                     (page.selected.installed ? qsTr("   ·   已下载到本地") : ""))
                                   : ""
                             color: Th.textMuted
                             font.pixelSize: Th.fontCaption
@@ -384,13 +384,13 @@ Item {
                             spacing: Th.space2
 
                             BarButton {
-                                text: page.selected && page.selected.installed ? "重新下载" : "下载"
+                                text: page.selected && page.selected.installed ? qsTr("重新下载") : qsTr("下载")
                                 primary: true
                                 enabled: page.selected !== null
                                 onClicked: bridge.downloadVersion(page.kind, page.selected.version)
                             }
                             BarButton {
-                                text: "复制链接"
+                                text: qsTr("复制链接")
                                 enabled: page.selected !== null
                                 onClicked: bridge.copyText(
                                     bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
@@ -402,7 +402,7 @@ Item {
                                     bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
                             }
                             BarButton {
-                                text: "删除本地"
+                                text: qsTr("删除本地")
                                 danger: true
                                 enabled: page.selected !== null && page.selected.installed
                                 onClicked: confirmDialog.open()
@@ -412,7 +412,7 @@ Item {
                         Rectangle { Layout.fillWidth: true; height: 1; color: Th.borderSubtle }
 
                         Text {
-                            text: "直接应用到游戏"
+                            text: qsTr("直接应用到游戏")
                             color: Th.textMuted
                             font.pixelSize: Th.fontCaption
                         }
@@ -439,7 +439,7 @@ Item {
                                 }
                                 contentItem: Text {
                                     leftPadding: Th.space3
-                                    text: page.chosenGame === "" ? "选择游戏…" : gamePicker.displayText
+                                    text: page.chosenGame === "" ? qsTr("选择游戏…") : gamePicker.displayText
                                     color: page.chosenGame === "" ? Th.textDim : Th.text
                                     font.pixelSize: Th.fontSmall
                                     verticalAlignment: Text.AlignVCenter
@@ -486,7 +486,7 @@ Item {
                             }
 
                             BarButton {
-                                text: "应用"
+                                text: qsTr("应用")
                                 primary: true
                                 enabled: page.chosenGame !== "" && page.selected !== null
                                 onClicked: bridge.installDxvk(page.chosenGame, page.kind,
@@ -520,7 +520,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.pad
                 anchors.verticalCenter: parent.verticalCenter
-                text: "下载中…  " + progress.label
+                text: qsTr("下载中…  ") + progress.label
                 color: Th.textMuted
                 font.pixelSize: Th.fontCaption
             }
@@ -549,7 +549,7 @@ Item {
         }
 
         header: Text {
-            text: "删除本地版本"
+            text: qsTr("删除本地版本")
             color: Th.text
             font.pixelSize: Th.fontHeading
             font.bold: true
@@ -561,7 +561,7 @@ Item {
 
         contentItem: Text {
             text: page.selected
-                  ? "把 " + page.selected.version + " 从本地缓存删除？\n\n已安装到游戏的 DLL 不受影响；之后想用可随时重新下载。"
+                  ? qsTr("把 %1 从本地缓存删除？\n\n已安装到游戏的 DLL 不受影响；之后想用可随时重新下载。").arg(page.selected.version)
                   : ""
             color: Th.text
             font.pixelSize: Th.fontBody
@@ -578,7 +578,7 @@ Item {
             // Danger action: solid red, white text (GitHub destructive style).
             Button {
                 id: deleteConfirmButton
-                text: "删除"
+                text: qsTr("删除")
                 onClicked: {
                     confirmDialog.accept()
                     bridge.removeVersion(page.kind, page.selected ? page.selected.version : "")
@@ -598,7 +598,7 @@ Item {
             }
             Button {
                 id: cancelConfirmButton
-                text: "取消"
+                text: qsTr("取消")
                 onClicked: confirmDialog.reject()
                 contentItem: Text {
                     text: cancelConfirmButton.text

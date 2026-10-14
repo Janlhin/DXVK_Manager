@@ -33,7 +33,7 @@ Dialog {
                                      // versionPicker.currentIndex
 
     readonly property var kindValues: ["dxvk", "gplasync"]
-    readonly property var kindLabels: ["官方 DXVK", "DXVK-GPLAsync"]
+    readonly property var kindLabels: [qsTr("官方 DXVK"), "DXVK-GPLAsync"]
 
     // A picked release is only applicable once it exists locally; gplasync
     // installs under the version without the leading "v".
@@ -190,7 +190,7 @@ Dialog {
                     Layout.fillWidth: true
                     spacing: Th.space1
 
-                    Text { text: "安装路径"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
+                    Text { text: qsTr("安装路径"); color: Th.textMuted; font.pixelSize: Th.fontCaption }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Th.space2
@@ -208,7 +208,7 @@ Dialog {
                             }
                         }
                         Button {
-                            text: "打开目录"
+                            text: qsTr("打开目录")
                             padding: 6
                             onClicked: bridge.openFolder(sheet.installPath)
                             background: Rectangle {
@@ -239,8 +239,8 @@ Dialog {
                     // 识别中 for a game that will never produce a value.
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (sheet.direct3d === "" ? "Direct3D 识别中…"
-                               : (sheet.direct3d === "Unknown" ? "Direct3D 未知" : sheet.direct3d)) +
+                        text: (sheet.direct3d === "" ? qsTr("Direct3D 识别中…")
+                               : (sheet.direct3d === "Unknown" ? qsTr("Direct3D 未知") : sheet.direct3d)) +
                               (sheet.arch !== "" ? "   ·   " + sheet.arch : "")
                         color: Th.textMuted
                         font.pixelSize: Th.fontCaption
@@ -256,8 +256,8 @@ Dialog {
                     columnSpacing: Th.space4
                     rowSpacing: Th.space2
 
-                    Text { text: "DXVK 来源"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
-                    Text { text: "版本"; color: Th.textMuted; font.pixelSize: Th.fontCaption }
+                    Text { text: qsTr("DXVK 来源"); color: Th.textMuted; font.pixelSize: Th.fontCaption }
+                    Text { text: qsTr("版本"); color: Th.textMuted; font.pixelSize: Th.fontCaption }
 
                     ComboBox {
                         id: kindPicker
@@ -352,11 +352,11 @@ Dialog {
                                 var idx = sheet.versionCurrent
                                 if (idx >= 0 && sheet.versionRows[idx]) {
                                     var row = sheet.versionRows[idx]
-                                    var state = row.name === sheet.downloading ? " · 下载中…"
-                                            : (row.installed ? " · 已下载" : " · 未下载")
+                                    var state = row.name === sheet.downloading ? qsTr(" · 下载中…")
+                                            : (row.installed ? qsTr(" · 已下载") : qsTr(" · 未下载"))
                                     return row.display + state
                                 }
-                                return sheet.downloading !== "" ? sheet.downloading + "（下载中…）" : "（没有可用版本）"
+                                return sheet.downloading !== "" ? sheet.downloading + qsTr("（下载中…）") : qsTr("（没有可用版本）")
                             }
                             color: sheet.versionCurrent >= 0 ? Th.text : Th.textDim
                             font.pixelSize: Th.fontSmall
@@ -395,8 +395,8 @@ Dialog {
                                             verticalAlignment: Text.AlignVCenter
                                         }
                                         Text {
-                                            text: modelData.name === sheet.downloading ? "下载中…"
-                                                  : (modelData.installed ? "已下载" : "未下载 · 选后自动下载")
+                                            text: modelData.name === sheet.downloading ? qsTr("下载中…")
+                                                  : (modelData.installed ? qsTr("已下载") : qsTr("未下载 · 选后自动下载"))
                                             color: modelData.installed ? Th.textMuted : Th.accent
                                             font.pixelSize: Th.fontCaption
                                             verticalAlignment: Text.AlignVCenter
@@ -417,11 +417,11 @@ Dialog {
                     text: {
                         var count = (sheet.versions[sheet.kind] || []).length
                         if (sheet.downloading !== "")
-                            return "正在下载 " + sheet.downloading + " …完成后即可「应用 DXVK」，请稍候。"
+                            return qsTr("正在下载 %1 …完成后即可「应用 DXVK」，请稍候。").arg(sheet.downloading)
                         if (sheet.remote.length === 0 && count === 0)
-                            return "没有可用版本：离线且本地无缓存。联网后可到「版本库」点「强制刷新」。"
-                        return "共 " + sheet.remote.length + " 个可下载版本，已下载 " + count +
-                               " 个。选择未下载的版本会自动下载；应用时会自动备份原有 DLL（.bkp）。"
+                            return qsTr("没有可用版本：离线且本地无缓存。联网后可到「版本库」点「强制刷新」。")
+                        return qsTr("共 %1 个可下载版本，已下载 %2 个。选择未下载的版本会自动下载；应用时会自动备份原有 DLL（.bkp）。")
+                               .arg(sheet.remote.length).arg(count)
                     }
                     color: Th.textDim
                     font.pixelSize: Th.fontCaption
@@ -435,7 +435,7 @@ Dialog {
                     spacing: Th.space2
 
                     Button {
-                        text: "应用 DXVK"
+                        text: qsTr("应用 DXVK")
                         padding: 6
                         enabled: sheet.versionInstalled && sheet.downloading === ""
                         opacity: enabled ? 1.0 : 0.5
@@ -458,7 +458,7 @@ Dialog {
                     }
 
                     Button {
-                        text: "DXVK 配置"
+                        text: qsTr("DXVK 配置")
                         padding: 6
                         onClicked: {
                             // Switches the config editor to this game and the
@@ -479,7 +479,7 @@ Dialog {
                     }
 
                     Button {
-                        text: "还原原始 DLL"
+                        text: qsTr("还原原始 DLL")
                         padding: 6
                         onClicked: { bridge.restoreGame(sheet.gameKey); sheet.close() }
                         background: Rectangle {
@@ -495,7 +495,7 @@ Dialog {
                     }
 
                     Button {
-                        text: "移除 DXVK"
+                        text: qsTr("移除 DXVK")
                         padding: 6
                         onClicked: { bridge.removeDxvk(sheet.gameKey); sheet.close() }
                         background: Rectangle {
@@ -513,7 +513,7 @@ Dialog {
                     Item { Layout.fillWidth: true }
 
                     Button {
-                        text: "关闭"
+                        text: qsTr("关闭")
                         padding: 6
                         onClicked: sheet.close()
                         background: Rectangle {

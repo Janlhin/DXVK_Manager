@@ -89,7 +89,7 @@ Dialog {
             anchors.left: parent.left
             anchors.leftMargin: Th.space5
             anchors.verticalCenter: parent.verticalCenter
-            text: "筛选与视图"
+            text: qsTr("筛选与视图")
             color: Th.text
             font.pixelSize: Th.fontTitle
             font.bold: true
@@ -106,20 +106,20 @@ Dialog {
         // --- status ------------------------------------------------------
         Column {
             spacing: Th.space2
-            GroupLabel { text: "状态" }
+            GroupLabel { text: qsTr("状态") }
             Track {
                 Pick {
-                    text: "全部 " + sheet.dxtkCounts.all
+                    text: qsTr("全部 %1").arg(sheet.dxtkCounts.all)
                     active: sheet.dxtkFilter === "all"
                     onClicked: sheet.dxtkChosen("all")
                 }
                 Pick {
-                    text: "已装 DXVK " + sheet.dxtkCounts.patched
+                    text: qsTr("已装 DXVK %1").arg(sheet.dxtkCounts.patched)
                     active: sheet.dxtkFilter === "patched"
                     onClicked: sheet.dxtkChosen("patched")
                 }
                 Pick {
-                    text: "未安装 " + sheet.dxtkCounts.clean
+                    text: qsTr("未安装 %1").arg(sheet.dxtkCounts.clean)
                     active: sheet.dxtkFilter === "clean"
                     onClicked: sheet.dxtkChosen("clean")
                 }
@@ -130,7 +130,7 @@ Dialog {
         Column {
             spacing: Th.space2
             visible: sheet.platformOptions.length > 0
-            GroupLabel { text: "平台" }
+            GroupLabel { text: qsTr("平台") }
             Track {
                 Repeater {
                     model: sheet.platformOptions
@@ -146,15 +146,15 @@ Dialog {
         // --- view --------------------------------------------------------
         Column {
             spacing: Th.space2
-            GroupLabel { text: "视图" }
+            GroupLabel { text: qsTr("视图") }
             Track {
                 Pick {
-                    text: "卡片"
+                    text: qsTr("卡片")
                     active: sheet.viewMode === "grid"
                     onClicked: sheet.viewChosen("grid")
                 }
                 Pick {
-                    text: "列表"
+                    text: qsTr("列表")
                     active: sheet.viewMode === "list"
                     onClicked: sheet.viewChosen("list")
                 }
@@ -166,15 +166,15 @@ Dialog {
         // wrapped into two ragged rows.
         Column {
             spacing: Th.space2
-            GroupLabel { text: "排序" }
+            GroupLabel { text: qsTr("排序") }
             Track {
                 Pick {
-                    text: "名称"
+                    text: qsTr("名称")
                     active: sheet.sortKey === "name"
                     onClicked: sheet.sortChosen("name")
                 }
                 Pick {
-                    text: "平台"
+                    text: qsTr("平台")
                     active: sheet.sortKey === "platform"
                     onClicked: sheet.sortChosen("platform")
                 }
@@ -184,12 +184,12 @@ Dialog {
                     onClicked: sheet.sortChosen("direct3d")
                 }
                 Pick {
-                    text: "架构"
+                    text: qsTr("架构")
                     active: sheet.sortKey === "arch"
                     onClicked: sheet.sortChosen("arch")
                 }
                 Pick {
-                    text: "已装优先"
+                    text: qsTr("已装优先")
                     active: sheet.sortKey === "dxtk"
                     onClicked: sheet.sortChosen("dxtk")
                 }
@@ -200,15 +200,15 @@ Dialog {
         // Its own group: the column and the direction are different choices.
         Column {
             spacing: Th.space2
-            GroupLabel { text: "方向" }
+            GroupLabel { text: qsTr("方向") }
             Track {
                 Pick {
-                    text: "↑ 升序"
+                    text: qsTr("↑ 升序")
                     active: !sheet.sortDescending
                     onClicked: sheet.orderChosen(false)
                 }
                 Pick {
-                    text: "↓ 降序"
+                    text: qsTr("↓ 降序")
                     active: sheet.sortDescending
                     onClicked: sheet.orderChosen(true)
                 }
@@ -223,7 +223,7 @@ Dialog {
             anchors.left: parent.left
             anchors.leftMargin: Th.space5
             anchors.verticalCenter: parent.verticalCenter
-            text: "重置"
+            text: qsTr("重置")
             padding: 6
             onClicked: {
                 sheet.dxtkChosen("all")
@@ -249,7 +249,7 @@ Dialog {
             anchors.right: parent.right
             anchors.rightMargin: Th.space5
             anchors.verticalCenter: parent.verticalCenter
-            text: "关闭"
+            text: qsTr("关闭")
             padding: 6
             onClicked: sheet.close()
             background: Rectangle {

@@ -22,7 +22,7 @@ Item {
     property string gameKey: ""
     property string gameName: ""
     property string configStatus: "default"
-    property string statusLabel: "默认配置"
+    property string statusLabel: qsTr("默认配置")
     property string statusKind: "muted"
     property var presetList: []
     property var targetList: []
@@ -32,26 +32,26 @@ Item {
     function refreshStatus() {
         page.configStatus = bridge.gameConfigStatus(page.gameKey)
         if (page.gameKey === "") {
-            page.statusLabel = "默认配置（所有游戏共用）"
+            page.statusLabel = qsTr("默认配置（所有游戏共用）")
             page.statusKind = "muted"
         } else if (page.configStatus === "written") {
-            page.statusLabel = "已写入"
+            page.statusLabel = qsTr("已写入")
             page.statusKind = "ok"
         } else if (page.configStatus === "mismatch") {
-            page.statusLabel = "与磁盘文件不同"
+            page.statusLabel = qsTr("与磁盘文件不同")
             page.statusKind = "warn"
         } else if (page.configStatus === "not-written") {
-            page.statusLabel = "未写入"
+            page.statusLabel = qsTr("未写入")
             page.statusKind = "muted"
         } else {
-            page.statusLabel = "状态未知"
+            page.statusLabel = qsTr("状态未知")
             page.statusKind = "warn"
         }
     }
 
     function rebuildTargets() {
         var games = bridge.gameOptions()
-        var list = [{ key: "", label: "默认配置（所有游戏共用）" }]
+        var list = [{ key: "", label: qsTr("默认配置（所有游戏共用）") }]
         for (var i = 0; i < games.length; i++)
             list.push({ key: games[i].key, label: games[i].label })
         page.targetList = list
@@ -172,6 +172,37 @@ Item {
         }
     }
 
+    // Same pill switch as the settings page (§29: both switches read and
+    // write the same conf_comments key).
+    component DarkSwitch: Switch {
+        id: sw
+        implicitHeight: 24
+
+        indicator: Rectangle {
+            implicitWidth: 40
+            implicitHeight: 22
+            x: sw.leftPadding
+            y: (sw.height - height) / 2
+            radius: 11
+            color: sw.checked ? Th.accentDark : Th.surfaceAlt
+            border.width: 1
+            border.color: sw.checked ? Th.accent : Th.border
+
+            Behavior on color { ColorAnimation { duration: 120 } }
+
+            Rectangle {
+                width: 16
+                height: 16
+                radius: 8
+                y: 2
+                x: sw.checked ? parent.width - width - 3 : 3
+                color: sw.checked ? "#ffffff" : Th.textMuted
+                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            }
+        }
+        contentItem: Item {}
+    }
+
     component MiniButton: Button {
         id: mini
         padding: 6
@@ -209,7 +240,7 @@ Item {
                 id: search
                 width: 220
                 anchors.verticalCenter: parent.verticalCenter
-                placeholderText: "搜索选项…"
+                placeholderText: qsTr("搜索选项…")
                 color: Th.text
                 placeholderTextColor: Th.textDim
                 font.pixelSize: Th.fontSmall
@@ -228,9 +259,9 @@ Item {
 
             Repeater {
                 model: [
-                    { value: "simple", label: "简单" },
-                    { value: "advanced", label: "进阶" },
-                    { value: "full", label: "完全" }
+                    { value: "simple", label: qsTr("简单") },
+                    { value: "advanced", label: qsTr("进阶") },
+                    { value: "full", label: qsTr("完全") }
                 ]
                 delegate: Button {
                     anchors.verticalCenter: parent.verticalCenter
@@ -257,7 +288,7 @@ Item {
 
             Button {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "导入 dxvk.conf…"
+                text: qsTr("导入 dxvk.conf…")
                 padding: 6
                 onClicked: {
                     page.importMessage = bridge.importConfig()
@@ -285,7 +316,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: page.importMessage !== ""
                   ? page.importMessage
-                  : "共 " + configModel.optionCount + " 项，已选 " + page.selectedCount
+                  : qsTr("共 %1 项，已选 %2").arg(configModel.optionCount).arg(page.selectedCount)
             color: page.importMessage !== "" ? Th.ok : Th.textMuted
             font.pixelSize: Th.fontCaption
             elide: Text.ElideRight
@@ -320,7 +351,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "作用对象"
+                text: qsTr("作用对象")
                 color: Th.textMuted
                 font.pixelSize: Th.fontCaption
             }
@@ -402,7 +433,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "预设"
+                text: qsTr("预设")
                 color: Th.textMuted
                 font.pixelSize: Th.fontCaption
             }
@@ -413,7 +444,7 @@ Item {
                 model: page.presetList
                 currentIndex: -1
                 font.pixelSize: Th.fontSmall
-                displayText: currentIndex < 0 ? "选择预设…" : currentText
+                displayText: currentIndex < 0 ? qsTr("选择预设…") : currentText
                 onActivated: {
                     var name = page.presetList[currentIndex]
                     presetPicker.currentIndex = -1
@@ -477,7 +508,7 @@ Item {
 
             MiniButton {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "存为预设"
+                text: qsTr("存为预设")
                 onClicked: {
                     presetNameField.text = ""
                     presetDialog.open()
@@ -486,14 +517,14 @@ Item {
 
             MiniButton {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "清空"
+                text: qsTr("清空")
                 onClicked: bridge.clearConfig()
             }
 
             MiniButton {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: page.gameKey !== ""
-                text: "重置为默认"
+                text: qsTr("重置为默认")
                 onClicked: bridge.resetConfigToDefault()
             }
         }
@@ -531,7 +562,7 @@ Item {
             anchors.centerIn: parent
             visible: configModel.optionCount === 0
             width: Math.min(420, optionList.width - 48)
-            text: "还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。"
+            text: qsTr("还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。")
             color: Th.textDim
             font.pixelSize: Th.fontBody
             wrapMode: Text.WordWrap
@@ -703,7 +734,7 @@ Item {
                     spacing: Th.space2
 
                     Text {
-                        text: optionRow.label + (optionRow.isBoolean ? "   · 开关" : "")
+                        text: optionRow.label + (optionRow.isBoolean ? qsTr("   · 开关") : "")
                         color: optionRow.optionEnabled ? Th.text : Th.textMuted
                         font.pixelSize: Th.fontSubtitle
                         font.bold: true
@@ -728,7 +759,7 @@ Item {
                             id: forkLabel
                             x: (parent.width - width) / 2
                             y: (parent.height - height) / 2
-                            text: "GPLAsync 专有"
+                            text: qsTr("GPLAsync 专有")
                             color: Th.warn
                             font.pixelSize: Th.fontMicro
                         }
@@ -828,23 +859,50 @@ Item {
             color: Th.surface
 
             Text {
+                id: previewTitle
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
+                // Bound to the controls row so longer interface languages
+                // (English) elide the title instead of overlapping it.
+                anchors.right: previewControls.left
+                anchors.rightMargin: Th.space2
                 anchors.verticalCenter: parent.verticalCenter
-                text: "dxvk.conf 预览"
+                elide: Text.ElideRight
+                text: qsTr("dxvk.conf 预览")
                 color: Th.text
                 font.pixelSize: Th.fontSubtitle
                 font.bold: true
             }
 
             Row {
+                id: previewControls
                 anchors.right: parent.right
                 anchors.rightMargin: Th.space3
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Th.space2
 
+                // §29: the comments toggle lives next to the result it
+                // changes. getSetting returns undefined when the key was
+                // never written, and the generator defaults it to True
+                // (bridge.previewConfig), so treat "unset" as checked.
+                Text {
+                    text: qsTr("带注释")
+                    color: Th.textMuted
+                    font.pixelSize: Th.fontCaption
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                DarkSwitch {
+                    id: commentsSwitch
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: bridge.getSetting("conf_comments") !== false
+                    onToggled: {
+                        bridge.setSetting("conf_comments", checked)
+                        page.refreshPreview()
+                    }
+                }
+
                 Button {
-                    text: "复制"
+                    text: qsTr("复制")
                     padding: 6
                     onClicked: bridge.copyConfig()
                     background: Rectangle {
@@ -864,7 +922,7 @@ Item {
                 Button {
                     id: writeButton
                     padding: 6
-                    text: page.gameKey !== "" ? "应用并写入 " + page.gameName : "写入游戏…"
+                    text: page.gameKey !== "" ? qsTr("应用并写入 %1").arg(page.gameName) : qsTr("写入游戏…")
                     onClicked: {
                         if (page.gameKey !== "") {
                             bridge.writeConfToGame(page.gameKey)
@@ -888,7 +946,7 @@ Item {
                 }
 
                 Button {
-                    text: "保存为文件…"
+                    text: qsTr("保存为文件…")
                     padding: 6
                     onClicked: bridge.exportConfig()
                     background: Rectangle {
@@ -923,7 +981,7 @@ Item {
             anchors.bottom: parent.bottom
             anchors.margins: Th.space3
             height: 32
-            text: "和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。"
+            text: qsTr("和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。")
             color: Th.textDim
             font.pixelSize: Th.fontCaption
             wrapMode: Text.WordWrap
@@ -982,7 +1040,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "把 dxvk.conf 写入哪个游戏？"
+                text: qsTr("把 dxvk.conf 写入哪个游戏？")
                 color: Th.text
                 font.pixelSize: Th.fontTitle
                 font.bold: true
@@ -1044,7 +1102,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "写入前会把已有的 dxvk.conf 备份为 .bkp"
+                text: qsTr("写入前会把已有的 dxvk.conf 备份为 .bkp")
                 color: Th.textDim
                 font.pixelSize: Th.fontCaption
             }
@@ -1053,7 +1111,7 @@ Item {
                 anchors.right: parent.right
                 anchors.rightMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "关闭"
+                text: qsTr("关闭")
                 padding: 6
                 onClicked: gamePicker.close()
                 background: Rectangle {
@@ -1095,7 +1153,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "保存为预设"
+                text: qsTr("保存为预设")
                 color: Th.text
                 font.pixelSize: Th.fontTitle
                 font.bold: true
@@ -1111,7 +1169,7 @@ Item {
 
             Text {
                 width: presetDialog.availableWidth - Th.space6
-                text: "把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。"
+                text: qsTr("把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。")
                 color: Th.textMuted
                 font.pixelSize: Th.fontCaption
                 wrapMode: Text.WordWrap
@@ -1120,7 +1178,7 @@ Item {
             TextField {
                 id: presetNameField
                 width: presetDialog.availableWidth - Th.space6
-                placeholderText: "预设名称，例如：赛博朋克专用"
+                placeholderText: qsTr("预设名称，例如：赛博朋克专用")
                 color: Th.text
                 placeholderTextColor: Th.textDim
                 font.pixelSize: Th.fontSmall
@@ -1141,7 +1199,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
-                text: "「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。"
+                text: qsTr("「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。")
                 color: Th.textDim
                 font.pixelSize: Th.fontCaption
             }
@@ -1154,7 +1212,7 @@ Item {
 
                 Button {
                     id: savePresetButton
-                    text: "保存"
+                    text: qsTr("保存")
                     padding: 6
                     onClicked: {
                         if (presetNameField.text.trim() !== "") {
@@ -1177,7 +1235,7 @@ Item {
                 }
 
                 Button {
-                    text: "取消"
+                    text: qsTr("取消")
                     padding: 6
                     onClicked: presetDialog.close()
                     background: Rectangle {

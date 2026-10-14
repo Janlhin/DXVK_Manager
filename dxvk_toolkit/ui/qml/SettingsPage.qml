@@ -181,7 +181,7 @@ Item {
                         SectionTitle {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "离线模式"
+                            text: qsTr("离线模式")
                         }
                         DarkSwitch {
                             id: offlineSwitch
@@ -193,7 +193,7 @@ Item {
                     }
                     Hint {
                         width: parent.width
-                        text: "打开后程序不发起任何网络请求：版本列表与封面只使用本地已有内容，下载会直接提示离线模式已开启。"
+                        text: qsTr("打开后程序不发起任何网络请求：版本列表与封面只使用本地已有内容，下载会直接提示离线模式已开启。")
                     }
                 }
             }
@@ -206,14 +206,14 @@ Item {
                     anchors.margins: 16
                     spacing: 8
 
-                    SectionTitle { text: "网络与下载源" }
+                    SectionTitle { text: qsTr("网络与下载源") }
 
                     Row {
                         width: parent.width
                         spacing: 8
 
                         Text {
-                            text: "代理"
+                            text: qsTr("代理")
                             color: Th.textMuted
                             font.pixelSize: Th.fontBody
                             width: 42
@@ -223,7 +223,7 @@ Item {
                         DarkCombo {
                             id: proxyMode
                             width: 130
-                            model: ["自动", "直连", "自定义"]
+                            model: [qsTr("自动"), qsTr("直连"), qsTr("自定义")]
                             currentIndex: {
                                 var mode = bridge.getSetting("proxy_mode")
                                 return mode === "direct" ? 1 : (mode === "custom" ? 2 : 0)
@@ -248,7 +248,7 @@ Item {
                         }
 
                         FlatButton {
-                            text: "探测本地代理"
+                            text: qsTr("探测本地代理")
                             onClicked: {
                                 var found = bridge.probeLocalProxy()
                                 if (found !== "") {
@@ -264,7 +264,7 @@ Item {
                         spacing: 8
 
                         Text {
-                            text: "下载源"
+                            text: qsTr("下载源")
                             color: Th.textMuted
                             font.pixelSize: Th.fontBody
                             width: 42
@@ -292,7 +292,7 @@ Item {
                         Hint {
                             width: parent.width - 350
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "官方源被墙时自动改用镜像"
+                            text: qsTr("官方源被墙时自动改用镜像")
                             elide: Text.ElideRight
                         }
                     }
@@ -302,10 +302,10 @@ Item {
                         spacing: 8
 
                         Button {
-                            text: "测试连接"
+                            text: qsTr("测试连接")
                             padding: 8
                             onClicked: {
-                                netStatus.text = "测试中…"
+                                netStatus.text = qsTr("测试中…")
                                 // @Slot(str, bool): Qt cannot see Python
                                 // defaults, so pass both arguments.
                                 bridge.loadVersions("dxvk", false)
@@ -329,7 +329,7 @@ Item {
                             id: netStatus
                             width: parent.width - 130
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "点「测试连接」会真实拉取一次版本列表"
+                            text: qsTr("点「测试连接」会真实拉取一次版本列表")
                             color: Th.textDim
                             font.pixelSize: Th.fontCaption
                             elide: Text.ElideRight
@@ -353,19 +353,57 @@ Item {
                         SectionTitle {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "导出的 dxvk.conf"
+                            text: qsTr("导出的 dxvk.conf")
                         }
                         DarkSwitch {
                             id: commentsSwitch
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            checked: bridge.getSetting("conf_comments") === true
+                            checked: bridge.getSetting("conf_comments") !== false
                             onToggled: bridge.setSetting("conf_comments", checked)
                         }
                     }
                     Hint {
                         width: parent.width
-                        text: "开启后每个选项上方会写入中文说明（与原版工具一致）；关闭则只输出选项本身。预览与导出使用同一份内容。"
+                        text: qsTr("开启后每个选项上方会写入中文说明（与原版工具一致）；关闭则只输出选项本身。预览与导出使用同一份内容。")
+                    }
+                }
+            }
+
+            // --- interface language ---------------------------------------
+            // ui_lang drives the Qt translator loaded at startup (§28); the
+            // option explanation language (docs_language) stays independent,
+            // so an English interface with Chinese notes is allowed.
+            Card {
+                height: 92
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 8
+
+                    Item {
+                        width: parent.width
+                        height: 28
+
+                        SectionTitle {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("界面语言")
+                        }
+                        DarkCombo {
+                            id: langCombo
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            model: [qsTr("简体中文"), "English"]
+                            currentIndex: bridge.getSetting("ui_lang") === "en" ? 1 : 0
+                            onActivated: bridge.setSetting("ui_lang",
+                                                           currentIndex === 1 ? "en" : "zh")
+                        }
+                    }
+                    Hint {
+                        width: parent.width
+                        text: qsTr("切换界面文字，重启应用后生效；选项说明的语言独立设置，互不影响。")
                     }
                 }
             }
@@ -378,7 +416,7 @@ Item {
                     anchors.margins: 16
                     spacing: 8
 
-                    SectionTitle { text: "数据目录" }
+                    SectionTitle { text: qsTr("数据目录") }
                     Hint {
                         width: parent.width
                         text: bridge.dataRoot()
@@ -386,11 +424,11 @@ Item {
                     }
                     Hint {
                         width: parent.width
-                        text: "已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。"
+                        text: qsTr("已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。")
                         color: Th.textDim
                     }
                     FlatButton {
-                        text: "打开数据目录"
+                        text: qsTr("打开数据目录")
                         onClicked: bridge.openDataFolder()
                     }
                 }
@@ -404,7 +442,7 @@ Item {
                     anchors.margins: 16
                     spacing: 8
 
-                    SectionTitle { text: "官方资源" }
+                    SectionTitle { text: qsTr("官方资源") }
 
                     Flow {
                         width: parent.width
@@ -429,7 +467,7 @@ Item {
                     anchors.margins: 16
                     spacing: 8
 
-                    SectionTitle { text: "鸣谢" }
+                    SectionTitle { text: qsTr("鸣谢") }
 
                     Column {
                         id: creditsColumn
@@ -477,7 +515,7 @@ Item {
                                         elide: Text.ElideRight
                                     }
                                     Text {
-                                        text: "许可：" + modelData.license
+                                        text: qsTr("许可：%1").arg(modelData.license)
                                         color: Th.textDim
                                         font.pixelSize: Th.fontMicro
                                     }
@@ -494,7 +532,7 @@ Item {
                     }
 
                     FlatButton {
-                        text: "查看完整第三方声明"
+                        text: qsTr("查看完整第三方声明")
                         onClicked: bridge.openFolder(bridge.noticesPath())
                     }
                 }
@@ -508,12 +546,10 @@ Item {
                     anchors.margins: 16
                     spacing: 8
 
-                    SectionTitle { text: "关于" }
+                    SectionTitle { text: qsTr("关于") }
                     Hint {
                         width: parent.width
-                        text: "DXVK Version Manager · Python edition v" + bridge.appVersion() +
-                              "\n界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。" +
-                              "中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。"
+                        text: qsTr("DXVK Version Manager · Python edition v%1\n界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。").arg(bridge.appVersion())
                     }
                 }
             }

@@ -15,14 +15,14 @@ ApplicationWindow {
 
     property int currentPage: 0
     property bool busy: false
-    property string statusText: "就绪"
+    property string statusText: qsTr("就绪")
     property string statusKind: "info"
 
     readonly property var pages: [
-        { label: "游戏库", hint: "扫描并管理游戏" },
-        { label: "版本库", hint: "下载 DXVK 版本" },
-        { label: "配置", hint: "生成 dxvk.conf" },
-        { label: "设置", hint: "离线模式与数据目录" }
+        { label: qsTr("游戏库"), hint: qsTr("扫描并管理游戏") },
+        { label: qsTr("版本库"), hint: qsTr("下载 DXVK 版本") },
+        { label: qsTr("配置"), hint: qsTr("生成 dxvk.conf") },
+        { label: qsTr("设置"), hint: qsTr("离线模式与数据目录") }
     ]
 
     Connections {
@@ -211,7 +211,7 @@ ApplicationWindow {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: window.busy ? "处理中…" : "v" + bridge.appVersion()
+                    text: window.busy ? qsTr("处理中…") : "v" + bridge.appVersion()
                     color: Th.textDim
                     font.pixelSize: Th.fontCaption
                 }
