@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from PySide6.QtCore import Property, QAbstractListModel, QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import Property, QAbstractListModel, QCoreApplication, QModelIndex, Qt, Signal, Slot
 
 from .. import confspec, covers, installer, steam
 from ..paths import settings
@@ -277,11 +277,11 @@ class GameListModel(QAbstractListModel):
             rows: list[dict[str, Any]] = []
             if installed:
                 rows.append({"key": "", "gameKind": "header", "rowKind": "header",
-                             "name": f"已装 DXVK · {len(installed)}"})
+                             "name": f"{_tr('已装 DXVK')} · {len(installed)}"})
                 rows.extend(installed)
             if missing:
                 rows.append({"key": "", "gameKind": "header", "rowKind": "header",
-                             "name": f"未安装 · {len(missing)}"})
+                             "name": f"{_tr('未安装')} · {len(missing)}"})
                 rows.extend(missing)
             self._rows = rows
             self._grouped = bool(installed and missing)
@@ -426,9 +426,9 @@ class GameListModel(QAbstractListModel):
             "name": row["name"],
             "path": row["installPath"],
             "platform": row["platformLabel"],
-            "direct3d": row["direct3d"] or "未知",
-            "arch": row["arch"] or "未知",
-            "status": row["statusText"] or "未安装",
+            "direct3d": row["direct3d"] or _tr("未知"),
+            "arch": row["arch"] or _tr("未知"),
+            "status": row["statusText"] or _tr("未安装"),
             "statusKind": row["statusKind"],
         }
 
@@ -569,7 +569,11 @@ class ConfigListModel(QAbstractListModel):
                 bucket = [r for r in visible if confspec.purpose_of(r["key"]) == purpose]
                 if not bucket:
                     continue
-                rows.append({"kind": "header", "label": purpose, "key": ""})
+                # The label goes through _tr so the simple mode's group
+                # headings follow the interface language; the collapse set
+                # stores the translated label, which stays self-consistent
+                # because the state is in-memory only.
+                rows.append({"kind": "header", "label": _tr(purpose), "key": ""})
                 rows.extend(bucket)
         else:
             # Technical modes list everything grouped by section, which needs a
@@ -660,7 +664,7 @@ class ConfigListModel(QAbstractListModel):
                 continue
             purpose = confspec.purpose_of(key)
             display = "True" if row["isBoolean"] else str(val)
-            lines.append(f"{key} = {display}  ({purpose})")
+            lines.append(f"{key} = {display}  ({_tr(purpose)})")
         return "\n".join(lines)
 
     @Slot(str)
@@ -738,17 +742,22 @@ def _cover_round_url(game: steam.Game) -> str:
     return _cover_variant_url(game, covers.round_path)
 
 
+def _tr(text: str) -> str:
+    """Translate one user-visible model string (badge texts and the like)."""
+    return QCoreApplication.translate("GameListModel", text)
+
+
 def status_for(game: steam.Game, status: installer.GameStatus | None = None) -> tuple[str, str]:
     """(badge text, badge kind) for a game card."""
     if not game.exists:
-        return "目录缺失", "error"
+        return _tr("目录缺失"), "error"
     status = status or installer.inspect(game.install_dir)
     if status.patched:
         if status.version:
             return (f"{status.kind or 'dxvk'} {status.version}".strip(), "ok")
         # The files carry the DXVK signature but we did not install them, so
         # the version is unknown - still installed, not "clean".
-        return "已装 DXVK", "ok"
+        return _tr("已装 DXVK"), "ok"
     if status.backuped:
-        return "可还原", "warn"
-    return "未安装", "muted"
+        return _tr("可还原"), "warn"
+    return _tr("未安装"), "muted"

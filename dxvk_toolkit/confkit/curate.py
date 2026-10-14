@@ -57,6 +57,10 @@ GPLASYNC_ONLY: dict[str, dict[str, str]] = {
         "label": "异步着色器编译",
         "summary": "GPLAsync 专有：在后台线程编译着色器，减少首次进入新场景的卡顿；"
                    "代价是可能出现贴图短暂弹出。官方 DXVK 无此选项。",
+        "label_en": "Async shader compilation",
+        "summary_en": "GPLAsync only: compiles shaders on background threads to "
+                      "reduce first-entry stutter in new scenes; the trade-off is "
+                      "occasional brief texture pop-in. Not present in official DXVK.",
         "example": "True",
         "section": "dxvk",
         "tier": "simple",
@@ -65,6 +69,10 @@ GPLASYNC_ONLY: dict[str, dict[str, str]] = {
         "label": "状态缓存配合 GPL",
         "summary": "GPLAsync 专有：让状态缓存与图形管线库配合工作；"
                    "该分支 v2.7-1 起已移除，仅旧版本需要。",
+        "label_en": "State cache with GPL",
+        "summary_en": "GPLAsync only: lets the state cache cooperate with the "
+                      "graphics pipeline library; removed from this fork as of "
+                      "v2.7-1, only older versions need it.",
         "example": "True",
         "section": "dxvk",
         "tier": "advanced",

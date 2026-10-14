@@ -55,10 +55,13 @@ def _load(lang: str) -> tuple[dict[str, str], dict[str, str]]:
             docs, labels = {}, {}
 
     # The fork's extra options are absent from upstream's conf, so their text
-    # ships with the code rather than with the reference file.
+    # ships with the code rather than with the reference file. Chinese comes
+    # from the zh fields; any other language falls back to the English ones
+    # shipped alongside them.
+    suffix = "" if lang == "zh" else "_en"
     for key, item in GPLASYNC_ONLY.items():
-        docs.setdefault(key, item["summary"])
-        labels.setdefault(key, item["label"])
+        docs.setdefault(key, item.get("summary" + suffix) or item["summary"])
+        labels.setdefault(key, item.get("label" + suffix) or item["label"])
 
     _cache[lang] = (docs, labels)
     return docs, labels

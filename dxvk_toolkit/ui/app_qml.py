@@ -5,12 +5,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QTranslator, QUrl
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtWidgets import QApplication
 
+from ..paths import asset_path, settings
 from ..util import log, setup_logging
 from .bridge import Bridge
 
@@ -45,6 +46,26 @@ def _dark_palette() -> QPalette:
     return palette
 
 
+def _install_translator(app: QApplication) -> None:
+    """Load the interface catalogue for the configured language (§28).
+
+    Chinese is the source language, so zh needs no catalogue; English loads
+    assets/i18n/app_en.qm, which covers both the QML qsTr() strings and the
+    Python tr()/QCoreApplication.translate() ones.
+    """
+    if str(settings.get("ui_lang") or "zh") != "en":
+        return
+    qm = asset_path("i18n/app_en.qm")
+    if not qm.is_file():
+        log.warning("ui_lang=en but catalogue missing: %s", qm)
+        return
+    translator = QTranslator(app)
+    if translator.load(str(qm)):
+        app.installTranslator(translator)
+    else:
+        log.warning("could not load translation catalogue: %s", qm)
+
+
 def run(argv: list[str] | None = None) -> int:
     setup_logging()
     # The native Windows style refuses custom backgrounds, so the cross
@@ -53,6 +74,7 @@ def run(argv: list[str] | None = None) -> int:
     QQuickStyle.setStyle("Basic")
 
     app = QApplication(argv if argv is not None else sys.argv)
+    _install_translator(app)
     app.setPalette(_dark_palette())
     app.setApplicationName("DXVK Version Manager")
     app.setApplicationVersion("1.0.0")

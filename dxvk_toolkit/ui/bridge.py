@@ -65,7 +65,7 @@ class Bridge(QObject):
         # The config editor edits one target at a time: "" is the shared default
         # that every game inherits, otherwise a game key (normcase install dir).
         self._config_target: str = ""
-        self._config_target_name: str = "默认配置"
+        self._config_target_name: str = self.tr("默认配置")
         self._patched: set[str] = set()
         self._lock = threading.Lock()
         self._busy = False
@@ -82,7 +82,7 @@ class Bridge(QObject):
     @Slot()
     def scanGames(self) -> None:
         self._set_busy(True)
-        self.statusMessage.emit("正在扫描游戏库…", "info")
+        self.statusMessage.emit(self.tr("正在扫描游戏库…"), "info")
         manual = list(settings.get("manual_games") or [])
         extra = list(settings.get("steam_extra_libraries") or [])
 
@@ -115,29 +115,29 @@ class Bridge(QObject):
             self.model.set_games(games)
             self._apply_statuses(statuses)
             self.gamesReady.emit(len(games))
-            self.statusMessage.emit(f"发现 {len(games)} 款游戏", "ok")
+            self.statusMessage.emit(self.tr("发现 {} 款游戏").format(len(games)), "ok")
             self._start_bulk_detection(games)
             self._start_name_lookup(games)
             self._set_busy(False)
 
-        self._submit(work, done, "扫描游戏库失败")
+        self._submit(work, done, self.tr("扫描游戏库失败"))
 
     @Slot()
     def addManualGame(self) -> None:
         """Ask for a folder and add it to the manual library."""
         from PySide6.QtWidgets import QFileDialog
 
-        folder = QFileDialog.getExistingDirectory(None, "选择游戏目录（包含游戏 exe）")
+        folder = QFileDialog.getExistingDirectory(None, self.tr("选择游戏目录（包含游戏 exe）"))
         if not folder:
             return
         entries = list(settings.get("manual_games") or [])
         game = steam.game_from_folder(folder)
         if any(str(entry.get("install_dir", "")) == folder for entry in entries if isinstance(entry, dict)):
-            self.statusMessage.emit("该目录已在列表中", "warn")
+            self.statusMessage.emit(self.tr("该目录已在列表中"), "warn")
             return
         entries.append(game.to_dict())
         settings.set("manual_games", entries)
-        self.statusMessage.emit(f"已添加 {game.name}", "ok")
+        self.statusMessage.emit(self.tr("已添加 {}").format(game.name), "ok")
         self.scanGames()
 
     @Slot(str)
@@ -161,7 +161,7 @@ class Bridge(QObject):
             self.model.update(key, direct3d=direct3d, arch=arch)
             self.detected.emit(key, direct3d, arch)
 
-        self._submit(work, done, "识别 Direct3D 版本失败", pool=self._detect_pool)
+        self._submit(work, done, self.tr("识别 Direct3D 版本失败"), pool=self._detect_pool)
 
     @Slot(str)
     def setSort(self, key: str) -> None:  # noqa: N802 - QML naming
@@ -310,12 +310,12 @@ class Bridge(QObject):
             return
         if net.offline():
             if not cached:
-                self.statusMessage.emit("离线模式：本地还没有版本缓存", "warn")
+                self.statusMessage.emit(self.tr("离线模式：本地还没有版本缓存"), "warn")
             else:
-                self.statusMessage.emit("离线模式：使用本地版本缓存", "info")
+                self.statusMessage.emit(self.tr("离线模式：使用本地版本缓存"), "info")
             return
         if force:
-            self.statusMessage.emit("正在强制刷新版本列表…", "info")
+            self.statusMessage.emit(self.tr("正在强制刷新版本列表…"), "info")
 
         self._set_busy(True)
 
@@ -332,10 +332,10 @@ class Bridge(QObject):
         def done(payload: dict[str, Any]) -> None:
             self.versionsReady.emit(payload)
             count = len(payload.get("releases") or [])
-            self.statusMessage.emit(f"已获取 {count} 个版本", "ok" if count else "warn")
+            self.statusMessage.emit(self.tr("已获取 {} 个版本").format(count), "ok" if count else "warn")
             self._set_busy(False)
 
-        self._submit(work, done, "获取版本列表失败")
+        self._submit(work, done, self.tr("获取版本列表失败"))
 
     @Slot(str, str, result=str)
     def releaseUrl(self, kind: str, version: str) -> str:  # noqa: N802
@@ -354,7 +354,7 @@ class Bridge(QObject):
             )
             match = next((item for item in releases if item.version == version), None)
             if match is None:
-                raise RuntimeError(f"找不到版本 {version}")
+                raise RuntimeError(self.tr("找不到版本 {}").format(version))
             sources.download_release(
                 match,
                 progress=lambda done, total: self.progressChanged.emit(
@@ -365,14 +365,14 @@ class Bridge(QObject):
 
         def done(installed: str) -> None:
             self.progressChanged.emit(-1.0, "")
-            self.statusMessage.emit(f"{installed} 下载完成", "ok")
+            self.statusMessage.emit(self.tr("{} 下载完成").format(installed), "ok")
             self.loadVersions(kind)
             self.localVersionsReady.emit(
                 {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
             )
             self._set_busy(False)
 
-        self._submit(work, done, "下载失败")
+        self._submit(work, done, self.tr("下载失败"))
 
     @Slot()
     def loadLocalVersions(self) -> None:
@@ -387,26 +387,26 @@ class Bridge(QObject):
 
         def work() -> str:
             if not sources.is_installed(kind, version):
-                raise RuntimeError(f"{version} 不在本地，无需删除")
+                raise RuntimeError(self.tr("{} 不在本地，无需删除").format(version))
             sources.remove_version(kind, version)
             return version
 
         def done(removed: str) -> None:
-            self.statusMessage.emit(f"已删除 {removed}", "ok")
+            self.statusMessage.emit(self.tr("已删除 {}").format(removed), "ok")
             self.loadVersions(kind)
             self.localVersionsReady.emit(
                 {"dxvk": sources.list_installed("dxvk"), "gplasync": sources.list_installed("gplasync")}
             )
             self._set_busy(False)
 
-        self._submit(work, done, "删除失败")
+        self._submit(work, done, self.tr("删除失败"))
 
     # -- install / restore -----------------------------------------------
     @Slot(str, str, str)
     def installDxvk(self, key: str, kind: str, version: str) -> None:
         game = self._games.get(key)
         if game is None:
-            self.statusMessage.emit("请先选择一款游戏", "warn")
+            self.statusMessage.emit(self.tr("请先选择一款游戏"), "warn")
             return
         self._set_busy(True)
 
@@ -419,7 +419,7 @@ class Bridge(QObject):
             self._refresh_one(game)
             self._set_busy(False)
 
-        self._submit(work, done, "安装失败")
+        self._submit(work, done, self.tr("安装失败"))
 
     @Slot(str)
     def restoreGame(self, key: str) -> None:
@@ -437,7 +437,7 @@ class Bridge(QObject):
             self._refresh_one(game)
             self._set_busy(False)
 
-        self._submit(work, done, "还原失败")
+        self._submit(work, done, self.tr("还原失败"))
 
     @Slot(str)
     def removeDxvk(self, key: str) -> None:
@@ -450,10 +450,10 @@ class Bridge(QObject):
             return installer.remove_dxvk(game.install_dir)
 
         def done(removed: Any) -> None:
-            self.statusMessage.emit(f"已移除 {len(removed)} 个文件", "ok" if removed else "warn")
+            self.statusMessage.emit(self.tr("已移除 {} 个文件").format(len(removed)), "ok" if removed else "warn")
             self._refresh_one(game)
 
-        self._submit(work, done, "移除失败")
+        self._submit(work, done, self.tr("移除失败"))
 
     def _refresh_one(self, game: steam.Game) -> None:
         def work() -> tuple[str, str, str]:
@@ -467,7 +467,7 @@ class Bridge(QObject):
     # -- configuration generator -----------------------------------------
     @Slot()
     def loadConfig(self) -> None:  # noqa: N802
-        self.statusMessage.emit("正在载入 dxvk.conf 选项…", "info")
+        self.statusMessage.emit(self.tr("正在载入 dxvk.conf 选项…"), "info")
 
         def work() -> Any:
             return confspec.load_model()
@@ -479,12 +479,12 @@ class Bridge(QObject):
             stored = str(settings.get("config_mode") or "simple")
             self.config.apply_filter("", stored if stored in confspec.MODES else "simple")
             self.configTargetChanged.emit(self._config_target, self._config_target_name)
-            source = str(model.source_path) if model.source_path else "未找到参考文件"
+            source = str(model.source_path) if model.source_path else self.tr("未找到参考文件")
             self.statusMessage.emit(
-                f"共 {len(model.groups)} 个选项（{source}）", "ok" if model.groups else "warn"
+                self.tr("共 {} 个选项（{}）").format(len(model.groups), source), "ok" if model.groups else "warn"
             )
 
-        self._submit(work, done, "载入配置选项失败")
+        self._submit(work, done, self.tr("载入配置选项失败"))
 
     @Slot(str, bool, str)
     def setOption(self, key: str, enabled: bool, value: str) -> None:  # noqa: N802
@@ -501,7 +501,7 @@ class Bridge(QObject):
     def previewConfig(self) -> str:  # noqa: N802
         model = self._config_model_data
         if model is None:
-            return "# 还没有载入参考文件\n"
+            return "# " + self.tr("还没有载入参考文件") + "\n"
         text = confbuild.build_conf(
             model.groups,
             self.config.values,
@@ -523,7 +523,7 @@ class Bridge(QObject):
     def resetOption(self, key: str) -> None:  # noqa: N802
         """Revert one option to default (§33 modified-list revert button)."""
         self.config.resetOption(key)
-        self.statusMessage.emit(f"已还原：{key}", "info")
+        self.statusMessage.emit(self.tr("已还原：{}").format(key), "info")
 
     @Slot(result=str)
     def importConfig(self) -> str:  # noqa: N802
@@ -532,25 +532,25 @@ class Bridge(QObject):
 
         model = self._config_model_data
         if model is None:
-            self.statusMessage.emit("还没有载入参考文件", "warn")
+            self.statusMessage.emit(self.tr("还没有载入参考文件"), "warn")
             return ""
         start_dir = str(settings.get("last_export_dir") or "")
         path, _filter = QFileDialog.getOpenFileName(
-            None, "导入 dxvk.conf", start_dir, "DXVK 配置 (*.conf);;所有文件 (*)"
+            None, self.tr("导入 dxvk.conf"), start_dir, "DXVK 配置 (*.conf);;所有文件 (*)"
         )
         if not path:
             return ""
         try:
             text = Path(path).read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
-            self.statusMessage.emit(f"读取失败：{exc}", "error")
+            self.statusMessage.emit(self.tr("读取失败：{}").format(exc), "error")
             return ""
         values, unknown = confspec.parse_config_values(text, model)
         self.config.apply_values(values)
         settings.set("last_export_dir", str(Path(path).parent))
-        summary = f"已从 {Path(path).name} 导入 {len(values)} 个选项"
+        summary = self.tr("已从 {} 导入 {} 个选项").format(Path(path).name, len(values))
         if unknown:
-            summary += f"，另有 {len(unknown)} 个选项不在参考文件里（已忽略）"
+            summary += self.tr("，另有 {} 个选项不在参考文件里（已忽略）").format(len(unknown))
         self.statusMessage.emit(summary, "ok")
         return summary
 
@@ -570,15 +570,15 @@ class Bridge(QObject):
         """Write the generated dxvk.conf next to one game's executable."""
         game = self._games.get(key)
         if game is None:
-            self.statusMessage.emit("找不到这款游戏，请先扫描游戏库", "warn")
+            self.statusMessage.emit(self.tr("找不到这款游戏，请先扫描游戏库"), "warn")
             return ""
         text = self.previewConfig()
         try:
             path = installer.write_conf(game.install_dir, text)
         except OSError as exc:
-            self.statusMessage.emit(f"写入失败：{exc}", "error")
+            self.statusMessage.emit(self.tr("写入失败：{}").format(exc), "error")
             return ""
-        self.statusMessage.emit(f"已写入 {path}", "ok")
+        self.statusMessage.emit(self.tr("已写入 {}").format(path), "ok")
         self._refresh_one(game)
         return str(path)
 
@@ -592,17 +592,17 @@ class Bridge(QObject):
 
         text = self.previewConfig()
         target, _filter = QFileDialog.getSaveFileName(
-            None, "导出 dxvk.conf", "dxvk.conf", "DXVK 配置 (*.conf);;所有文件 (*)"
+            None, self.tr("导出 dxvk.conf"), "dxvk.conf", "DXVK 配置 (*.conf);;所有文件 (*)"
         )
         if not target:
             return ""
         try:
             Path(target).write_text(text, encoding="utf-8", newline="\r\n")
         except OSError as exc:
-            self.statusMessage.emit(f"写入失败：{exc}", "error")
+            self.statusMessage.emit(self.tr("写入失败：{}").format(exc), "error")
             return ""
         settings.set("last_export_dir", str(Path(target).parent))
-        self.statusMessage.emit(f"已导出到 {target}", "ok")
+        self.statusMessage.emit(self.tr("已导出到 {}").format(target), "ok")
         return target
 
     # -- per-game config targets ------------------------------------------
@@ -628,7 +628,7 @@ class Bridge(QObject):
     def setConfigTarget(self, gameKey: str, name: str = "") -> None:  # noqa: N802
         """Point the config editor at the shared default ("") or one game."""
         self._config_target = gameKey or ""
-        self._config_target_name = name or ("默认配置" if not gameKey else gameKey)
+        self._config_target_name = name or (self.tr("默认配置") if not gameKey else gameKey)
         model = self._config_model_data
         if model is not None and gameKey:
             stored = settings.get(self._store_key(gameKey))
@@ -757,7 +757,7 @@ class Bridge(QObject):
         custom = dict(custom) if isinstance(custom, dict) else {}
         custom[name] = dict(self.config.values)
         settings.set("config_presets", custom)
-        self.statusMessage.emit(f"已保存预设「{name}」", "ok")
+        self.statusMessage.emit(self.tr("已保存预设「{}」").format(name), "ok")
 
     @Slot(str)
     def deletePreset(self, name: str) -> None:  # noqa: N802
@@ -810,20 +810,20 @@ class Bridge(QObject):
             address = f"http://127.0.0.1:{port}"
             settings.set("proxy_url", address)
             settings.set("proxy_mode", "custom")
-            self.statusMessage.emit(f"找到本地代理 {address}，已切换为自定义代理", "ok")
+            self.statusMessage.emit(self.tr("找到本地代理 {}，已切换为自定义代理").format(address), "ok")
             return address
-        self.statusMessage.emit("没有在常见端口上发现本地代理", "warn")
+        self.statusMessage.emit(self.tr("没有在常见端口上发现本地代理"), "warn")
         return ""
 
     @Slot(result="QVariant")
     def downloadSources(self) -> Any:  # noqa: N802
         """Choices for the release download source."""
         options = [
-            {"value": "auto", "label": "自动（优先官方，失败走镜像）"},
-            {"value": "official", "label": "仅官方 GitHub"},
+            {"value": "auto", "label": self.tr("自动（优先官方，失败走镜像）")},
+            {"value": "official", "label": self.tr("仅官方 GitHub")},
         ]
         for prefix in sources.MIRROR_PREFIXES:
-            options.append({"value": f"mirror:{prefix.rstrip('/')}", "label": f"只用镜像 {prefix}"})
+            options.append({"value": f"mirror:{prefix.rstrip('/')}", "label": self.tr("只用镜像 {}").format(prefix.rstrip('/'))})
         return options
 
     @Slot(str)
@@ -833,7 +833,7 @@ class Bridge(QObject):
             (item["label"] for item in self.downloadSources() if item["value"] == value),
             value,
         )
-        self.statusMessage.emit(f"下载源：{label}", "ok")
+        self.statusMessage.emit(self.tr("下载源：{}").format(label), "ok")
 
     @Slot(result=str)
     def currentDownloadSource(self) -> str:  # noqa: N802
@@ -875,10 +875,10 @@ class Bridge(QObject):
     @Slot(result="QVariant")
     def officialLinks(self) -> Any:  # noqa: N802
         return [
-            {"label": "DXVK 官方仓库", "url": "https://github.com/doitsujin/dxvk"},
-            {"label": "DXVK Wiki（文档）", "url": "https://github.com/doitsujin/dxvk/wiki"},
-            {"label": "DXVK 发布页", "url": "https://github.com/doitsujin/dxvk/releases"},
-            {"label": "dxvk.conf 原文", "url": "https://github.com/doitsujin/dxvk/blob/master/dxvk.conf"},
+            {"label": self.tr("DXVK 官方仓库"), "url": "https://github.com/doitsujin/dxvk"},
+            {"label": self.tr("DXVK Wiki（文档）"), "url": "https://github.com/doitsujin/dxvk/wiki"},
+            {"label": self.tr("DXVK 发布页"), "url": "https://github.com/doitsujin/dxvk/releases"},
+            {"label": self.tr("dxvk.conf 原文"), "url": "https://github.com/doitsujin/dxvk/blob/master/dxvk.conf"},
             {"label": "DXVK-gplasync", "url": "https://gitlab.com/Ph42oN/dxvk-gplasync"},
             {"label": "PCGamingWiki", "url": "https://www.pcgamingwiki.com/"},
         ]
@@ -889,58 +889,58 @@ class Bridge(QObject):
         return [
             {
                 "name": "DXVK",
-                "author": "doitsujin 及贡献者",
+                "author": self.tr("doitsujin 及贡献者"),
                 "license": "zlib",
-                "role": "本工具下载并安装它的发布版本；选项说明来自其 dxvk.conf。",
+                "role": self.tr("本工具下载并安装它的发布版本；选项说明来自其 dxvk.conf。"),
                 "url": "https://github.com/doitsujin/dxvk",
             },
             {
                 "name": "DXVK-gplasync",
-                "author": "Ph42oN 维护",
-                "license": "随项目",
-                "role": "带 async 补丁的 DXVK 分支，作为可选下载来源。",
+                "author": self.tr("Ph42oN 维护"),
+                "license": self.tr("随项目"),
+                "role": self.tr("带 async 补丁的 DXVK 分支，作为可选下载来源。"),
                 "url": "https://gitlab.com/Ph42oN/dxvk-gplasync",
             },
             {
                 "name": "dxvk-version-mananger",
                 "author": "artmakh",
                 "license": "MIT",
-                "role": "功能蓝本：Steam 库扫描、版本管理、DLL 备份与还原。本项目为其 Python 重写。",
+                "role": self.tr("功能蓝本：Steam 库扫描、版本管理、DLL 备份与还原。本项目为其 Python 重写。"),
                 "url": "https://github.com/artmakh/dxvk-version-mananger",
             },
             {
                 "name": "DXVK-Configurator",
                 "author": "CamoMano",
                 "license": "GPL-3.0",
-                "role": "功能蓝本：从 dxvk.conf 生成配置界面。本项目独立实现，未复制其代码。",
+                "role": self.tr("功能蓝本：从 dxvk.conf 生成配置界面。本项目独立实现，未复制其代码。"),
                 "url": "https://github.com/CamoMano/DXVK-Configurator",
             },
             {
                 "name": "Qt for Python (PySide6)",
                 "author": "Qt Company",
                 "license": "LGPL-3.0",
-                "role": "界面框架（QML / Qt Quick）。",
+                "role": self.tr("界面框架（QML / Qt Quick）。"),
                 "url": "https://www.qt.io/qt-for-python",
             },
             {
                 "name": "Pillow",
-                "author": "Python Imaging Library 社区",
+                "author": self.tr("Python Imaging Library 社区"),
                 "license": "MIT-CMU",
-                "role": "旧版封面缩略图使用；QML 版已能自行缩放，仅在命令行路径仍会用到。",
+                "role": self.tr("旧版封面缩略图使用；QML 版已能自行缩放，仅在命令行路径仍会用到。"),
                 "url": "https://python-pillow.org/",
             },
             {
                 "name": "Python",
                 "author": "Python Software Foundation",
                 "license": "PSF",
-                "role": "运行环境。",
+                "role": self.tr("运行环境。"),
                 "url": "https://www.python.org/",
             },
             {
-                "name": "数据与网络来源",
+                "name": self.tr("数据与网络来源"),
                 "author": "Steam CDN / GitHub / GitLab / jsDelivr / PCGamingWiki",
-                "license": "各自条款",
-                "role": "封面图、发布版本列表、版本列表兜底、可选的兼容性信息。",
+                "license": self.tr("各自条款"),
+                "role": self.tr("封面图、发布版本列表、版本列表兜底、可选的兼容性信息。"),
                 "url": "https://github.com/doitsujin/dxvk",
             },
         ]
@@ -965,7 +965,7 @@ class Bridge(QObject):
         clipboard = QGuiApplication.clipboard()
         if clipboard is not None:
             clipboard.setText(text)
-            self.statusMessage.emit("已复制到剪贴板", "ok")
+            self.statusMessage.emit(self.tr("已复制到剪贴板"), "ok")
 
     # -- internals -------------------------------------------------------
     @Slot(str, str)
@@ -1008,14 +1008,14 @@ class Bridge(QObject):
                 if index % 10 == 9:
                     steam.save_names()          # keep progress if we stop early
                     self.statusMessage.emit(
-                        f"正在补齐中文名 {index + 1}/{len(missing)}", "muted")
+                        self.tr("正在补齐中文名 {}/{}").format(index + 1, len(missing)), "muted")
                 time.sleep(0.12)                # the store rate limits bursts
             steam.save_names()
             return done
 
         def finished(count: Any) -> None:
             if count:
-                self.statusMessage.emit(f"已补齐 {count} 个中文名", "ok")
+                self.statusMessage.emit(self.tr("已补齐 {} 个中文名").format(count), "ok")
 
         self._submit(work, finished, None, quiet=True, pool=self._name_pool)
 
@@ -1052,7 +1052,7 @@ class Bridge(QObject):
             return done
 
         def finished(count: Any) -> None:
-            self.statusMessage.emit(f"已识别 {count} 款游戏的 Direct3D 版本", "ok")
+            self.statusMessage.emit(self.tr("已识别 {} 款游戏的 Direct3D 版本").format(count), "ok")
 
         self._submit(work, finished, None, quiet=True, pool=self._detect_pool)
 
@@ -1105,7 +1105,7 @@ class Bridge(QObject):
                 log.warning("bridge task failed: %s: %s", error_label or "task", exc,
                             exc_info=log.isEnabledFor(10))
                 if not quiet:
-                    self.statusMessage.emit(f"{error_label or '操作失败'}：{exc}", "error")
+                    self.statusMessage.emit(f"{error_label or self.tr('操作失败')}：{exc}", "error")
                     self._set_busy(False)
                 return
             # Emitting is thread safe and delivers on the interface thread.

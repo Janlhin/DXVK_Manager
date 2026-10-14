@@ -72,7 +72,7 @@ class Release:
             "file_name": self.file_name,
             "notes": self.notes,
             "summary": self.summary,
-            "kindZh": self.kind_zh,
+            "kindLabel": self.kind_label,
         }
 
     @property
@@ -114,6 +114,31 @@ class Release:
             if any(key in lowered for key in keys):
                 return label
         return "版本更新"
+
+    @property
+    def kind_en(self) -> str:
+        """English counterpart of :attr:`kind_zh`, same keyword table."""
+        lowered = self.notes.lower()[:320]
+        table = (
+            (("maintenance release",), "Maintenance release"),
+            (("shader compiler", "dxbc", "dxil", "dxc", "shader cache"), "Shader compilation"),
+            (("hang", "deadlock", "vk_error_device_lost", "device lost"), "Hangs and deadlocks"),
+            (("support for", "added", "new feature", "introduces"), "New features"),
+            (("bug fix", "bugfix", "fixes", "fixed", "regression"), "Bug fixes"),
+            (("performance", "faster", "speed"), "Performance"),
+            (("improvement",), "Improvements"),
+        )
+        for keys, label in table:
+            if any(key in lowered for key in keys):
+                return label
+        return "Version update"
+
+    @property
+    def kind_label(self) -> str:
+        """Category label in the configured interface language (§29)."""
+        if str(settings.get("ui_lang") or "zh") == "en":
+            return self.kind_en
+        return self.kind_zh
 
 
 def _dxvk_asset(release: dict[str, Any]) -> dict[str, Any] | None:
