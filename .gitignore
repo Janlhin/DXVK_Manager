@@ -19,3 +19,6 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Offscreen render / probe output (render_pages.py, i18n_probe.py)
+build/
