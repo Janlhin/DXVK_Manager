@@ -128,12 +128,18 @@ Item {
 
     component DarkSwitch: Switch {
         id: sw
+        // Basic style 的 implicitWidth 公式只算 background/contentItem，
+        // 不含 indicator：contentItem 置空后控件塌缩到 padding*2 = 12px，
+        // 40px 轨道向右溢出、窄窗口下被窗口边裁掉。将控件钉死为轨道
+        // 尺寸并归零 padding，让 anchors.right 的语义落在轨道右缘上。
+        implicitWidth: 40
         implicitHeight: 24
+        padding: 0
 
         indicator: Rectangle {
             implicitWidth: 40
             implicitHeight: 22
-            x: sw.leftPadding
+            x: 0
             y: (sw.height - height) / 2
             radius: 11
             color: sw.checked ? Th.accentDark : Th.surfaceAlt

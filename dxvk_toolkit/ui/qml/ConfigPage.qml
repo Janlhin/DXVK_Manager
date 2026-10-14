@@ -176,12 +176,16 @@ Item {
     // write the same conf_comments key).
     component DarkSwitch: Switch {
         id: sw
+        // 同 SettingsPage：Basic 样式 implicitWidth 不含 indicator，控件会
+        // 塌缩到 padding*2，轨道向右溢出。钉死几何，Row 内占位才真实。
+        implicitWidth: 40
         implicitHeight: 24
+        padding: 0
 
         indicator: Rectangle {
             implicitWidth: 40
             implicitHeight: 22
-            x: sw.leftPadding
+            x: 0
             y: (sw.height - height) / 2
             radius: 11
             color: sw.checked ? Th.accentDark : Th.surfaceAlt
