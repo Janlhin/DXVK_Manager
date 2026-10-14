@@ -21,7 +21,9 @@ Item {
     signal activated()
     signal opened()
 
-    width: Th.cardWidth
+    // 宽度跟随槽位：卡墙 delegate 按窗口宽度等分行宽（自适应卡墙），
+    // 高度仍是封面 + 页脚的固定值，封面 PreserveAspectCrop 随宽多裁左右。
+    width: parent ? parent.width : Th.cardWidth
     height: Th.cardHeight + Th.cardFooter
 
     // Animating the delegate root stopped the view from creating delegates at

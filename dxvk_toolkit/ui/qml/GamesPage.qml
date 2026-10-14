@@ -292,12 +292,19 @@ Item {
                     width: wall.width - Th.pad * 2
                     spacing: Th.gap
 
+                    // 自适应卡墙：Flow 只换行不拉伸，定宽卡片的行尾会留下
+                    // 参差空白（真机截图反馈）。列数由最小卡宽推出，单元格
+                    // 宽度精确等分行宽——每个整行都与左右边距对齐，列数随
+                    // 窗口宽度增减。0.02px 收缩防浮点累计误差导致提前换行。
+                    readonly property int cols: Math.max(1, Math.floor((width + Th.gap) / (Th.cardWidth + Th.gap)))
+                    readonly property real cellW: (width - (cols - 1) * Th.gap) / cols - 0.02
+
                     Repeater {
                         model: gameModel
 
                         delegate: Item {
                             readonly property bool isHeader: model.gameKind === "header"
-                            width: isHeader ? flow.width : Th.cardWidth
+                            width: isHeader ? flow.width : flow.cellW
                             height: isHeader ? 44 : Th.cardHeight + Th.cardFooter
 
                             Text {
