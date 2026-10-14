@@ -815,7 +815,7 @@ class Bridge(QObject):
         self.statusMessage.emit(self.tr("没有在常见端口上发现本地代理"), "warn")
         return ""
 
-    @Slot(result="QVariant")
+    @Slot(result="QVariantList")
     def downloadSources(self) -> Any:  # noqa: N802
         """Choices for the release download source."""
         options = [

@@ -110,9 +110,19 @@ Item {
                 delegate: ItemDelegate {
                     width: combo.width - Th.space2
                     contentItem: Text {
-                        // Object models (the download source list) carry a label
-                        // field; a plain string list has modelData itself.
-                        text: combo.textRole ? model[combo.textRole] : modelData
+                        // Object models crossing the Python bridge arrive as a
+                        // plain sequence: per-key roles are NOT generated, so
+                        // model["label"] is always undefined and the whole
+                        // popup renders as empty rows. The row object itself
+                        // (modelData) always carries the fields; model[...] is
+                        // only the fallback for real role models (ListModel).
+                        text: {
+                            if (!combo.textRole)
+                                return modelData
+                            if (modelData && typeof modelData === "object")
+                                return modelData[combo.textRole]
+                            return model[combo.textRole]
+                        }
                         color: Th.text
                         font.pixelSize: Th.fontSmall
                         verticalAlignment: Text.AlignVCenter
