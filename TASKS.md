@@ -24,7 +24,7 @@
 | T17 | node-app / web-configurator 处置 | chore | — | 低 | ✅ 已完成（2026-10-14 裁决） | **明确排除出仓库**（许可隔离依 PLAN.md §30 / DECISIONS.md「2026-10-09 仓库结构与接手基线」）；2026-10-14 迁移精简时已删除 `D:\Projects\DXVK_Manager` 下的两份副本（伞形库提交 `e7de9b8`，删除前与 C 盘正本逐字节比对一致），正本保留在 C 盘源目录；伞形库根 `.gitignore` 排除 `/node-app/`、`/web-configurator/` 防再入库 |
 | T18 | 核心层测试覆盖率（build/model/parse round-trip） | test | — | 中 | ✅ 已建（本次） | `tests/test_build.py` 15 例全绿；纳入 `verify` 门禁；push 后 CI 跑绿 |
 | T19 | pyright 门禁修复（消除动态库假阳性 error） | chore | T9 | 低 | ✅ 已完成 | 排除 GUI 测试脚本（`qml_smoke.py`/`render_pages.py`）出类型门禁；`bridge.py` 的 `Signal("QVariantList"/"QVariantMap")` 加 `reportArgumentType` ignore；`covers.py` 文件级放宽 `reportOptionalMemberAccess`（Pillow 可选且无 stub）；pyright 现 **0 errors** |
-| T20 | **整体重写：编译语言 + 从零 I18N（终极形态评估）** | refactor | — | 特大 | 待裁决（**最核心长线项**） | 语言候选 Go / Rust / C++ / C#；i18n 自首日起为架构约束而非事后补丁；裁决点与可复用资产见下方附注 |
+| T20 | **整体重写：编译语言 + 从零 I18N（终极形态评估）** | refactor | — | 特大 | 待裁决（**最核心长线项**） | 语言候选 Go / Rust / C++ / C# / TypeScript；PS7 定位为编排层、不作重写主体；i18n 自首日起为架构约束而非事后补丁；裁决点与可复用资产见下方附注 |
 
 ## T20 附注：编译语言重写 + 从零 I18N
 
@@ -38,7 +38,16 @@
    - **C#**（Avalonia / WPF）——Windows 单平台最顺，GUI 生态与本地化资源体系（resx）成熟；
    - **Rust**（Slint / egui / Tauri）——内存安全 + 单文件分发；Slint 自带翻译体系，GUI 生态较新；
    - **Go**（Wails / Fyne / Qt bindings）——构建与分发最简，GUI 绑定层质量参差；
-   - **C++ / Qt**——自 PySide6 迁移最平缓（QML 可大量直接复用），代价是内存安全与开发效率。
+   - **C++ / Qt**——自 PySide6 迁移最平缓（QML 可大量直接复用），代价是内存安全与开发效率；
+   - **TypeScript**（Electron 或 Tauri 壳；样式层 SCSS 与语言裁决正交，web 系 UI 均可用）——
+     **原版 dxvk-manager 蓝本即 TS/Electron（node-app），本领域可行性有实证**；i18n 生态全候选最成熟
+     （i18next / FormatJS：键名编译期类型检查、ICU 复数、语言热切换、伪本地化插件），与从零 i18n
+     基线严丝合缝；代价：Electron 分发重（百 MB 级），Tauri 轻但壳需 Rust。许可注意：node-app 为
+     MIT，重写借鉴其代码保留版权声明即合法；web-configurator 为 GPL-3.0，仍只能参照交互、不可复制代码；
+   - **PowerShell 7 —— 不作重写主体**：GUI 无成熟出路（WPF 互操作仅 Windows，无 Avalonia 级方案）、
+     脚本分发易被 AV 误报，i18n 仅 `Import-LocalizedData` 错误消息级机制（无复数/ICU/RTL）。
+     其正确定位：**入口与编排层**（启动/诊断/verify 已是 PS1，维持现状），另可选伴生交付
+     「PS7 模块 CLI 前端」（扫描/安装/还原命令化，供自动化场景），属增量交付、不计入重写。
 2. **重写范围**：整体重写 vs 核心层先行移植（`parse`/`build`/`validate`/`sources` 为纯标准库逻辑，与 UI 完全解耦，可独立先行）。
 3. **时机**：T13 收尾、真机验证清单清零后启动评估；与 bridge 拆分议题合并考虑。
 
@@ -53,7 +62,9 @@
 ### 可复用资产
 
 `confspec`/`curate` 的 dxvk.conf 知识库与 PURPOSE 数据、SLANG 别名表、设置/账本 schema、
-现有测试用例语义均可直接导出；QML 界面结构（若最终选 Qt 系）可参照移植。
+现有测试用例语义均可直接导出；QML 界面结构（若最终选 Qt 系）可参照移植；
+node-app 的扫描/版本管理流程语义与 web-configurator 的 dxvk.conf 配置交互设计可作产品参照
+（代码均不复制，许可边界见裁决点 1）。
 
 > 可执行项（状态非「待裁决」）≥ 3，满足阶段 3 退出判据。待裁决项占多数属接手期正常现象，
 > 不得为压低阻塞指标而擅设默认。
