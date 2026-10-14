@@ -326,22 +326,22 @@
         <translation>Cover art, release listings, version list fallback, optional compatibility info.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="968" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="974" />
         <source>已复制到剪贴板</source>
         <translation>Copied to the clipboard</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1011" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1017" />
         <source>正在补齐中文名 {}/{}</source>
         <translation>Fetching Chinese names {}/{}</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1018" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1024" />
         <source>已补齐 {} 个中文名</source>
         <translation>Fetched {} Chinese names</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1055" />
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="1061" />
         <source>已识别 {} 款游戏的 Direct3D 版本</source>
         <translation>Detected the Direct3D version of {} games</translation>
     </message>
@@ -847,141 +847,151 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="190" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="200" />
         <source>离线模式</source>
         <translation>Offline mode</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="202" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="212" />
         <source>打开后程序不发起任何网络请求：版本列表与封面只使用本地已有内容，下载会直接提示离线模式已开启。</source>
         <translation>When on, the app makes no network requests: version lists and covers come from local content only, and downloads report that offline mode is on.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="215" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="225" />
         <source>网络与下载源</source>
         <translation>Network and download source</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="222" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
         <source>代理</source>
         <translation>Proxy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="242" />
         <source>自动</source>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="242" />
         <source>直连</source>
         <translation>Direct</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="232" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="242" />
         <source>自定义</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="257" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="267" />
         <source>探测本地代理</source>
         <translation>Detect local proxy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="273" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="283" />
         <source>下载源</source>
         <translation>Download source</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="301" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="311" />
         <source>官方源被墙时自动改用镜像</source>
         <translation>Falls back to mirrors automatically when the official source is unreachable</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="311" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="321" />
         <source>测试连接</source>
         <translation>Test connection</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="314" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="324" />
         <source>测试中…</source>
         <translation>Testing…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="338" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="348" />
         <source>点「测试连接」会真实拉取一次版本列表</source>
         <translation>"Test connection" actually fetches the version list once</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="362" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="372" />
         <source>导出的 dxvk.conf</source>
         <translation>Exported dxvk.conf</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="374" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="384" />
         <source>开启后每个选项上方会写入中文说明（与原版工具一致）；关闭则只输出选项本身。预览与导出使用同一份内容。</source>
         <translation>When on, each option gets a comment above it (like the original tool); when off, only the options are written. Preview and export share the same content.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="397" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="407" />
         <source>界面语言</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="404" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="414" />
         <source>简体中文</source>
         <translation>简体中文</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="412" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="422" />
         <source>切换界面文字，重启应用后生效；选项说明的语言独立设置，互不影响。</source>
         <translation>Switches the UI text; takes effect after a restart. The option-description language is set separately and is unaffected.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="425" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="435" />
         <source>数据目录</source>
         <translation>Data folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="433" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="443" />
         <source>已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。</source>
         <translation>Downloaded versions live here; a game folder only ever shows the DXVK DLLs and the .bkp backups created on install.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="437" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="447" />
         <source>打开数据目录</source>
         <translation>Open data folder</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="451" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="461" />
         <source>官方资源</source>
         <translation>Official resources</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="476" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="486" />
         <source>鸣谢</source>
         <translation>Credits</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="524" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="534" />
         <source>许可：%1</source>
         <translation>License: %1</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="541" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="551" />
         <source>查看完整第三方声明</source>
         <translation>View full third-party notices</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="555" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="567" />
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="558" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="570" />
         <source>DXVK Version Manager · Python edition v%1
 界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。</source>
         <translation>DXVK Version Manager · Python edition v%1
 UI: PySide6 + QML (Qt Quick); the core logic is a pure Python standard-library implementation independent of the UI. The Chinese option descriptions are translated by this project; the English originals come from DXVK's dxvk.conf.</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="604" />
+        <source>第三方声明</source>
+        <translation>Third-Party Notices</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="639" />
+        <source>未找到第三方声明文件。</source>
+        <translation>The third-party notices file was not found.</translation>
     </message>
 </context>
 <context>

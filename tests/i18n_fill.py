@@ -240,6 +240,8 @@ SETTINGS_PAGE = {
     "鸣谢": "Credits",
     "许可：%1": "License: %1",
     "查看完整第三方声明": "View full third-party notices",
+    "第三方声明": "Third-Party Notices",
+    "未找到第三方声明文件。": "The third-party notices file was not found.",
     "关于": "About",
     "DXVK Version Manager · Python edition v%1\n界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。":
         "DXVK Version Manager · Python edition v%1\nUI: PySide6 + QML (Qt Quick); the core logic is a pure Python standard-library implementation independent of the UI. The Chinese option descriptions are translated by this project; the English originals come from DXVK's dxvk.conf.",

@@ -549,7 +549,9 @@ Item {
 
                     FlatButton {
                         text: qsTr("查看完整第三方声明")
-                        onClicked: bridge.openFolder(bridge.noticesPath())
+                        // 「查看」就该在应用内直接读：此前是 explorer /select
+                        // 选中 .md 文件，窗口常被压在后面，.md 还未必有打开方式。
+                        onClicked: noticesDialog.open()
                     }
                 }
             }
@@ -569,6 +571,84 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // --- third-party notices viewer -----------------------------------
+    Dialog {
+        id: noticesDialog
+        objectName: "noticesDialog"
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 120, 680)
+        height: Math.min(parent.height - 100, 620)
+        padding: 0
+
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        background: Rectangle {
+            color: Th.surface
+            radius: Th.radiusPanel
+            border.width: 1
+            border.color: Th.borderStrong
+        }
+
+        header: Item {
+            height: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("第三方声明")
+                color: Th.text
+                font.pixelSize: Th.fontTitle
+                font.bold: true
+            }
+
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: Th.space4
+                anchors.verticalCenter: parent.verticalCenter
+                text: "✕"
+                color: mouse.containsMouse ? Th.text : Th.textMuted
+                font.pixelSize: Th.fontSubtitle
+
+                MouseArea {
+                    id: mouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: noticesDialog.close()
+                }
+            }
+        }
+
+        contentItem: Flickable {
+            clip: true
+            contentWidth: width
+            contentHeight: noticesBody.height + Th.space4 * 2
+
+            TextEdit {
+                id: noticesBody
+                x: Th.space4
+                y: Th.space3
+                width: parent.width - Th.space4 * 2
+                text: noticesDialog.visible
+                      ? (bridge.noticesText() || qsTr("未找到第三方声明文件。"))
+                      : ""
+                textFormat: TextEdit.MarkdownText
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+                color: Th.text
+                font.pixelSize: Th.fontSmall
+                selectionColor: Th.primary
+                selectedTextColor: Th.primaryText
+            }
+
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         }
     }
 }

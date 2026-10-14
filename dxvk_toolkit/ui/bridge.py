@@ -946,10 +946,16 @@ class Bridge(QObject):
         ]
 
     @Slot(result=str)
-    def noticesPath(self) -> str:  # noqa: N802
+    def noticesText(self) -> str:  # noqa: N802
+        """Full text of THIRD_PARTY_NOTICES.md for the in-app viewer."""
         from ..paths import bundle_dir
 
-        return str(bundle_dir() / "THIRD_PARTY_NOTICES.md")
+        path = bundle_dir() / "THIRD_PARTY_NOTICES.md"
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            log.warning("Third-party notices file missing: %s", path)
+            return ""
 
     @Slot(str)
     def openFolder(self, path: str) -> None:
