@@ -349,185 +349,195 @@
 <context>
     <name>ConfigPage</name>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="25" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="27" />
         <source>默认配置</source>
         <translation>Default configuration</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="35" />
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="54" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="37" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="56" />
         <source>默认配置（所有游戏共用）</source>
         <translation>Default configuration (shared by all games)</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="38" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="40" />
         <source>已写入</source>
         <translation>Written</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="41" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="43" />
         <source>与磁盘文件不同</source>
         <translation>Differs from the file on disk</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="44" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="46" />
         <source>未写入</source>
         <translation>Not written</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="47" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="49" />
         <source>状态未知</source>
         <translation>State unknown</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="244" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="246" />
         <source>搜索选项…</source>
         <translation>Search options…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="263" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="265" />
         <source>简单</source>
         <translation>Simple</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="264" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="266" />
         <source>进阶</source>
         <translation>Advanced</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="265" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="267" />
         <source>完全</source>
         <translation>Full</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="292" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="294" />
         <source>导入 dxvk.conf…</source>
         <translation>Import dxvk.conf…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="320" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="322" />
         <source>共 %1 项，已选 %2</source>
         <translation>%1 options in total, %2 selected</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="355" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="357" />
         <source>作用对象</source>
         <translation>Applies to</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="447" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="449" />
         <source>预设</source>
         <translation>Preset</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="458" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="460" />
         <source>选择预设…</source>
         <translation>Pick a preset…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="522" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="524" />
         <source>存为预设</source>
         <translation>Save as preset</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="531" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="533" />
         <source>清空</source>
         <translation>Clear all</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="538" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="540" />
         <source>重置为默认</source>
         <translation>Reset to defaults</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="576" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="564" />
+        <source>分类</source>
+        <translation>Categories</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="599" />
+        <source>全部</source>
+        <translation>All</translation>
+    </message>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="702" />
         <source>还没有可用的配置选项。
 先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。</source>
         <translation>No config options available yet.
 Download any DXVK version on the Versions page first (it bundles a reference file), or point to a dxvk.conf manually in Settings.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="734" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="860" />
         <source>GPLAsync 专有</source>
         <translation>GPLAsync only</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="864" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="990" />
         <source>dxvk.conf 预览</source>
         <translation>dxvk.conf preview</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="882" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1008" />
         <source>带注释</source>
         <translation>Comments</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="898" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1024" />
         <source>复制</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="918" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1044" />
         <source>应用并写入 %1</source>
         <translation>Apply and write to %1</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="918" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1044" />
         <source>写入游戏…</source>
         <translation>Write to game…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="942" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1068" />
         <source>保存为文件…</source>
         <translation>Save as file…</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="977" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1103" />
         <source>和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。</source>
         <translation>Placed next to the game exe it takes effect; export it here on its own, no library scan needed.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1036" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1162" />
         <source>把 dxvk.conf 写入哪个游戏？</source>
         <translation>Which game should this dxvk.conf be written to?</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1098" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1224" />
         <source>写入前会把已有的 dxvk.conf 备份为 .bkp</source>
         <translation>Any existing dxvk.conf is backed up as .bkp before writing</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1107" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1233" />
         <source>关闭</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1149" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1275" />
         <source>保存为预设</source>
         <translation>Save as preset</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1165" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1291" />
         <source>把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。</source>
         <translation>Saves every currently selected option as a custom preset that can be applied to any game in one click.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1174" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1300" />
         <source>预设名称，例如：赛博朋克专用</source>
         <translation>Preset name, e.g. Cyberpunk 2077</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1195" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1321" />
         <source>「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。</source>
         <translation>"Performance", "Compatibility" and "Clean" are built-in presets and cannot be overwritten.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1208" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1334" />
         <source>保存</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1231" />
+        <location filename="../../dxvk_toolkit/ui/qml/ConfigPage.qml" line="1357" />
         <source>取消</source>
         <translation>Cancel</translation>
     </message>

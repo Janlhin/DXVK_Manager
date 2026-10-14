@@ -21,6 +21,8 @@ Item {
     // a game key. The page stays in sync through onConfigTargetChanged below.
     property string gameKey: ""
     property string gameName: ""
+    // Category rail selection: raw purpose/section key, "" shows all groups.
+    property string currentSection: ""
     property string configStatus: "default"
     property string statusLabel: qsTr("默认配置")
     property string statusKind: "muted"
@@ -106,7 +108,7 @@ Item {
     function setMode(value) {
         page.mode = value
         bridge.setSetting("config_mode", value)
-        bridge.filterConfig(search.text, value)
+        bridge.filterConfig(search.text, value, page.currentSection)
         page.previewDirty = true
     }
 
@@ -253,7 +255,7 @@ Item {
                     Behavior on border.color { ColorAnimation { duration: 120 } }
                 }
                 onTextChanged: {
-                    bridge.filterConfig(text, page.mode)
+                    bridge.filterConfig(text, page.mode, page.currentSection)
                     page.previewDirty = true
                 }
             }
@@ -541,13 +543,137 @@ Item {
         }
     }
 
+    // --- category rail (direction C) --------------------------------------
+    // 三栏布局的左栏：分类带计数（随搜索 + 难度实时变化），点击把列表
+    // 过滤到该分类；再次点击或点「全部」恢复。key 用原始用途/section 名，
+    // 与界面语言解耦；label 由模型按语言给出。
+    Rectangle {
+        id: rail
+        anchors.left: parent.left
+        anchors.top: contextBar.bottom
+        anchors.bottom: parent.bottom
+        width: 148
+        color: Th.surface
+
+        Text {
+            id: railTitle
+            anchors.left: parent.left
+            anchors.leftMargin: Th.space3
+            anchors.top: parent.top
+            anchors.topMargin: Th.space3
+            text: qsTr("分类")
+            color: Th.textMuted
+            font.pixelSize: Th.fontCaption
+            font.bold: true
+        }
+
+        Item {
+            id: railAll
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: railTitle.bottom
+            anchors.topMargin: Th.space2
+            height: 30
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: Th.space1
+                radius: Th.radiusSmall
+                color: page.currentSection === "" ? Th.accentDark
+                       : (railAllHover.containsMouse ? Th.surfaceHover : "transparent")
+            }
+            MouseArea {
+                id: railAllHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    page.currentSection = ""
+                    bridge.filterConfig(search.text, page.mode, "")
+                    page.previewDirty = true
+                }
+            }
+            Text {
+                x: Th.space2
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("全部")
+                color: page.currentSection === "" ? "#ffffff" : Th.text
+                font.pixelSize: Th.fontSmall
+                font.bold: page.currentSection === ""
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: Th.space3
+                anchors.verticalCenter: parent.verticalCenter
+                text: configModel.optionCount
+                color: page.currentSection === "" ? "#d7e3f8" : Th.textMuted
+                font.pixelSize: Th.fontCaption
+            }
+        }
+
+        Column {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: railAll.bottom
+
+            Repeater {
+                model: configModel.sectionStats
+
+                delegate: Item {
+                    required property var modelData
+                    width: parent.width
+                    height: 30
+
+                    readonly property bool active: page.currentSection === modelData.key
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: Th.space1
+                        radius: Th.radiusSmall
+                        color: parent.active ? Th.accentDark
+                               : (railHover.containsMouse ? Th.surfaceHover : "transparent")
+                    }
+                    MouseArea {
+                        id: railHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            page.currentSection = parent.active ? "" : parent.modelData.key
+                            bridge.filterConfig(search.text, page.mode, page.currentSection)
+                            page.previewDirty = true
+                        }
+                    }
+                    Text {
+                        x: Th.space2
+                        width: parent.width - Th.space4 - 36
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: parent.modelData.label
+                        color: parent.active ? "#ffffff" : Th.text
+                        font.pixelSize: Th.fontSmall
+                        font.bold: parent.active
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: Th.space3
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: parent.modelData.count
+                        color: parent.active ? "#d7e3f8" : Th.textMuted
+                        font.pixelSize: Th.fontCaption
+                    }
+                }
+            }
+        }
+    }
+
     // --- option list ------------------------------------------------------
     ListView {
         id: optionList
         objectName: "optionList"
         anchors.top: contextBar.bottom
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
+        anchors.left: rail.right
         anchors.right: divider.left
         clip: true
         model: configModel

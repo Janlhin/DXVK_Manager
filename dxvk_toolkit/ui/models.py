@@ -445,6 +445,7 @@ class ConfigListModel(QAbstractListModel):
     """The dxvk.conf option catalogue, one row per option."""
 
     countChanged = Signal()
+    sectionStatsChanged = Signal()
 
     KeyRole = Qt.UserRole + 1
     LabelRole = Qt.UserRole + 2
@@ -468,6 +469,9 @@ class ConfigListModel(QAbstractListModel):
         self._mode = "simple"
         # Section header labels the user folded away (see toggleSection).
         self._collapsed: set[str] = set()
+        # Category rail filter: raw purpose/section key, "" shows everything.
+        self._section_filter = ""
+        self._section_stats: list[dict[str, Any]] = []
         self.values: dict[str, Any] = {}
 
     @Property(int, notify=countChanged)
@@ -544,9 +548,10 @@ class ConfigListModel(QAbstractListModel):
         self.endResetModel()
         self.countChanged.emit()
 
-    def apply_filter(self, search: str = "", mode: str = "simple") -> None:
+    def apply_filter(self, search: str = "", mode: str = "simple", section: str = "") -> None:
         self._search = (search or "").strip().lower()
         self._mode = mode if mode in confspec.MODES else "simple"
+        self._section_filter = section or ""
         self.beginResetModel()
         self._apply_filter()
         self.endResetModel()
@@ -568,20 +573,28 @@ class ConfigListModel(QAbstractListModel):
             visible.append(row)
 
         rows: list[dict[str, Any]] = []
+        stats: list[dict[str, Any]] = []
         if self._mode == "simple":
             # Group by purpose: a section header per option would just flicker
             # between dxvk / dxgi / d3d9 because most options exist in several.
+            # Buckets are computed regardless of the rail filter so the
+            # category counts always reflect the current search + mode.
             for purpose in confspec.PURPOSE_ORDER:
-                if purpose in self._collapsed:
-                    continue
                 bucket = [r for r in visible if confspec.purpose_of(r["key"]) == purpose]
                 if not bucket:
                     continue
                 # The label goes through _tr so the simple mode's group
                 # headings follow the interface language; the collapse set
                 # stores the translated label, which stays self-consistent
-                # because the state is in-memory only.
-                rows.append({"kind": "header", "label": _tr(purpose), "key": ""})
+                # because the state is in-memory only. The rail filters by
+                # the raw purpose key so locale switches cannot orphan it.
+                label = _tr(purpose)
+                stats.append({"label": label, "key": purpose, "count": len(bucket)})
+                if self._section_filter and purpose != self._section_filter:
+                    continue
+                if not self._section_filter and purpose in self._collapsed:
+                    continue
+                rows.append({"kind": "header", "label": label, "key": ""})
                 rows.extend(bucket)
         else:
             # Technical modes list everything grouped by section, which needs a
@@ -590,13 +603,18 @@ class ConfigListModel(QAbstractListModel):
             for row in sorted(visible, key=lambda r: (r["section"], r["key"])):
                 grouped.setdefault(row["section"], []).append(row)
             for section, bucket in grouped.items():
-                if section in self._collapsed:
+                stats.append({"label": section, "key": section, "count": len(bucket)})
+                if self._section_filter and section != self._section_filter:
+                    continue
+                if not self._section_filter and section in self._collapsed:
                     continue
                 rows.append({"kind": "header", "label": f"[{section}]", "key": ""})
                 rows.extend(bucket)
 
         self._rows = rows
         self._option_count = len(visible)
+        self._section_stats = stats
+        self.sectionStatsChanged.emit()
 
     def toggleSection(self, label: str) -> None:
         """Fold/unfold one catalogue section (identified by its header label)."""
@@ -613,6 +631,11 @@ class ConfigListModel(QAbstractListModel):
     def optionCount(self) -> int:  # noqa: N802 - QML naming
         """Option rows only (headers do not count)."""
         return getattr(self, "_option_count", len(self._rows))
+
+    @Property(list, notify=sectionStatsChanged)
+    def sectionStats(self) -> list[dict[str, Any]]:  # noqa: N802 - QML naming
+        """Category rail data: [{label, key, count}] under the current filter."""
+        return self._section_stats
 
     def apply_values(self, values: dict[str, Any]) -> None:
         """Replace the whole selection (used by the dxvk.conf importer)."""

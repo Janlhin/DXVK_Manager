@@ -113,6 +113,8 @@ CONFIG_PAGE = {
     "存为预设": "Save as preset",
     "清空": "Clear all",
     "重置为默认": "Reset to defaults",
+    "分类": "Categories",
+    "全部": "All",
     "还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。":
         "No config options available yet.\nDownload any DXVK version on the Versions page first (it bundles a reference file), or point to a dxvk.conf manually in Settings.",
     "GPLAsync 专有": "GPLAsync only",

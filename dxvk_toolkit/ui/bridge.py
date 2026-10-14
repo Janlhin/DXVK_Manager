@@ -493,9 +493,9 @@ class Bridge(QObject):
         # the app) never loses work; only "applied to disk" is a separate step.
         self._persist_target_values(self._config_target, self.config.values)
 
-    @Slot(str, str)
-    def filterConfig(self, search: str, mode: str) -> None:  # noqa: N802
-        self.config.apply_filter(search, mode)
+    @Slot(str, str, str)
+    def filterConfig(self, search: str, mode: str, section: str = "") -> None:  # noqa: N802
+        self.config.apply_filter(search, mode, section)
 
     @Slot(result=str)
     def previewConfig(self) -> str:  # noqa: N802
