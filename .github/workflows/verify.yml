@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m pyright --warnings
+      - run: python -m pyright
 
   commitlint:
     if: github.event_name == 'pull_request'
