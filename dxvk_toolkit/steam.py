@@ -663,6 +663,103 @@ def scan_mihoyo_games() -> list[Game]:
     return _mihoyo_games_from_entries(entries)
 
 
+def _wegame_apps_roots() -> list[Path]:
+    """Locate every WeGame rail_apps library (e.g. D:\\WeGameApps\\rail_apps).
+
+    Installed titles live under ``<library>\\rail_apps\\<Name>(<id>)``. The
+    library root is chosen by the user at install time, so probe the common
+    drive roots instead of trusting one hardcoded path.
+    """
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for drive in ("C:/", "D:/", "E:/", "F:/"):
+        for candidate in (Path(drive) / "WeGameApps" / "rail_apps", Path(drive) / "rail_apps"):
+            try:
+                exists = candidate.is_dir()
+            except OSError:
+                exists = False
+            if exists:
+                key = os.path.normcase(os.path.abspath(candidate))
+                if key not in seen:
+                    seen.add(key)
+                    roots.append(candidate)
+    return roots
+
+
+def _wegame_display_name(game_dir: Path, bare_name: str) -> str:
+    """Localized display name for a WeGame title.
+
+    WeGame ships an uninstaller named ``<DisplayName>卸载.exe`` inside the game
+    folder; that is the most reliable place to recover the user-visible (often
+    Chinese) name. Fall back to the folder's bare name when absent.
+    """
+    matches: list[str] = []
+    try:
+        names = os.listdir(game_dir)
+    except OSError:
+        return bare_name
+    for f in names:
+        if f.endswith("卸载.exe"):
+            cand = f[: -len("卸载.exe")].strip()
+            if cand:
+                matches.append(cand)
+    if not matches:
+        return bare_name
+    for m in matches:
+        if m == bare_name or bare_name.startswith(m) or m.startswith(bare_name):
+            return m
+    return min(matches, key=len)
+
+
+_RAIL_FOLDER_RE = re.compile(r"^(?P<nm>.+?)\((?P<id>\d+)\)$")
+
+
+def _rail_apps_game_id(install_dir: Path) -> str | None:
+    """Return the ``<id>`` of the rail_apps ``<Name>(<id>)`` ancestor of a
+    path, if it sits inside one. Used to merge registry records that point at a
+    sub-folder (e.g. ``…\\无畏契约(2001715)\\live``) with the same game the
+    disk scan already discovered from the parent folder."""
+    try:
+        cur = Path(os.path.abspath(install_dir))
+    except OSError:
+        return None
+    for _ in range(8):
+        parent = cur.parent
+        if parent.name == "rail_apps":
+            match = _RAIL_FOLDER_RE.match(cur.name)
+            return match.group("id") if match else cur.name
+        if parent == cur:
+            break
+        cur = parent
+    return None
+
+
+def _wegame_games_from_rail_apps(root: Path) -> list[Game]:
+    """Every ``<Name>(<id>)`` folder under a rail_apps directory."""
+    games: list[Game] = []
+    try:
+        entries = sorted(os.listdir(root))
+    except OSError:
+        return games
+    for name in entries:
+        folder = root / name
+        try:
+            if not folder.is_dir():
+                continue
+        except OSError:
+            continue
+        match = re.match(r"^(?P<nm>.+?)\((?P<id>\d+)\)$", name)
+        if match:
+            bare, appid = match.group("nm"), match.group("id")
+        else:
+            bare, appid = name, name
+        display = _wegame_display_name(folder, bare)
+        games.append(
+            Game(appid=str(appid), name=display, install_dir=folder, source="wegame")
+        )
+    return games
+
+
 def _wegame_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> list[Game]:
     """Every HKCU\\Software\\Tencent\\{app} record carrying both an
     InstallLocation and a DisplayName is a WeGame/rail game (无畏契约…);
@@ -688,13 +785,42 @@ def _wegame_games_from_entries(entries: list[tuple[str, dict[str, str]]]) -> lis
 
 
 def scan_wegame_games() -> list[Game]:
-    """WeGame / rail titles from their per-app HKCU registry records."""
+    """WeGame / rail titles.
+
+    The on-disk ``rail_apps`` library is the authoritative installed list and
+    is scanned first; the per-app ``HKCU\\Software\\Tencent`` registry records
+    are merged as a fallback for machines where the library folder cannot be
+    located. Duplicates by install folder are dropped.
+    """
     if os.name != "nt":
         return []
     import winreg  # noqa: WPS433
 
-    entries = _registry_subkey_values(winreg.HKEY_CURRENT_USER, r"Software\Tencent")
-    return _wegame_games_from_entries(entries)
+    games: list[Game] = []
+    disk_ids: set[str] = set()
+    for root in _wegame_apps_roots():
+        for game in _wegame_games_from_rail_apps(root):
+            games.append(game)
+            game_id = _rail_apps_game_id(game.install_dir)
+            if game_id:
+                disk_ids.add(game_id)
+    for game in _wegame_games_from_entries(
+        _registry_subkey_values(winreg.HKEY_CURRENT_USER, r"Software\Tencent")
+    ):
+        # Skip registry records already covered by the disk scan (same rail
+        # app id, e.g. valorant.live pointing at the game's \\live sub-folder).
+        if _rail_apps_game_id(game.install_dir) in disk_ids:
+            continue
+        games.append(game)
+    seen: set[str] = set()
+    out: list[Game] = []
+    for game in games:
+        key = game.key
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(game)
+    return out
 
 
 def scan_all_games(extra_libraries: Iterable[str] = ()) -> list[Game]:

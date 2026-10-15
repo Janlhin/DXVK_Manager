@@ -190,5 +190,64 @@ class EpicInstallationsTests(unittest.TestCase):
         self.assertEqual(games[0].name, "RawFolderName")
 
 
+class WegameRailAppsTests(unittest.TestCase):
+    def _make_rail_apps(self, base: Path) -> Path:
+        rail = base / "rail_apps"
+        rail.mkdir()
+        df = rail / "DeltaForce(2001918)"
+        df.mkdir()
+        (df / "三角洲行动卸载.exe").write_text("", encoding="utf-8")
+        val = rail / "无畏契约(2001715)"
+        val.mkdir()
+        (val / "无畏契约卸载.exe").write_text("", encoding="utf-8")
+        return rail
+
+    def test_disk_scan_finds_delta_force_and_valorant(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rail = self._make_rail_apps(Path(tmp))
+            with mock.patch.object(steam, "_wegame_apps_roots", lambda: [rail]), \
+                 mock.patch.object(steam, "_registry_subkey_values",
+                                   lambda hive, path: []):
+                games = steam.scan_wegame_games()
+        self.assertEqual(len(games), 2)
+        by_appid = {g.appid: g for g in games}
+        self.assertEqual(by_appid["2001918"].name, "三角洲行动")
+        self.assertEqual(by_appid["2001918"].install_dir, rail / "DeltaForce(2001918)")
+        self.assertEqual(by_appid["2001715"].name, "无畏契约")
+        self.assertTrue(all(g.source == "wegame" for g in games))
+
+    def test_display_name_falls_back_to_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rail = Path(tmp) / "rail_apps"
+            rail.mkdir()
+            plain = rail / "SomeGame(42)"
+            plain.mkdir()
+            with mock.patch.object(steam, "_wegame_apps_roots", lambda: [rail]), \
+                 mock.patch.object(steam, "_registry_subkey_values",
+                                   lambda hive, path: []):
+                games = steam.scan_wegame_games()
+        self.assertEqual(len(games), 1)
+        self.assertEqual(games[0].name, "SomeGame")
+        self.assertEqual(games[0].appid, "42")
+
+    def test_registry_subfolder_deduped_against_disk(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rail = self._make_rail_apps(Path(tmp))
+            reg_entries = [
+                ("valorant.live", {
+                    "InstallLocation": str(rail / "无畏契约(2001715)" / "live"),
+                    "DisplayName": "无畏契约",
+                    "ManifestId": "7C113126996B9151",
+                }),
+            ]
+            with mock.patch.object(steam, "_wegame_apps_roots", lambda: [rail]), \
+                 mock.patch.object(steam, "_registry_subkey_values",
+                                   lambda hive, path: reg_entries):
+                games = steam.scan_wegame_games()
+        self.assertEqual(len(games), 2)
+        # the registry live-subfolder record must not add a third/duplicate
+        self.assertEqual([g.appid for g in games].count("2001715"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
