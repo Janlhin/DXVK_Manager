@@ -46,24 +46,51 @@ def _dark_palette() -> QPalette:
     return palette
 
 
-def _install_translator(app: QApplication) -> None:
-    """Load the interface catalogue for the configured language (§28).
+# The currently installed interface translator, kept so it can be swapped at
+# runtime when the user changes ui_lang (§28 hot-swap — no restart needed).
+_current_translator: QTranslator | None = None
+# The QML engine, set once in run(); retranslate() after a swap so qsTr()
+# bindings re-evaluate (installing/removing a translator alone is not enough).
+_engine: QQmlApplicationEngine | None = None
+
+
+def set_language(lang: str) -> None:
+    """Install or remove the interface catalogue for ``lang`` (§28).
 
     Chinese is the source language, so zh needs no catalogue; English loads
     assets/i18n/app_en.qm, which covers both the QML qsTr() strings and the
     Python tr()/QCoreApplication.translate() ones.
+
+    After the swap, ``engine.retranslate()`` re-evaluates every qsTr() binding
+    so the static UI text switches without a restart (simply installing the
+    translator does not refresh already-loaded QML). Model strings resolved in
+    Python are refreshed separately by ``GameListModel.retranslate()``.
     """
-    if str(settings.get("ui_lang") or "zh") != "en":
+    global _current_translator
+    app = QApplication.instance()
+    if app is None:
+        return
+    if _current_translator is not None:
+        app.removeTranslator(_current_translator)
+        _current_translator = None
+    if str(lang or "zh") != "en":
+        if _engine is not None:
+            _engine.retranslate()
         return
     qm = asset_path("i18n/app_en.qm")
     if not qm.is_file():
         log.warning("ui_lang=en but catalogue missing: %s", qm)
+        if _engine is not None:
+            _engine.retranslate()
         return
     translator = QTranslator(app)
     if translator.load(str(qm)):
         app.installTranslator(translator)
+        _current_translator = translator
     else:
         log.warning("could not load translation catalogue: %s", qm)
+    if _engine is not None:
+        _engine.retranslate()
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -74,13 +101,15 @@ def run(argv: list[str] | None = None) -> int:
     QQuickStyle.setStyle("Basic")
 
     app = QApplication(argv if argv is not None else sys.argv)
-    _install_translator(app)
+    set_language(str(settings.get("ui_lang") or "zh"))
     app.setPalette(_dark_palette())
     app.setApplicationName("DXVK Version Manager")
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("dxvk-toolkit")
 
     engine = QQmlApplicationEngine()
+    global _engine
+    _engine = engine
     bridge = Bridge()
     context = engine.rootContext()
     context.setContextProperty("bridge", bridge)

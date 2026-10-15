@@ -29,6 +29,7 @@
 | T22 | README / THIRD_PARTY_NOTICES 措辞批改 | docs | — | 低 | ✅ 已完成（2026-10-15） | 「Python 重写版」→「独立实现，未复制任何第三方代码；功能设计参考其行为」（THIRD_PARTY_NOTICES §3 同步）；删过时的「未实现：封面图显示」；「两类文件」→ 补 dxvk.conf 与伴生文件；界面表补设置页新卡片、游戏墙三段分组、ⓘ 文档角标；「本机 py -3.13」→「于 Python 3.13 验证」、命令统一 `py -3`；开头依赖去重；《用 AI 做项目》书名引用改为指向 AGENTS.md |
 | T23 | 平台标签 i18n（米哈游 / 手动添加） | fix | — | 低 | ✅ 已完成（2026-10-15，待真机英文验证） | `models.py` 行数据与筛选 chip 的 platformLabel 均过 `_tr`；`i18n_fill.py` GAME_LIST_MODEL 补 10 个平台名 + 「全部」共 11 词条；管线重跑 290 条全译；新增 4 个模型测试（翻译/原始键/筛选/过滤）；QML 配色与详情弹窗改走原始 platform key（顺带修复米哈游/Battle.net 平台色从未命中的老问题）；英文探测 0 failures |
 | T24 | 版本库元数据补全（CLI 下载路径） | fix | — | 低 | ✅ 已完成（2026-10-15，待真机复验 date/size） | 根因：GitHub API 限流时 jsDelivr 兜底写入的缓存无 date/size，6h TTL 内详情面板恒显 "-"（本机缓存 95 条全空实证）。修复：① `cache_releases` 写入时合并旧缓存已知的 date/size（兜底列表不再擦除元数据）；② `download_release` 成功后 `_note_download` 把真实归档体积写回缓存条目，列表仍缺元数据时标记 stale 促下次刷新；③ jsDelivr 路径追加 atom feed 日期回填（覆盖最新约 10 个版本）。CLI 与 UI 下载路径同时覆盖。新增 4 个缓存测试。「尚未下载」之谜结案：旧 Tk UI 空态文案（提交 2a117ce 已删），截图来自旧进程，现行 QML 无此串 |
+| T25 | 界面语言热切换（ui_lang 免重启） | feat | — | 中 | ✅ 已完成（2026-10-15） | 原 T20 列出的「已知欠账」。实现：① `app_qml.set_language(lang)` 运行时换翻译器（模块级持 `_current_translator` 与 `_engine`），装/卸后 `engine.retranslate()` 刷新全部 QML `qsTr` 绑定（实测单纯增减翻译器不会自动刷新，必须显式 retranslate）；② `GameListModel.retranslate()` 重建 Python 侧已解析字符串——平台标签（存 `platformLabelSrc` 源串）+ 状态徽章（行内存原始 `GameStatus` 于 `_status`，`_status_tuple` 复用）；③ `bridge.setSetting` 在 `ui_lang` 变更时调 `_apply_language`：换翻译器 + `model.retranslate()` + 重译 `_config_target_name` 并发 `configTargetChanged` + 发 `languageChanged`；④ `GamesPage` 接 `onLanguageChanged` 重拉 `platformOptions`/`dxtkCounts` 刷新筛选栏；⑤ 扫描 worker 改为传原始 `GameStatus`，`_apply_statuses` 内部用 `status_for` 重算（为热切换铺路）；⑥ 配置说明文案（docs_language）刻意不随 ui_lang 切换。设置页提示改「切换后立即生效」。新增 3 个 retranslate 单测；`i18n_probe` 加运行时热切换断言；实测 QML qsTr 双向刷新正常 |
 
 ## T20 附注：编译语言重写 + 从零 I18N
 
@@ -59,7 +60,7 @@
 
 - **源语言不硬编码**：源串即键或独立键名，文案全部外置——T15 的 71 处 tr() 逐文件补包、3 处漏译返工，即「事后 i18n」的代价实证；
 - **词条校验进 CI**：缺失/漏译 key 直接红（`tests/i18n_fill.py` 逐键断言思路升格为门禁）；
-- **复数 / 占位符 / 日期数字走 CLDR**，禁止拼接串；预留 RTL；**语言热切换**（现 `ui_lang` 需重启生效，是已知欠账）；
+- **复数 / 占位符 / 日期数字走 CLDR**，禁止拼接串；预留 RTL；**语言热切换**（已于 T25 实现：`ui_lang` 免重启，换翻译器后 `engine.retranslate()` 刷新 QML + `GameListModel.retranslate()` 重建模型字符串）；
 - **伪本地化测试**：拉长串 + 变音符暴露布局硬编码（T14 预览栏标题重叠即此类缺陷）；
 - **逻辑键与展示文案分离**：预设名/模式名不得作为逻辑判断依据（对应「性能优先/纯净」不译的权宜之计）。
 

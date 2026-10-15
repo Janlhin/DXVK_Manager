@@ -17,7 +17,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_QUICK_BACKEND"] = "software"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PySide6.QtCore import QObject, QTranslator, QUrl  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QObject, QTranslator, QUrl  # noqa: E402
 from PySide6.QtGui import QFontDatabase  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 from PySide6.QtQuickControls2 import QQuickStyle  # noqa: E402
@@ -62,10 +62,10 @@ def main() -> int:
         if os.path.isfile(path):
             QFontDatabase.addApplicationFont(path)
 
-    from dxvk_toolkit.ui.app_qml import QML_DIR, _dark_palette, _install_translator
+    from dxvk_toolkit.ui.app_qml import QML_DIR, _dark_palette, set_language
     from dxvk_toolkit.ui.bridge import Bridge
 
-    _install_translator(app)
+    set_language(str(settings.get("ui_lang") or "zh"))
     app.setPalette(_dark_palette())
 
     # Catalogue spot checks with a standalone translator (independent of the
@@ -85,11 +85,27 @@ def main() -> int:
     # Python-side end to end: QObject.tr() must route through the installed
     # translator at runtime, not just be present in the catalogue.
     engine = QQmlApplicationEngine()
+    # Let set_language() exercise the real engine.retranslate() path too.
+    import dxvk_toolkit.ui.app_qml as _app_qml_mod
+    _app_qml_mod._engine = engine
     bridge = Bridge()
     via_tr = bridge.tr("正在扫描游戏库…")
     ok = via_tr == "Scanning the game library…"
     failures += 0 if ok else 1
     print(f"{'ok ' if ok else 'BAD'} Bridge.tr() live -> {via_tr!r}")
+
+    # T25: the translator must swap at runtime, not just at startup. Dropping
+    # it back to zh returns the source string; reinstalling en returns English.
+    set_language("zh")
+    back_to_source = QCoreApplication.translate("GameListModel", "米哈游")
+    ok = back_to_source == "米哈游"
+    failures += 0 if ok else 1
+    print(f"{'ok ' if ok else 'BAD'} set_language(zh) -> {back_to_source!r}")
+    set_language("en")
+    back_to_en = QCoreApplication.translate("GameListModel", "米哈游")
+    ok = back_to_en == "miHoYo"
+    failures += 0 if ok else 1
+    print(f"{'ok ' if ok else 'BAD'} set_language(en) -> {back_to_en!r}")
 
     context = engine.rootContext()
     context.setContextProperty("bridge", bridge)

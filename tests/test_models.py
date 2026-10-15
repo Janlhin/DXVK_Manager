@@ -180,5 +180,55 @@ class GameListModelPlatformI18nTests(unittest.TestCase):
         self.assertEqual([row["name"] for row in self.model._rows], ["Genshin"])
 
 
+class GameListModelRetranslateTests(unittest.TestCase):
+    """T25: ui_lang hot-swap rebuilds Python-resolved model strings (§28).
+
+    The model is built in the source language (no catalogue installed yet),
+    then the interface language is changed at runtime and retranslate() must
+    rebuild the cached platform label and status badge.
+    """
+
+    def setUp(self) -> None:
+        self._app = QGuiApplication.instance() or QGuiApplication(["tests"])
+        # Loaded but NOT installed yet: set_games runs in the source language.
+        self._translator = QTranslator(self._app)
+        qm = Path(__file__).resolve().parent.parent / "assets" / "i18n" / "app_en.qm"
+        self.assertTrue(self._translator.load(str(qm)), f"cannot load {qm}")
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.model = GameListModel()
+        self.model.set_games([
+            steam.Game(appid="12345", name="Genshin", install_dir=base / "genshin",
+                       source="mihoyo"),
+        ])
+
+    def tearDown(self) -> None:
+        self._app.removeTranslator(self._translator)
+        self.tmp.cleanup()
+
+    def test_labels_start_in_source_language(self) -> None:
+        row = self.model._all_rows[0]
+        self.assertEqual(row["platformLabel"], "米哈游")
+        self.assertEqual(row["statusText"], "")
+
+    def test_retranslate_after_installing_translator(self) -> None:
+        self._app.installTranslator(self._translator)
+        self.model.retranslate()
+        row = self.model._all_rows[0]
+        self.assertEqual(row["platformLabel"], "miHoYo")
+        # A non-existent folder shows the "目录缺失" badge, now in English.
+        self.assertEqual(row["statusText"], "Folder missing")
+        # The source label is preserved so a later switch back works.
+        self.assertEqual(row["platformLabelSrc"], "米哈游")
+
+    def test_retranslate_toggles_both_ways(self) -> None:
+        self._app.installTranslator(self._translator)
+        self.model.retranslate()
+        self.assertEqual(self.model._all_rows[0]["platformLabel"], "miHoYo")
+        self._app.removeTranslator(self._translator)
+        self.model.retranslate()
+        self.assertEqual(self.model._all_rows[0]["platformLabel"], "米哈游")
+
+
 if __name__ == "__main__":
     unittest.main()

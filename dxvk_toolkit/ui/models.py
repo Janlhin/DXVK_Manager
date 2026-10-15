@@ -151,10 +151,14 @@ class GameListModel(QAbstractListModel):
                 "name": game.name,
                 "nameZh": "",
                 "platform": game.source,
-                # Translated at build time: the UI language is fixed until the
-                # next restart, and set_games runs on every (re)scan. Raw keys
-                # stay in "platform" for filtering and the QML platform colors.
+                # Translated at build time; the source label is kept alongside
+                # so retranslate() can rebuild it when ui_lang changes (§28).
+                # Raw "platform" stays for filtering and the QML platform color.
                 "platformLabel": _tr(game.platform_label),
+                "platformLabelSrc": game.platform_label,
+                # Raw inspection result, kept so the badge text can be
+                # re-translated on a language switch without re-scanning.
+                "_status": None,
                 "direct3d": "",
                 "arch": "",
                 "statusText": "",
@@ -171,6 +175,27 @@ class GameListModel(QAbstractListModel):
             }
             for game in games
         ]
+        self._apply_filter()
+        self.endResetModel()
+        self.countChanged.emit()
+
+    def retranslate(self) -> None:
+        """Re-apply the interface language to cached display strings (§28).
+
+        QML qsTr() bindings refresh themselves when the translator is swapped,
+        but the platform label and status badge are resolved in Python and
+        stored on the row, so they need an explicit rebuild. The section
+        headers in the grouped view are rebuilt by ``_apply_filter`` (it calls
+        ``_tr`` live), so re-running it refreshes those too.
+        """
+        for row in self._all_rows:
+            row["platformLabel"] = _tr(row.get("platformLabelSrc") or row["platform"])
+            text, kind, _patched, _managed = _status_tuple(
+                row.get("exists", True), row.get("_status")
+            )
+            row["statusText"] = text
+            row["statusKind"] = kind
+        self.beginResetModel()
         self._apply_filter()
         self.endResetModel()
         self.countChanged.emit()
@@ -790,18 +815,19 @@ def _tr(text: str) -> str:
     return QCoreApplication.translate("GameListModel", text)
 
 
-def status_for(
-    game: steam.Game, status: installer.GameStatus | None = None
+def _status_tuple(
+    exists: bool, status: installer.GameStatus | None
 ) -> tuple[str, str, bool, bool]:
     """(badge text, badge kind, patched, managed) for a game card.
 
-    patched = DXVK DLLs sit in the folder (any origin); managed = this tool
-    holds the ledger record. The pair splits the wall into three groups:
-    managed installs, foreign installs to adopt, and clean folders.
+    Split out from ``status_for`` so the bridge can keep the raw
+    ``GameStatus`` on the row and re-derive the translated badge when the
+    interface language changes (§28 hot-swap) without re-reading the disk.
     """
-    if not game.exists:
+    if not exists:
         return _tr("目录缺失"), "error", False, False
-    status = status or installer.inspect(game.install_dir)
+    if status is None:
+        return _tr("未安装"), "muted", False, False
     if status.patched:
         if status.version:
             return (f"{status.kind or 'dxvk'} {status.version}".strip(), "ok", True, True)
@@ -811,3 +837,15 @@ def status_for(
     if status.backuped:
         return _tr("可还原"), "warn", False, True
     return _tr("未安装"), "muted", False, False
+
+
+def status_for(
+    game: steam.Game, status: installer.GameStatus | None = None
+) -> tuple[str, str, bool, bool]:
+    """(badge text, badge kind, patched, managed) for a game card.
+
+    patched = DXVK DLLs sit in the folder (any origin); managed = this tool
+    holds the ledger record. The pair splits the wall into three groups:
+    managed installs, foreign installs to adopt, and clean folders.
+    """
+    return _status_tuple(game.exists, status or installer.inspect(game.install_dir))

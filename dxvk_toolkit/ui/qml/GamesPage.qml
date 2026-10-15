@@ -110,6 +110,13 @@ Item {
         function onStatusesReady(items) {
             page.dxtkCounts = bridge.dxtkCounts()
         }
+        function onLanguageChanged() {
+            // The translator was swapped at runtime (§28): re-pull the derived
+            // strings so the platform filter chips and DXVK-state counts show
+            // in the new language.
+            page.platformOptions = bridge.platformOptions()
+            page.dxtkCounts = bridge.dxtkCounts()
+        }
         function onDetected(key, direct3d, arch) {
             // Keep an open dialog in step with a detection that just finished.
             if (gameSheet.visible && key === gameSheet.gameKey) {

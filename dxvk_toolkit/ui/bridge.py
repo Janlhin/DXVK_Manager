@@ -50,6 +50,9 @@ class Bridge(QObject):
     # Fired when the config editor switches its editing target ("" = the shared
     # default, otherwise a game key). The page reloads the model and preview.
     configTargetChanged = Signal(str, str)  # key, display name
+    # ui_lang changed at runtime: the translator was swapped and the model
+    # retranslated, so the interface should re-pull derived strings (§28).
+    languageChanged = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -89,7 +92,7 @@ class Bridge(QObject):
         manual = list(settings.get("manual_games") or [])
         extra = list(settings.get("steam_extra_libraries") or [])
 
-        def work() -> tuple[list[steam.Game], list[tuple[str, str, str, bool, bool]]]:
+        def work() -> tuple[list[steam.Game], list[tuple[str, installer.GameStatus]]]:
             found = steam.scan_all_games(extra)
             known = {game.key for game in found}
             for entry in manual:
@@ -99,7 +102,7 @@ class Bridge(QObject):
                 if game.key not in known:
                     found.append(game)
                     known.add(game.key)
-            statuses: list[tuple[str, str, str, bool, bool]] = []
+            statuses: list[tuple[str, installer.GameStatus]] = []
             for game in found:
                 if not game.exists:
                     continue
@@ -107,8 +110,10 @@ class Bridge(QObject):
                 # real state too, while the ledger only knows about our own
                 # installs. Results are cached per folder timestamp.
                 status = installer.inspect(game.install_dir)
-                text, kind, patched, managed = status_for(game, status)
-                statuses.append((game.key, text, kind, patched, managed))
+                # Keep the raw status; the badge text is derived in
+                # _apply_statuses so it can be re-translated on a language
+                # switch (§28) without re-scanning the disk.
+                statuses.append((game.key, status))
             return found, statuses
 
         def done(result: tuple[list[steam.Game], list[tuple[str, str, str, bool, bool]]]) -> None:
@@ -989,6 +994,22 @@ class Bridge(QObject):
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:  # noqa: N802
         settings.set(key, value)
+        if key == "ui_lang":
+            self._apply_language(str(value))
+
+    def _apply_language(self, lang: str) -> None:
+        """Swap the live translator and refresh already-built UI strings (§28).
+
+        QML qsTr() bindings re-evaluate on their own; the Python-resolved model
+        strings and the config target name are refreshed here.
+        """
+        from . import app_qml
+
+        app_qml.set_language(lang)
+        self.model.retranslate()
+        self._config_target_name = self.tr("默认配置")
+        self.configTargetChanged.emit(self._config_target, self._config_target_name)
+        self.languageChanged.emit()
 
     @Slot(result=str)
     def dataRoot(self) -> str:  # noqa: N802
@@ -1213,18 +1234,27 @@ class Bridge(QObject):
             log.warning("bridge callback failed: %s", exc)
 
     def _apply_statuses(self, items: Any) -> None:
-        parsed: list[tuple[str, str, str, bool, bool]] = []
+        parsed: list[tuple[str, bool, bool]] = []
         for item in items or []:
             try:
-                key, text, kind, patched, managed = item
+                key, status = item
             except (TypeError, ValueError):
                 continue
-            parsed.append((key, text, kind, patched, managed))
+            game = self._games.get(key)
+            if game is None:
+                continue
+            # Derive the translated badge here (not in the worker) so the
+            # result matches the active translator and can be rebuilt by
+            # GameListModel.retranslate() on a language switch (§28).
+            text, kind, patched, managed = status_for(game, status)
+            self.model.update(
+                key, statusText=text, statusKind=kind, _status=status, exists=game.exists
+            )
+            parsed.append((key, patched, managed))
         # Flags in one batch first: the wall is split into state sections,
         # and regrouping per game would rebuild the view 48 times.
-        self.model.apply_state_bulk([(k, patched, managed) for k, _t, _k2, patched, managed in parsed])
-        for key, text, kind, patched, _managed in parsed:
-            self.model.update(key, statusText=text, statusKind=kind)
+        self.model.apply_state_bulk([(k, patched, managed) for k, patched, managed in parsed])
+        for key, patched, _managed in parsed:
             if patched:
                 self._patched.add(key)
             else:

@@ -408,9 +408,12 @@ Item {
             }
 
             // --- interface language ---------------------------------------
-            // ui_lang drives the Qt translator loaded at startup (§28); the
-            // option explanation language (docs_language) stays independent,
-            // so an English interface with Chinese notes is allowed.
+            // ui_lang drives the Qt translator; changing it swaps the live
+            // catalogue through Bridge._apply_language (§28) so the whole
+            // interface — including the game list badges — switches at once,
+            // no restart. The option explanation language (docs_language)
+            // stays independent, so an English interface with Chinese notes
+            // is allowed.
             Card {
                 height: 92
                 Column {
@@ -440,7 +443,7 @@ Item {
                     }
                     Hint {
                         width: parent.width
-                        text: qsTr("切换界面文字，重启应用后生效；选项说明的语言独立设置，互不影响。")
+                        text: qsTr("切换界面文字立即生效，无需重启；选项说明的语言独立设置，互不影响。")
                     }
                 }
             }
