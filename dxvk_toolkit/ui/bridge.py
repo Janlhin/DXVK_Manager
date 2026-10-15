@@ -87,7 +87,7 @@ class Bridge(QObject):
         manual = list(settings.get("manual_games") or [])
         extra = list(settings.get("steam_extra_libraries") or [])
 
-        def work() -> tuple[list[steam.Game], list[tuple[str, str, str]]]:
+        def work() -> tuple[list[steam.Game], list[tuple[str, str, str, bool, bool]]]:
             found = steam.scan_all_games(extra)
             known = {game.key for game in found}
             for entry in manual:
@@ -97,7 +97,7 @@ class Bridge(QObject):
                 if game.key not in known:
                     found.append(game)
                     known.add(game.key)
-            statuses: list[tuple[str, str, str]] = []
+            statuses: list[tuple[str, str, str, bool, bool]] = []
             for game in found:
                 if not game.exists:
                     continue
@@ -105,11 +105,11 @@ class Bridge(QObject):
                 # real state too, while the ledger only knows about our own
                 # installs. Results are cached per folder timestamp.
                 status = installer.inspect(game.install_dir)
-                text, kind = status_for(game, status)
-                statuses.append((game.key, text, kind))
+                text, kind, patched, managed = status_for(game, status)
+                statuses.append((game.key, text, kind, patched, managed))
             return found, statuses
 
-        def done(result: tuple[list[steam.Game], list[tuple[str, str, str]]]) -> None:
+        def done(result: tuple[list[steam.Game], list[tuple[str, str, str, bool, bool]]]) -> None:
             games, statuses = result
             self._games = {game.key: game for game in games}
             self._urls = {game.key: covers.source_urls(game) for game in games}
@@ -525,11 +525,11 @@ class Bridge(QObject):
         self._submit(work, done, self.tr("移除失败"))
 
     def _refresh_one(self, game: steam.Game) -> None:
-        def work() -> tuple[str, str, str]:
+        def work() -> tuple[str, str, str, bool, bool]:
             installer.invalidate(game.install_dir)
             status = installer.inspect(game.install_dir)
-            text, kind = status_for(game, status)
-            return game.key, text, kind
+            text, kind, patched, managed = status_for(game, status)
+            return game.key, text, kind, patched, managed
 
         self._submit(work, lambda item: self._apply_statuses([item]), None, quiet=True)
 
@@ -1139,19 +1139,19 @@ class Bridge(QObject):
             log.warning("bridge callback failed: %s", exc)
 
     def _apply_statuses(self, items: Any) -> None:
-        parsed: list[tuple[str, str, str]] = []
+        parsed: list[tuple[str, str, str, bool, bool]] = []
         for item in items or []:
             try:
-                key, text, kind = item
+                key, text, kind, patched, managed = item
             except (TypeError, ValueError):
                 continue
-            parsed.append((key, text, kind))
-        # Flags in one batch first: the wall is split into 已装 / 未安装
-        # sections, and regrouping per game would rebuild the view 48 times.
-        self.model.apply_patched_bulk([(k, kind == "ok") for k, _text, kind in parsed])
-        for key, text, kind in parsed:
+            parsed.append((key, text, kind, patched, managed))
+        # Flags in one batch first: the wall is split into state sections,
+        # and regrouping per game would rebuild the view 48 times.
+        self.model.apply_state_bulk([(k, patched, managed) for k, _t, _k2, patched, managed in parsed])
+        for key, text, kind, patched, _managed in parsed:
             self.model.update(key, statusText=text, statusKind=kind)
-            if kind == "ok":
+            if patched:
                 self._patched.add(key)
             else:
                 self._patched.discard(key)

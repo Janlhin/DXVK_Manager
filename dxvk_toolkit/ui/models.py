@@ -164,6 +164,7 @@ class GameListModel(QAbstractListModel):
                 "subtitle": "",
                 "exists": game.exists,
                 "patched": False,
+                "managed": False,
             }
             for game in games
         ]
@@ -222,7 +223,13 @@ class GameListModel(QAbstractListModel):
                     (row.get("name") or "").lower())
 
         def by_state(row: dict[str, Any]) -> tuple:
-            return (0 if row["patched"] else 1, (row.get("name") or "").lower())
+            # managed < foreign (adopt) < clean - the same order as the
+            # sections under the "all" view.
+            if row["patched"]:
+                tier = 0 if row["managed"] else 1
+            else:
+                tier = 2
+            return (tier, (row.get("name") or "").lower())
 
         chooser = {"platform": by_platform, "direct3d": by_api,
                    "arch": by_arch, "dxtk": by_state}
@@ -277,22 +284,34 @@ class GameListModel(QAbstractListModel):
         ]
         selected = self._sorted(selected)
         # Under "all" the wall is split into headings, the way DLSS Swapper
-        # separates Steam / Epic / manually added games.  A specific filter
+        # separates Steam / Epic / manually added games. A specific filter
         # already says what is shown, so headings would only add noise.
+        # Three sections: tool-managed installs, foreign installs waiting to
+        # be adopted, and clean folders. A foreign install is neither clean
+        # nor ours - mixing it into either side hid it from view.
         if dxtk == "all" and selected:
-            installed = [row for row in selected if row["patched"]]
+            managed = [row for row in selected if row["patched"] and row["managed"]]
+            foreign = [row for row in selected if row["patched"] and not row["managed"]]
             missing = [row for row in selected if not row["patched"]]
-            rows: list[dict[str, Any]] = []
-            if installed:
-                rows.append({"key": "", "gameKind": "header", "rowKind": "header",
-                             "name": f"{_tr('已装 DXVK')} · {len(installed)}"})
-                rows.extend(installed)
-            if missing:
-                rows.append({"key": "", "gameKind": "header", "rowKind": "header",
-                             "name": f"{_tr('未安装')} · {len(missing)}"})
-                rows.extend(missing)
-            self._rows = rows
-            self._grouped = bool(installed and missing)
+            sections = [
+                (f"{_tr('已装 DXVK')} · {len(managed)}", managed),
+                (f"{_tr('已装·未接管')} · {len(foreign)}", foreign),
+                (f"{_tr('未安装')} · {len(missing)}", missing),
+            ]
+            present = [(label, items) for label, items in sections if items]
+            if len(present) > 1:
+                rows = []
+                for label, items in present:
+                    rows.append({"key": "", "gameKind": "header", "rowKind": "header",
+                                 "name": label})
+                    rows.extend(items)
+                self._rows = rows
+                self._grouped = True
+            else:
+                # A single section would just repeat the badge on every card;
+                # drop the heading entirely.
+                self._rows = list(present[0][1]) if present else []
+                self._grouped = False
             return
         self._rows = selected
         self._grouped = False
@@ -312,38 +331,19 @@ class GameListModel(QAbstractListModel):
         return {"all": len(self._all_rows), "patched": patched,
                 "clean": len(self._all_rows) - patched}
 
-    def apply_patched_bulk(self, items: list[tuple[str, bool]]) -> None:
-        """Set the installed flag for many games with a single view rebuild."""
+    def apply_state_bulk(self, items: list[tuple[str, bool, bool]]) -> None:
+        """Set (patched, managed) for many games with a single view rebuild."""
         changed = False
-        for key, patched in items:
+        for key, patched, managed in items:
             index = self.find(key)
             if index < 0:
                 continue
-            if self._all_rows[index]["patched"] != bool(patched):
-                self._all_rows[index]["patched"] = bool(patched)
+            row = self._all_rows[index]
+            if row["patched"] != bool(patched) or row["managed"] != bool(managed):
+                row["patched"] = bool(patched)
+                row["managed"] = bool(managed)
                 changed = True
         if changed:
-            self.beginResetModel()
-            self._apply_filter()
-            self.endResetModel()
-            self.countChanged.emit()
-
-    def set_patched(self, key: str, patched: bool) -> None:
-        """Record whether DXVK is installed.
-
-        Only a filter that depends on this flips the view, and when it does the
-        model is reset properly: changing _rows without telling the view left
-        the view holding stale indexes, which crashed the app on the next click.
-        """
-        index = self.find(key)
-        if index < 0:
-            return
-        if self._all_rows[index]["patched"] == bool(patched):
-            return
-        self._all_rows[index]["patched"] = bool(patched)
-        # The "all" view splits into 已装 / 未安装 headings, so a state change
-        # moves the card between sections and the view must be rebuilt.
-        if self._dxtk != "all" or self._grouped:
             self.beginResetModel()
             self._apply_filter()
             self.endResetModel()
@@ -778,17 +778,24 @@ def _tr(text: str) -> str:
     return QCoreApplication.translate("GameListModel", text)
 
 
-def status_for(game: steam.Game, status: installer.GameStatus | None = None) -> tuple[str, str]:
-    """(badge text, badge kind) for a game card."""
+def status_for(
+    game: steam.Game, status: installer.GameStatus | None = None
+) -> tuple[str, str, bool, bool]:
+    """(badge text, badge kind, patched, managed) for a game card.
+
+    patched = DXVK DLLs sit in the folder (any origin); managed = this tool
+    holds the ledger record. The pair splits the wall into three groups:
+    managed installs, foreign installs to adopt, and clean folders.
+    """
     if not game.exists:
-        return _tr("目录缺失"), "error"
+        return _tr("目录缺失"), "error", False, False
     status = status or installer.inspect(game.install_dir)
     if status.patched:
         if status.version:
-            return (f"{status.kind or 'dxvk'} {status.version}".strip(), "ok")
+            return (f"{status.kind or 'dxvk'} {status.version}".strip(), "ok", True, True)
         # The files carry the DXVK signature but we did not install them, so
         # the version is unknown - still installed, not "clean".
-        return _tr("已装·未接管"), "warn"
+        return _tr("已装·未接管"), "warn", True, False
     if status.backuped:
-        return _tr("可还原"), "warn"
-    return _tr("未安装"), "muted"
+        return _tr("可还原"), "warn", False, True
+    return _tr("未安装"), "muted", False, False
