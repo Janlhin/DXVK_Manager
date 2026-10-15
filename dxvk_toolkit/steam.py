@@ -693,7 +693,7 @@ def detect_direct3d(
     Raw string hits are used last because engines often mention a Direct3D
     module they only use on a secondary code path.
     """
-    from .util import d3d_name_hits, guess_main_executable, pe_imports
+    from .util import biggest_executable, d3d_name_hits, pe_imports
 
     found = presence if presence is not None else scan_runtime_dlls(game_dir)
     if any(found.values()):
@@ -703,7 +703,7 @@ def detect_direct3d(
     if _has_d3d12_marker(root):
         return "Direct3D 12"
 
-    main_exe, _main_arch = guess_main_executable(root)
+    main_exe = biggest_executable(root)
     others: list[Path] = []
     for exe in iter_executables(root, max_depth=3):
         if main_exe is not None and exe == main_exe:

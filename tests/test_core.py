@@ -38,6 +38,17 @@ def make_dxvk_dll(path: Path, text: str = "DXVK: v2.7.1") -> None:
     path.write_bytes(b"\x00" * 128 + text.encode() + b"\x00" * 128)
 
 
+def make_fake_pe_dll(path: Path, machine: int, text: str = "DXVK: v2.7.1") -> None:
+    """A minimal PE carrying a DXVK banner: pe_machine and looks_like_dxvk both bite."""
+    buffer = bytearray(0x400)
+    buffer[0:2] = b"MZ"
+    struct.pack_into("<I", buffer, 0x3C, 0x80)
+    buffer[0x80:0x84] = b"PE\0\0"
+    struct.pack_into("<H", buffer, 0x84, machine)
+    buffer[0x100 : 0x100 + len(text)] = text.encode()
+    path.write_bytes(bytes(buffer))
+
+
 class ConfSpecTests(unittest.TestCase):
     def setUp(self) -> None:
         self.conf = asset_path("dxvk.conf")
@@ -348,6 +359,36 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(installer.choose_arch(self.game), "x32")
         make_fake_pe(exe, 0x8664)
         self.assertEqual(installer.choose_arch(self.game), "x64")
+
+    def test_choose_arch_ignores_root_stub(self) -> None:
+        # Watch_Dogs2 shape: a 32-bit anti-cheat helper sits in the root while
+        # the real (bigger, 64-bit) executable lives in bin/. The old
+        # depth-first pick answered x32 and shipped a game-killing install.
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(self.game / "EAC.exe", 0x014C)
+        exe = bin_dir / "game.exe"
+        make_fake_pe(exe, 0x8664)
+        with exe.open("ab") as handle:
+            handle.write(b"\x00" * 0x2000)
+        self.assertEqual(installer.choose_arch(self.game), "x64")
+
+    def test_install_arch_mismatch_rolls_back(self) -> None:
+        # Corrupt the cached x64 set so the files are actually 32-bit: the
+        # post-copy self-check must undo the whole thing.
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(bin_dir / "game.exe", 0x8664)
+        for dll in ("d3d11.dll", "dxgi.dll"):
+            make_fake_pe_dll(self.cache / "v2.7.1" / "x64" / dll, 0x014C)
+
+        result = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertFalse(result.success)
+        self.assertIn("Architecture mismatch", result.message)
+        self.assertFalse((bin_dir / "d3d11.dll").exists())
+        self.assertFalse((bin_dir / "dxgi.dll").exists())
+        self.assertFalse((bin_dir / "d3d11.dll.bkp").exists())
+        self.assertFalse(ledger.get(self.game))
 
     def test_install_inspect_restore(self) -> None:
         make_fake_pe(self.game / "game.exe", 0x8664)

@@ -85,11 +85,11 @@ def cmd_download(args: argparse.Namespace) -> int:
 
 
 def cmd_install(args: argparse.Namespace) -> int:
-    game_dir = Path(args.game).expanduser()
+    game_dir = Path(args.game[0]).expanduser()
     result = installer.install(
         game_dir,
         args.kind,
-        args.download,
+        args.install,
         arch=args.arch or "",
         d3d_hint=args.d3d or steam.guess_direct3d(game_dir),
         force_backup=args.force_backup,
@@ -179,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--scan-games", action="store_true", help="list detected games")
     group.add_argument("--versions", action="store_true", help="list downloadable versions")
     group.add_argument("--download", metavar="VERSION", help="download a version")
-    group.add_argument("--install", dest="download", metavar="VERSION",
+    group.add_argument("--install", metavar="VERSION",
                        help="install a cached version into --game")
     group.add_argument("--restore", action="store_true", help="restore backups in --game")
     group.add_argument("--status", action="store_true", help="show the state of --game folders")
@@ -213,7 +213,9 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_scan_games(args)
     if args.versions:
         return cmd_versions(args)
-    if args.download and args.install is None and args.game:
+    if args.install:
+        if not args.game:
+            parser.error("--install needs --game")
         return cmd_install(args)
     if args.download:
         return cmd_download(args)

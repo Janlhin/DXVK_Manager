@@ -114,9 +114,10 @@ def choose_arch(game_dir: str | os.PathLike[str], override: str = "", executable
         arch = pe_machine(executable)
         if arch in ("x32", "x64"):
             return arch
-    from .util import guess_main_executable
+    from .util import biggest_executable
 
-    _, arch = guess_main_executable(game_dir)
+    exe = biggest_executable(game_dir)
+    arch = pe_machine(exe) if exe is not None else None
     return arch if arch in ("x32", "x64") else "x64"
 
 
@@ -323,6 +324,22 @@ def install(
             backed_up,
             missing_source,
         )
+
+    # Defense in depth: the copied DLLs must match the chosen architecture,
+    # otherwise the game cannot load them at all. Roll back entirely rather
+    # than leave files the game would choke on. Nothing has been recorded in
+    # the ledger yet, so removing the fresh copies is all it takes.
+    for dll in copied:
+        found = pe_machine(dll_dir / dll)
+        if found in ("x32", "x64") and found != chosen_arch:
+            for fresh in copied:
+                (dll_dir / fresh).unlink(missing_ok=True)
+            return InstallResult(
+                False,
+                f"Architecture mismatch: {dll} is {found} but the game needs "
+                f"{chosen_arch}; the installation was rolled back",
+                copied, backed_up, missing_source,
+            )
 
     if dlls:
         backups = True
