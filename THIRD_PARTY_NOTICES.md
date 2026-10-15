@@ -24,7 +24,7 @@ zlib 许可证要求：本软件按「原样」提供，不附带任何明示或
 
 * 项目：https://github.com/artmakh/dxvk-version-mananger
 * 许可证：MIT
-* 使用方式：本项目是其功能的 Python 重写。**没有复制其源代码**：
+* 使用方式：本项目为独立实现，**没有复制其源代码**：
   JavaScript 源码仅被阅读以确定行为（Steam 库解析、版本来源、
   `<dll>.bkp` 备份/还原策略、按 Direct3D 版本选择 DLL 的规则），
   再用 Python 独立实现，并在此基础上修正了若干限制（见 README 的「与原版的差异」）。

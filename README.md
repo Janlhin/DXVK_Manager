@@ -1,24 +1,25 @@
 # DXVK Version Manager · Python edition
 
-一个**核心层纯标准库**的 Windows 桌面工具（图形界面需 PySide6、封面需 Pillow，均已在 `MANIFEST.md` 登记；核心层与命令行零第三方依赖）：
+一个**核心层纯标准库**的 Windows 桌面工具（图形界面需 PySide6、封面需 Pillow，均已在 `MANIFEST.md` 登记）：
 
 * 检测 Steam 游戏（含所有库文件夹）与手动添加的游戏目录
 * 下载 / 管理官方 DXVK 与 DXVK-GPLAsync 版本
 * 一键为某个游戏安装 DXVK（自动备份原始 DLL，可随时还原）
 * **DXVK 配置生成器**：按官方 dxvk.conf 参考文件勾选选项，生成 dxvk.conf 并直接写入游戏目录
 
-本项目是 [artmakh/dxvk-version-mananger](https://github.com/artmakh/dxvk-version-mananger)（Electron，MIT）
-的 Python 重写版，并把 [CamoMano/DXVK-Configurator](https://github.com/CamoMano/DXVK-Configurator)
-（GPL-3.0）所演示的配置生成能力合并了进来。代码为独立实现，详见「许可证与致谢」。
+本项目为独立实现，未复制任何第三方代码；功能设计上参考了
+[artmakh/dxvk-version-mananger](https://github.com/artmakh/dxvk-version-mananger)（Electron，MIT）
+与 [CamoMano/DXVK-Configurator](https://github.com/CamoMano/DXVK-Configurator)（GPL-3.0）
+所演示的行为。致谢与许可边界详见「许可证与致谢」与 `THIRD_PARTY_NOTICES.md`。
 
 ---
 
 ## 快速开始
 
-需要 Python 3.10+（本机 `py -3.13` 已验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
+需要 Python 3.10+（于 Python 3.13 验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
 
     :: 启动图形界面
-    py -3.13 main.py
+    py -3 main.py
 
     :: 或者双击（无控制台窗口）
     "DXVK Version Manager.pyw"
@@ -32,23 +33,23 @@
 | --- | --- |
 | **DXVK 版本** | 列出官方 DXVK 全部发布版本，下载 / 删除本地副本，显示大小与日期 |
 | **GPLAsync 版本** | 同上，来源为 GitLab 上的 Ph42oN/dxvk-gplasync（async 分支） |
-| **已安装游戏** | Steam + 多平台（Epic / GOG / Ubisoft / WeGame / 米哈游）+ 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录 |
-| **DXVK 配置** | 配置生成器：简单 / 进阶 / 完全 模式、搜索、实时预览、复制、导出、写入游戏目录 |
-| **设置** | 代理、参考文件（内置 / 自定义 / 按 tag 在线获取）、数据目录、缓存清理 |
+| **已安装游戏** | Steam + 多平台（Epic / GOG / Ubisoft / WeGame / 米哈游）+ 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录。「全部」视图按「已装 DXVK / 已装·未接管 / 未安装」三段分组 |
+| **DXVK 配置** | 配置生成器：简单 / 进阶 / 完全 模式、搜索、实时预览、复制、导出、写入游戏目录；选项行 ⓘ 角标可查看说明、示例与 dxvk.conf 原文 |
+| **设置** | 离线模式、代理与下载源、参考文件（内置 / 自定义 / 按 tag 在线获取）、界面语言、dxvk.conf 注释开关、数据目录、存储与清理（缓存体积统计 / 清空缓存 / 清理失效记录） |
 
 ## 命令行
 
 不用图形界面也能完成全部事情：
 
-    py -3.13 main.py --scan-games                     # 列出检测到的游戏
-    py -3.13 main.py --versions --limit 10            # 列出可下载版本
-    py -3.13 main.py --download v2.7.1                # 下载并解压一个版本
-    py -3.13 main.py --install v2.7.1 --game "D:\Games\Foo"
-    py -3.13 main.py --restore  --game "D:\Games\Foo"
-    py -3.13 main.py --status   --game "D:\Games\Foo"
-    py -3.13 main.py --fingerprint --game "D:\Games\Foo"     # 识别已有的 DXVK：版本 + 哈希比对
-    py -3.13 main.py --adopt --game "D:\Games\Foo"           # 接管已有安装（--backup-system 补还原点）
-    py -3.13 main.py --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
+    py -3 main.py --scan-games                     # 列出检测到的游戏
+    py -3 main.py --versions --limit 10            # 列出可下载版本
+    py -3 main.py --download v2.7.1                # 下载并解压一个版本
+    py -3 main.py --install v2.7.1 --game "D:\Games\Foo"
+    py -3 main.py --restore  --game "D:\Games\Foo"
+    py -3 main.py --status   --game "D:\Games\Foo"
+    py -3 main.py --fingerprint --game "D:\Games\Foo"     # 识别已有的 DXVK：版本 + 哈希比对
+    py -3 main.py --adopt --game "D:\Games\Foo"           # 接管已有安装（--backup-system 补还原点）
+    py -3 main.py --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
 
 ## 它把文件写到哪里
 
@@ -63,7 +64,9 @@
     games-meta\              PCGamingWiki 元数据与封面缓存
     logs\app.log             运行日志
 
-游戏目录里只会出现两类文件：DXVK 的 DLL，以及安装时生成的 `<原名>.bkp` 备份。
+游戏目录里通常只有三类文件：DXVK 的 DLL、安装时生成的 `<原名>.bkp` 备份，
+以及可选的 `dxvk.conf`（由配置生成器写入）。移除 DXVK 时还可勾选清理伴生文件：
+`dxvk.conf`、DXVK 日志（`*_d3d11.log` 等）与着色器缓存（`.dxvk-cache`）。
 点「还原原始 DLL」会把备份改回原名并删除 DXVK 的 DLL。
 
 ## 实现要点
@@ -113,11 +116,9 @@
 * 中文界面、命令行接口、纯标准库（原版需要 Node/Electron 运行时）
 * 外来 DXVK 安装可指纹识别并接管（原版没有安装记录概念，混装后无法升级/还原）
 
-未实现：封面图显示（元数据里有 URL，但界面暂不渲染图片）。
-
 ## 开发 / 校验
 
-本项目遵循《用 AI 做项目：强制工程校验方案》。本地与 CI 共用唯一验收入口 `verify`：
+本项目的工程约束见 `AGENTS.md`。本地与 CI 共用唯一验收入口 `verify`：
 
     # Windows
     py -3 -m pip install -r requirements-dev.txt
