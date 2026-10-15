@@ -6,9 +6,12 @@ Or simply: python tests/test_core.py
 
 from __future__ import annotations
 
+import io
 import os
+import shutil
 import struct
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -525,6 +528,94 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((bin_dir / "d3d11.dll.bkp").exists())
 
 
+def _release_tarball() -> Path:
+    """A tar.gz shaped like a real DXVK package: one folder, x32 + x64."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for arch in ("x32", "x64"):
+            for name in ("d3d11.dll", "dxgi.dll"):
+                data = f"{arch}-{name}".encode()
+                info = tarfile.TarInfo(f"dxvk-3.1.1/{arch}/{name}")
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+    path = Path(tempfile.mkdtemp(prefix="dxvk-tarball-")) / "dxvk-3.1.1.tar.gz"
+    path.write_bytes(buffer.getvalue())
+    return path
+
+
+class ReleasesCacheTests(unittest.TestCase):
+    """T24: a fallback listing must not blank known date/size metadata.
+
+    When GitHub rate limits the API, the listing comes from jsDelivr tags
+    (no date, no size) and the detail panel used to show "-" for every
+    version, including ones freshly downloaded through the CLI.
+    """
+
+    def setUp(self) -> None:
+        # The cache merge keeps metadata across writes by design, so each
+        # test starts from no cache at all.
+        sources._cache_file("dxvk").unlink(missing_ok=True)
+
+    def _release(self, version: str, date: str = "", size: int = 0) -> sources.Release:
+        return sources.Release(
+            kind="dxvk",
+            version=version,
+            label=f"DXVK {version}",
+            url=(
+                f"https://github.com/doitsujin/dxvk/releases/download/"
+                f"{version}/dxvk-{version.lstrip('v')}.tar.gz"
+            ),
+            date=date,
+            size=size,
+            file_name=f"dxvk-{version.lstrip('v')}.tar.gz",
+        )
+
+    def _cached(self) -> dict[str, sources.Release]:
+        return {item.version: item for item in sources.cached_releases("dxvk")}
+
+    def test_fallback_write_keeps_known_metadata(self) -> None:
+        sources.cache_releases("dxvk", [self._release("v3.1.1", date="2025-06-01", size=12345678)])
+        # A rate-limited refresh falls back to jsDelivr: no date, no size.
+        sources.cache_releases("dxvk", [self._release("v3.1.1")])
+        entry = self._cached()["v3.1.1"]
+        self.assertEqual(entry.date, "2025-06-01")
+        self.assertEqual(entry.size, 12345678)
+
+    def test_note_download_backfills_size_and_marks_stale(self) -> None:
+        sources.cache_releases("dxvk", [self._release("v3.1.1")])
+        sources._note_download("dxvk", "v3.1.1", 9988776)
+        self.assertEqual(self._cached()["v3.1.1"].size, 9988776)
+        # The date is still missing, so the cache counts as stale until a
+        # refresh can fill the rest in.
+        self.assertGreater(sources.cache_age("dxvk"), 6 * 3600)
+
+    def test_note_download_leaves_a_complete_listing_alone(self) -> None:
+        sources.cache_releases("dxvk", [self._release("v3.1.1", date="2025-06-01", size=12345678)])
+        sources._note_download("dxvk", "v3.1.1", 9988776)
+        entry = self._cached()["v3.1.1"]
+        self.assertEqual(entry.size, 12345678)  # the listing already knew
+        self.assertLess(sources.cache_age("dxvk"), 60)
+
+    def test_download_release_records_archive_size(self) -> None:
+        from dxvk_toolkit import net
+
+        sources.cache_releases("dxvk", [self._release("v3.1.1")])
+        tarball = _release_tarball()
+        original = net.http_download
+
+        def fake_download(url: str, destination, **kwargs) -> int:
+            shutil.copyfile(tarball, destination)
+            return tarball.stat().st_size
+
+        net.http_download = fake_download
+        try:
+            root = sources.download_release(self._release("v3.1.1"))
+        finally:
+            net.http_download = original
+        self.assertTrue((root / "x64").is_dir())
+        self.assertEqual(self._cached()["v3.1.1"].size, tarball.stat().st_size)
+
+
 def main() -> int:
     loader = unittest.TestLoader()
     suite = unittest.TestSuite(
@@ -533,6 +624,7 @@ def main() -> int:
             loader.loadTestsFromTestCase(SteamTests),
             loader.loadTestsFromTestCase(ResolveDllDirTests),
             loader.loadTestsFromTestCase(InstallerTests),
+            loader.loadTestsFromTestCase(ReleasesCacheTests),
         ]
     )
     runner = unittest.TextTestRunner(verbosity=2)

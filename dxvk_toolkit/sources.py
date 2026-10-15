@@ -225,6 +225,24 @@ def _jsdelivr_releases() -> list[Release]:
     return releases
 
 
+def _fill_dates_from_feed(releases: list[Release]) -> None:
+    """Backfill publish dates from the atom feed; jsDelivr tags carry none.
+
+    The feed only covers the ten newest releases, but that is exactly the
+    window users look at. A failure is non-fatal - the dates simply stay
+    empty and the detail panel shows "-".
+    """
+    try:
+        feed = _atom_dxvk_releases()
+    except (net.NetworkError, ValueError) as exc:
+        log.info("atom feed date backfill skipped: %s", exc)
+        return
+    dates = {item.version: item.date for item in feed if item.date}
+    for release in releases:
+        if not release.date and dates.get(release.version):
+            release.date = dates[release.version]
+
+
 def _cache_file(kind: str) -> Path:
     folder = data_root() / "releases"
     folder.mkdir(parents=True, exist_ok=True)
@@ -232,10 +250,39 @@ def _cache_file(kind: str) -> Path:
 
 
 def cache_releases(kind: str, releases: list[Release]) -> None:
-    """Persist a listing so the app still works offline or while rate limited."""
+    """Persist a listing so the app still works offline or while rate limited.
+
+    A fallback listing (jsDelivr tags, the atom feed) carries no asset sizes,
+    and the feed only covers the newest releases, so metadata already known
+    for a version is carried over instead of being blanked by the next write.
+    """
+    previous: dict[str, dict[str, Any]] = {}
+    try:
+        payload = json.loads(_cache_file(kind).read_text(encoding="utf-8"))
+        items = payload.get("releases") if isinstance(payload, dict) else None
+        if isinstance(items, list):
+            previous = {
+                str(item["version"]): item
+                for item in items
+                if isinstance(item, dict) and item.get("version")
+            }
+    except (OSError, ValueError):
+        previous = {}
+
+    entries: list[dict[str, Any]] = []
+    for release in releases:
+        data = release.to_dict()
+        old = previous.get(release.version)
+        if old is not None:
+            if not data.get("date") and old.get("date"):
+                data["date"] = str(old["date"])
+            if not data.get("size") and old.get("size"):
+                data["size"] = int(old["size"])
+        entries.append(data)
+
     payload = {
         "fetched_at": time.time(),
-        "releases": [release.to_dict() for release in releases],
+        "releases": entries,
     }
     try:
         _cache_file(kind).write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -363,6 +410,7 @@ def fetch_dxvk_releases(pages: int = 2, *, allow_network: bool = True) -> list[R
             releases = _jsdelivr_releases()
             if releases:
                 log.info("listing came from jsDelivr (%s tags)", len(releases))
+                _fill_dates_from_feed(releases)
                 cache_releases("dxvk", releases)
                 return releases
         except (net.NetworkError, ValueError, AttributeError) as exc:
@@ -544,6 +592,50 @@ def reference_conf(kind: str, version: str) -> Path | None:
     return None
 
 
+def _note_download(kind: str, version: str, archive_size: int) -> None:
+    """Record what a download just taught us about the cached listing.
+
+    The fallback listings (jsDelivr tags, the atom feed) carry no asset size,
+    so a version downloaded through one of them used to show "-" in the detail
+    panel even though the exact byte count was known the moment the archive
+    landed. The real size is written back into the cache entry, and a listing
+    that is still missing metadata is marked stale (fetched_at = 0) so the
+    next page visit re-fetches and fills the rest in - a healthy GitHub API
+    listing carries both the date and the size.
+    """
+    path = _cache_file(kind)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(payload, dict):
+        return
+    items = payload.get("releases")
+    if not isinstance(items, list):
+        return
+
+    changed = False
+    for item in items:
+        if isinstance(item, dict) and item.get("version") == version:
+            if archive_size and not item.get("size"):
+                item["size"] = int(archive_size)
+                changed = True
+            break
+    incomplete = any(
+        isinstance(item, dict) and (not item.get("date") or not item.get("size"))
+        for item in items
+    )
+    if incomplete:
+        payload["fetched_at"] = 0
+        changed = True
+    if not changed:
+        return
+    try:
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except OSError as exc:
+        log.debug("could not update the %s releases cache: %s", kind, exc)
+
+
 def download_release(
     release: Release,
     *,
@@ -559,12 +651,14 @@ def download_release(
     file_name = release.file_name or Path(release.url).name or f"{release.kind}.tar.gz"
     archive = archives_dir() / f"{release.kind}-{safe_name(file_name)}"
     last_error: Exception | None = None
+    archive_size = 0
     try:
         for url in download_candidates(release.url):
             try:
                 net.http_download(url, archive, progress=progress, cancel=cancel, timeout=120)
                 if cancel is not None and cancel.is_set():
                     raise net.Cancelled("cancelled")
+                archive_size = archive.stat().st_size
                 extract_archive(archive, target)
                 if url != release.url:
                     log.info("downloaded %s through a mirror: %s", release.version, url)
@@ -586,6 +680,10 @@ def download_release(
                 archive.unlink()
             except OSError:
                 pass
+
+    # The archive is gone by now; its exact size is still worth recording in
+    # the cached listing (fallback listings have none).
+    _note_download(release.kind, release.version, archive_size)
 
     root = find_bin_root(target)
     if root is None:

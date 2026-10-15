@@ -28,7 +28,7 @@
 | T21 | 配置页文档角标 + 提示卡排版重构（§34） | feat | — | 中 | 🔄 实现中 | 选项行 label 右侧 ⓘ 角标 → 可滚动文档卡：说明/示例/DXVK 原文三区、示例与原文等宽暗底代码块、高度封顶 70%、✕ 与点外部关闭；`ConfigListModel` 选项行新增 `doc` role（`OptionGroup.doc_parts()`）；悬停 DarkTip 保留显示中文摘要 |
 | T22 | README / THIRD_PARTY_NOTICES 措辞批改 | docs | — | 低 | ✅ 已完成（2026-10-15） | 「Python 重写版」→「独立实现，未复制任何第三方代码；功能设计参考其行为」（THIRD_PARTY_NOTICES §3 同步）；删过时的「未实现：封面图显示」；「两类文件」→ 补 dxvk.conf 与伴生文件；界面表补设置页新卡片、游戏墙三段分组、ⓘ 文档角标；「本机 py -3.13」→「于 Python 3.13 验证」、命令统一 `py -3`；开头依赖去重；《用 AI 做项目》书名引用改为指向 AGENTS.md |
 | T23 | 平台标签 i18n（米哈游 / 手动添加） | fix | — | 低 | ✅ 已完成（2026-10-15，待真机英文验证） | `models.py` 行数据与筛选 chip 的 platformLabel 均过 `_tr`；`i18n_fill.py` GAME_LIST_MODEL 补 10 个平台名 + 「全部」共 11 词条；管线重跑 290 条全译；新增 4 个模型测试（翻译/原始键/筛选/过滤）；QML 配色与详情弹窗改走原始 platform key（顺带修复米哈游/Battle.net 平台色从未命中的老问题）；英文探测 0 failures |
-| T24 | 版本库元数据补全（CLI 下载路径） | fix | — | 低 | 待复验 | 症状：v3.1.1 详情面板日期/大小显示 "-"（`--download` 只解压不更新 releases 缓存元数据）。修复：`--download` 成功后失效该 kind 的 releases 缓存（下次进页面强制刷新）；详情面板 date/size 恢复真实值；详情面板旁疑似残留文案（截图"尚未下载"四字在现行代码中不存在）待用户重启应用后复验 |
+| T24 | 版本库元数据补全（CLI 下载路径） | fix | — | 低 | ✅ 已完成（2026-10-15，待真机复验 date/size） | 根因：GitHub API 限流时 jsDelivr 兜底写入的缓存无 date/size，6h TTL 内详情面板恒显 "-"（本机缓存 95 条全空实证）。修复：① `cache_releases` 写入时合并旧缓存已知的 date/size（兜底列表不再擦除元数据）；② `download_release` 成功后 `_note_download` 把真实归档体积写回缓存条目，列表仍缺元数据时标记 stale 促下次刷新；③ jsDelivr 路径追加 atom feed 日期回填（覆盖最新约 10 个版本）。CLI 与 UI 下载路径同时覆盖。新增 4 个缓存测试。「尚未下载」之谜结案：旧 Tk UI 空态文案（提交 2a117ce 已删），截图来自旧进程，现行 QML 无此串 |
 
 ## T20 附注：编译语言重写 + 从零 I18N
 
