@@ -20,7 +20,7 @@ os.environ["DXVK_MANAGER_HOME"] = str(_TMP_ROOT)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dxvk_toolkit import confbuild, confspec, installer, sources, steam  # noqa: E402
-from dxvk_toolkit.paths import asset_path  # noqa: E402
+from dxvk_toolkit.paths import asset_path, ledger  # noqa: E402
 from dxvk_toolkit.util import pe_machine  # noqa: E402
 
 
@@ -216,6 +216,59 @@ class SteamTests(unittest.TestCase):
             (root / "dxgi.dll").write_bytes(b"x")
             self.assertEqual(steam.guess_direct3d(root), "Direct3D 11")
 
+    def test_direct3d_guess_in_bin_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            make_fake_pe(bin_dir / "game.exe", 0x8664)
+            with (bin_dir / "game.exe").open("ab") as handle:
+                handle.write(b"\x00" * 0x2000)
+            (bin_dir / "d3d11.dll").write_bytes(b"x")
+            (bin_dir / "dxgi.dll").write_bytes(b"x")
+            self.assertTrue(steam.scan_runtime_dlls(root)["d3d11.dll"])
+            self.assertEqual(steam.guess_direct3d(root), "Direct3D 11")
+
+
+class ResolveDllDirTests(unittest.TestCase):
+    """DXVK lives next to the main executable, which is not always the root."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.game = Path(self.tmp.name) / "game"
+        self.game.mkdir()
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_root_exe_stays_root(self) -> None:
+        make_fake_pe(self.game / "game.exe", 0x8664)
+        self.assertEqual(installer.dll_dir_for(self.game), self.game)
+
+    def test_bin_exe_wins_over_root_stub(self) -> None:
+        make_fake_pe(self.game / "SplashScreen.exe", 0x8664)
+        exe = self.game / "bin" / "WatchDogs2.exe"
+        exe.parent.mkdir()
+        make_fake_pe(exe, 0x8664)
+        with exe.open("ab") as handle:
+            handle.write(b"\x00" * 0x2000)  # the real binary is the big one
+        self.assertEqual(installer.dll_dir_for(self.game), self.game / "bin")
+
+    def test_root_dxvk_pins_root(self) -> None:
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(bin_dir / "big.exe", 0x8664)
+        with (bin_dir / "big.exe").open("ab") as handle:
+            handle.write(b"\x00" * 0x2000)
+        make_dxvk_dll(self.game / "d3d11.dll")  # existing root-level install
+        self.assertEqual(installer.dll_dir_for(self.game), self.game)
+
+    def test_nothing_at_all_falls_back_to_root(self) -> None:
+        self.assertEqual(installer.dll_dir_for(self.game), self.game)
+        self.assertEqual(
+            installer.dll_dir_for(self.game / "missing"), self.game / "missing"
+        )
+
 
 class InstallerTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -285,6 +338,38 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("fps", installer.read_conf(self.game))
         self.assertTrue(installer.inspect(self.game).conf_present)
 
+    def test_install_into_bin_layout(self) -> None:
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(bin_dir / "game.exe", 0x8664)
+        (bin_dir / "d3d11.dll").write_bytes(b"original-d3d11")
+        (bin_dir / "dxgi.dll").write_bytes(b"original-dxgi")
+
+        result = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertTrue(result.success, result.message)
+        self.assertEqual(sorted(result.copied), ["d3d11.dll", "dxgi.dll"])
+        self.assertTrue((bin_dir / "d3d11.dll.bkp").is_file())
+        self.assertIn(b"DXVK", (bin_dir / "d3d11.dll").read_bytes())
+        self.assertFalse((self.game / "d3d11.dll").exists())  # root stays clean
+
+        status = installer.inspect(self.game)
+        self.assertTrue(status.patched)
+        self.assertTrue(status.backuped)
+        self.assertEqual(status.version, "v2.7.1")
+        self.assertEqual(status.dll_dir, str(bin_dir))
+        self.assertEqual(sorted(status.dxvk_files), ["d3d11.dll", "dxgi.dll"])
+        self.assertEqual(ledger.get(self.game).get("dll_dir"), "bin")
+
+        conf_path = installer.write_conf(self.game, 'dxvk.hud = "fps"\n')
+        self.assertEqual(conf_path.parent, bin_dir)
+        self.assertTrue(installer.inspect(self.game).conf_present)
+
+        restored = installer.restore(self.game)
+        self.assertTrue(restored.success, restored.message)
+        self.assertEqual(sorted(restored.restored), ["d3d11.dll", "dxgi.dll"])
+        self.assertEqual((bin_dir / "d3d11.dll").read_bytes(), b"original-d3d11")
+        self.assertFalse((bin_dir / "d3d11.dll.bkp").exists())
+
 
 def main() -> int:
     loader = unittest.TestLoader()
@@ -292,6 +377,7 @@ def main() -> int:
         [
             loader.loadTestsFromTestCase(ConfSpecTests),
             loader.loadTestsFromTestCase(SteamTests),
+            loader.loadTestsFromTestCase(ResolveDllDirTests),
             loader.loadTestsFromTestCase(InstallerTests),
         ]
     )

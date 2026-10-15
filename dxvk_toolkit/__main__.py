@@ -112,6 +112,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         status = installer.inspect(game_dir)
         print(f"{game_dir}")
         print(f"  patched : {status.patched} {status.kind} {status.version}".rstrip())
+        print(f"  dll dir : {status.dll_dir or game_dir}")
         print(f"  backups : {', '.join(status.backup_files) or '-'}")
         print(f"  dxvk    : {', '.join(status.dxvk_files) or '-'}")
         print(f"  conf    : {status.conf_present}")
@@ -126,6 +127,7 @@ def cmd_fingerprint(args: argparse.Namespace) -> int:
         print(f"{game_dir}")
         verdict = "official" if fp.official else ("unverifiable" if fp.unverifiable else "clean")
         managed = "managed" if fp.managed else "NOT managed by this tool"
+        print(f"  dll dir  : {fp.dll_dir or game_dir}")
         print(f"  dxvk     : {fp.version or '?'} [{fp.arch or '?'}] {verdict} ({managed})")
         for dll in fp.dlls:
             if not dll.present:

@@ -100,6 +100,24 @@ class FingerprintTests(unittest.TestCase):
         self.assertTrue(fp.backuped)
         self.assertTrue(fp.conf_present)
 
+    def test_bin_layout_is_fingerprinted(self) -> None:
+        # Watch_Dogs2 style: the exe (and any DXVK) live in a subdirectory.
+        # Drop the setUp exe so its name cannot match the folder ("game").
+        (self.game / "game.exe").unlink()
+        make_fake_pe(self.game / "SplashScreen.exe", 0x8664)
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(bin_dir / "WatchDogs2.exe", 0x8664)
+        with (bin_dir / "WatchDogs2.exe").open("ab") as handle:
+            handle.write(b"\x00" * 0x2000)  # bigger than the root stub
+        _dxvk_dll(bin_dir / "d3d11.dll", "3.1.1")
+        _dxvk_dll(bin_dir / "dxgi.dll", "3.1.1")
+        fp = fingerprint.fingerprint_game(self.game)
+        self.assertEqual(fp.dll_dir, str(bin_dir))
+        self.assertTrue(fp.official)
+        self.assertEqual(fp.version, "3.1.1")
+        self.assertEqual(fp.arch, "x64")
+
 
 class AdoptTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -161,6 +179,26 @@ class AdoptTests(unittest.TestCase):
         message, backed = fingerprint.adopt(self.game)
         self.assertFalse(backed)
         self.assertIn("No DXVK", message)
+
+    def test_adopt_and_upgrade_bin_layout(self) -> None:
+        bin_dir = self.game / "bin"
+        bin_dir.mkdir()
+        make_fake_pe(self.game / "SplashScreen.exe", 0x8664)
+        make_fake_pe(bin_dir / "game.exe", 0x8664)
+        with (bin_dir / "game.exe").open("ab") as handle:
+            handle.write(b"\x00" * 0x2000)
+        _dxvk_dll(bin_dir / "d3d11.dll", "3.1.1")
+        _dxvk_dll(bin_dir / "dxgi.dll", "3.1.1")
+
+        message, backed = fingerprint.adopt(self.game)
+        self.assertIn("Adopted DXVK v3.1.1", message)
+        self.assertFalse(backed)
+        self.assertEqual(ledger.get(self.game).get("dll_dir"), "bin")
+
+        upgrade = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertTrue(upgrade.success, upgrade.message)
+        self.assertIn(b"v2.7.1", (bin_dir / "d3d11.dll").read_bytes())
+        self.assertFalse((self.game / "d3d11.dll").exists())  # root stays clean
 
     @unittest.skipUnless(os.name == "nt", "system backup needs Windows")
     def test_backup_from_system(self) -> None:

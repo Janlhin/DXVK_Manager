@@ -30,9 +30,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import sources
-from .installer import BACKUP_SUFFIX, CONF_NAME, invalidate
+from .installer import BACKUP_SUFFIX, CONF_NAME, invalidate, relative_dll_dir
 from .paths import ledger
-from .util import log, pe_machine
+from .util import log, pe_machine, resolve_dll_dir
 
 # Every DLL the fingerprint looks at (superset of what DXVK actually ships).
 DLL_NAMES = ("d3d8.dll", "d3d9.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll")
@@ -78,6 +78,7 @@ class Fingerprint:
     managed: bool = False      # ledger already has a patched record
     backuped: bool = False     # .bkp files exist
     conf_present: bool = False
+    dll_dir: str = ""          # directory the DLLs were found in (exe folder)
 
     @property
     def dxvk_dlls(self) -> list[DllFingerprint]:
@@ -224,18 +225,20 @@ def fingerprint_game(game_dir: str | os.PathLike[str]) -> Fingerprint:
     result = Fingerprint(install_dir=str(root))
     record = ledger.get(root)
     result.managed = bool(record.get("patched"))
-    if root.is_dir():
+    dll_dir = resolve_dll_dir(root, DLL_NAMES)
+    result.dll_dir = str(dll_dir)
+    if dll_dir.is_dir():
         result.backuped = any(
             child.name.lower().endswith(BACKUP_SUFFIX)
-            for child in root.iterdir()
+            for child in dll_dir.iterdir()
             if child.is_file()
         )
-    result.conf_present = (root / CONF_NAME).is_file()
+    result.conf_present = (dll_dir / CONF_NAME).is_file()
 
     versions: list[str] = []
     dxvk_found = False
     for name in DLL_NAMES:
-        path = root / name
+        path = dll_dir / name
         dll = DllFingerprint(name=name)
         if not path.is_file():
             result.dlls.append(dll)
@@ -267,7 +270,7 @@ def fingerprint_game(game_dir: str | os.PathLike[str]) -> Fingerprint:
     if dxvk_found:
         index = _cache_index()
         for dll in result.dxvk_dlls:
-            dll.sha256 = _sha256(root / dll.name)
+            dll.sha256 = _sha256(dll_dir / dll.name)
             hit = index.get(dll.sha256)
             if hit:
                 kind, version, arch = hit
@@ -293,7 +296,12 @@ def fingerprint_game(game_dir: str | os.PathLike[str]) -> Fingerprint:
 # Takeover
 # --------------------------------------------------------------------------
 
-def backup_from_system(game_dir: str | os.PathLike[str], dll: str, arch: str = "x64") -> Path | None:
+def backup_from_system(
+    game_dir: str | os.PathLike[str],
+    dll: str,
+    arch: str = "x64",
+    target_dir: Path | None = None,
+) -> Path | None:
     """Build a restore point for one DLL from the Windows system directory.
 
     The game's own pre-DXVK file is gone once a foreign install overwrote it,
@@ -307,7 +315,8 @@ def backup_from_system(game_dir: str | os.PathLike[str], dll: str, arch: str = "
     if not source.is_file():
         return None
     root = Path(game_dir)
-    target = root / (dll + BACKUP_SUFFIX)
+    directory = target_dir if target_dir is not None else root
+    target = directory / (dll + BACKUP_SUFFIX)
     if target.exists():
         return target
     try:
@@ -333,11 +342,12 @@ def adopt(game_dir: str | os.PathLike[str], *, backup_from_system_dirs: bool = F
     if not fp.dxvk_dlls:
         return ("No DXVK DLLs were found in this folder - nothing to take over", [])
 
+    dll_dir = Path(fp.dll_dir) if fp.dll_dir else root
     backed: list[str] = []
     if backup_from_system_dirs:
         for dll in fp.dxvk_dlls:
             arch = dll.arch or fp.arch or "x64"
-            if backup_from_system(root, dll.name, arch):
+            if backup_from_system(root, dll.name, arch, target_dir=dll_dir):
                 backed.append(dll.name)
 
     names = [dll.name for dll in fp.dxvk_dlls]
@@ -352,6 +362,7 @@ def adopt(game_dir: str | os.PathLike[str], *, backup_from_system_dirs: bool = F
         system_backups=backed,
         arch=fp.arch,
         dlls=names,
+        dll_dir=relative_dll_dir(root, dll_dir),
     )
     invalidate(root)
     forget_cache_index()

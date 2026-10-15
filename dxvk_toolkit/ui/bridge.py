@@ -454,6 +454,7 @@ class Bridge(QObject):
             "confPresent": fp.conf_present,
             "official": fp.official,
             "unverifiable": fp.unverifiable,
+            "dllDir": fp.dll_dir,
             "dllNames": [dll.name for dll in fp.dxvk_dlls],
             "dlls": [
                 {

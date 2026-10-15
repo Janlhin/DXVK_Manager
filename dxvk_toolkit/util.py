@@ -210,6 +210,71 @@ def guess_main_executable(game_dir: str | os.PathLike[str]) -> tuple[Path | None
     return best[2], pe_machine(best[2])
 
 
+def biggest_executable(game_dir: str | os.PathLike[str]) -> Path | None:
+    """Most plausible main game binary, heuristics strongest first.
+
+    1. file name derived from the install folder name (``Watch_Dogs2`` ->
+       ``WatchDogs2.exe``) - games like Watch_Dogs2 ship a 0.5 MB exe shell
+       next to larger helper processes, so size alone lies;
+    2. a structurally valid PE image;
+    3. bigger file;
+    4. shallower placement.
+
+    Unlike :func:`guess_main_executable` this does not trust depth, because
+    root-level stubs (SplashScreen.exe, PlayGTAV.exe, EAC.exe) must not
+    shadow the real binary sitting in bin/.
+    """
+    token = re.sub(r"[^a-z0-9]", "", Path(game_dir).name.lower())
+    candidates: list[tuple[int, int, int, int, Path]] = []
+    for exe in iter_executables(game_dir):
+        lowered = exe.name.lower()
+        if any(pattern in lowered for pattern in _EXE_SKIP_PATTERNS):
+            continue
+        try:
+            size = exe.stat().st_size
+        except OSError:
+            continue
+        try:
+            depth = len(exe.relative_to(Path(game_dir)).parts) - 1
+        except ValueError:
+            depth = 0
+        stem = re.sub(r"[^a-z0-9]", "", exe.stem.lower())
+        name_match = (
+            1 if token and stem and (stem == token or stem in token or token in stem) else 0
+        )
+        candidates.append((1 - name_match, 0 if pe_machine(exe) else 1, -size, depth, exe))
+    if not candidates:
+        return None
+    return min(candidates)[4]
+
+
+def resolve_dll_dir(game_dir: str | os.PathLike[str], dll_names: Iterable[str] = ()) -> Path:
+    """Directory where game-loadable DirectX DLLs take effect.
+
+    Windows resolves d3d11.dll & friends from the executable's folder, and
+    plenty of games keep that executable in a subdirectory (Watch_Dogs2/bin,
+    Cyberpunk2077/bin/x64, ...) - DXVK dropped into the install root of such a
+    game is dead weight. Two rules, in order:
+
+    1. an existing DXVK installation in the root pins the root, so installs
+       made by older tool versions (or by hand) keep working and upgrades
+       stay consistent;
+    2. otherwise the main executable's folder wins. Root-exe games are
+       unaffected: their exe folder simply is the root.
+    """
+    root = Path(game_dir)
+    if not root.is_dir():
+        return root
+    for name in dll_names:
+        candidate = root / name
+        if candidate.is_file() and looks_like_dxvk(candidate):
+            return root
+    exe = biggest_executable(root)
+    if exe is not None:
+        return exe.parent
+    return root
+
+
 @contextlib.contextmanager
 def file_buffer(path: str | os.PathLike[str], threshold: int = 8_000_000) -> Iterator[Any]:
     """Yield a bytes-like view of a file, memory mapped when it is large.

@@ -587,12 +587,20 @@ def scan_all_games(extra_libraries: Iterable[str] = ()) -> list[Game]:
 # --------------------------------------------------------------------------
 
 def scan_runtime_dlls(game_dir: str | os.PathLike[str]) -> dict[str, bool]:
-    """Which Direct3D DLLs are present in the game root folder."""
+    """Which Direct3D DLLs are present next to the game executable.
+
+    The install root alone is not enough: plenty of games load their runtime
+    from a subdirectory (Watch_Dogs2/bin, ...), so the lookup follows the main
+    executable like every DLL operation does.
+    """
+    from .util import resolve_dll_dir
+
     root = Path(game_dir)
+    dll_dir = resolve_dll_dir(root, KNOWN_DLLS)
     presence: dict[str, bool] = {}
     for dll in KNOWN_DLLS:
         try:
-            presence[dll] = (root / dll).is_file()
+            presence[dll] = (dll_dir / dll).is_file()
         except OSError:
             presence[dll] = False
     return presence

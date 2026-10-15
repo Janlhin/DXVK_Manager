@@ -12,7 +12,7 @@ from pathlib import Path
 from .paths import ledger
 from .sources import arch_bin_dir
 from .steam import KNOWN_DLLS, guess_direct3d
-from .util import log, looks_like_dxvk, pe_machine
+from .util import log, looks_like_dxvk, pe_machine, resolve_dll_dir
 
 BACKUP_SUFFIX = ".bkp"
 CONF_NAME = "dxvk.conf"
@@ -64,6 +64,7 @@ class GameStatus:
     backup_files: list[str] = field(default_factory=list)
     arch: str = ""
     executable: str = ""
+    dll_dir: str = ""  # directory the DXVK DLLs actually live in (exe folder)
 
     @property
     def label(self) -> str:
@@ -119,9 +120,23 @@ def choose_arch(game_dir: str | os.PathLike[str], override: str = "", executable
     return arch if arch in ("x32", "x64") else "x64"
 
 
+def dll_dir_for(game_dir: str | os.PathLike[str]) -> Path:
+    """Directory DXVK DLLs must live in for this game (next to the main exe)."""
+    return resolve_dll_dir(game_dir, KNOWN_DLLS)
+
+
+def relative_dll_dir(root: Path, dll_dir: Path) -> str:
+    """Ledger-friendly form: "" for the root, "bin" style path otherwise."""
+    try:
+        relative = dll_dir.relative_to(root)
+    except ValueError:
+        return ""
+    return "" if relative == Path(".") else relative.as_posix()
+
+
 def missing_dlls(game_dir: str | os.PathLike[str], required: Iterable[str]) -> list[str]:
-    root = Path(game_dir)
-    return [dll for dll in required if not (root / dll).is_file()]
+    directory = dll_dir_for(game_dir)
+    return [dll for dll in required if not (directory / dll).is_file()]
 
 
 # --------------------------------------------------------------------------
@@ -184,11 +199,13 @@ def _inspect_uncached(game_dir: str | os.PathLike[str], probe: bool) -> GameStat
         status.timestamp = str(record.get("updated") or record.get("dxvk_timestamp") or "")
         status.arch = str(record.get("arch") or "")
 
+    dll_dir = dll_dir_for(root)
+    status.dll_dir = str(dll_dir)
     status.dxvk_files = []
     status.backup_files = []
     if probe:
         for dll in KNOWN_DLLS:
-            path = root / dll
+            path = dll_dir / dll
             if path.is_file() and looks_like_dxvk(path):
                 status.dxvk_files.append(dll)
     elif status.patched:
@@ -199,14 +216,14 @@ def _inspect_uncached(game_dir: str | os.PathLike[str], probe: bool) -> GameStat
     try:
         status.backup_files = sorted(
             child.name[: -len(BACKUP_SUFFIX)]
-            for child in root.iterdir()
+            for child in dll_dir.iterdir()
             if child.is_file() and child.name.lower().endswith(BACKUP_SUFFIX)
         )
     except OSError:
         status.backup_files = []
     status.patched = bool(status.dxvk_files) or status.patched
     status.backuped = bool(status.backup_files) or status.backuped
-    status.conf_present = (root / CONF_NAME).is_file()
+    status.conf_present = (dll_dir / CONF_NAME).is_file()
     if not status.arch:
         status.arch = guess_arch_from_dxvk(status.dxvk_files)
     return status
@@ -223,9 +240,9 @@ def guess_arch_from_dxvk(dll_names: Iterable[str]) -> str:
 # Mutating operations
 # --------------------------------------------------------------------------
 
-def _backup(root: Path, dll: str) -> bool:
-    source = root / dll
-    backup = root / (dll + BACKUP_SUFFIX)
+def _backup(directory: Path, dll: str) -> bool:
+    source = directory / dll
+    backup = directory / (dll + BACKUP_SUFFIX)
     if not source.is_file() or backup.exists():
         return False
     shutil.copy2(source, backup)
@@ -247,6 +264,7 @@ def install(
     root = Path(game_dir)
     if not root.is_dir():
         return InstallResult(False, f"Game folder not found: {root}")
+    dll_dir = dll_dir_for(root)
 
     # Guard: DXVK present but never installed through this tool. Backing it up
     # now would archive the DXVK DLLs as "originals", destroying the restore
@@ -255,7 +273,7 @@ def install(
     if not record.get("patched"):
         foreign = [
             dll for dll in KNOWN_DLLS
-            if (root / dll).is_file() and looks_like_dxvk(root / dll)
+            if (dll_dir / dll).is_file() and looks_like_dxvk(dll_dir / dll)
         ]
         if foreign:
             return InstallResult(
@@ -288,10 +306,10 @@ def install(
             continue
         already_patched = dll in status.dxvk_files
         if not already_patched or force_backup:
-            if _backup(root, dll):
+            if _backup(dll_dir, dll):
                 backed_up.append(dll)
         try:
-            shutil.copy2(source, root / dll)
+            shutil.copy2(source, dll_dir / dll)
             copied.append(dll)
         except OSError as exc:
             return InstallResult(False, f"Could not copy {dll}: {exc}", copied, backed_up)
@@ -320,6 +338,7 @@ def install(
         dxvk_timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
         arch=chosen_arch,
         dlls=copied,
+        dll_dir=relative_dll_dir(root, dll_dir),
     )
 
     if conf_text is not None:
@@ -345,6 +364,7 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
     root = Path(game_dir)
     if not root.is_dir():
         return RestoreResult(False, f"Game folder not found: {root}")
+    dll_dir = dll_dir_for(root)
 
     status = inspect(root)
     wanted = list(dlls) if dlls else sorted(set(status.backup_files) | set(status.dxvk_files))
@@ -355,8 +375,8 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
     failed: list[str] = []
 
     for dll in wanted:
-        backup = root / (dll + BACKUP_SUFFIX)
-        target = root / dll
+        backup = dll_dir / (dll + BACKUP_SUFFIX)
+        target = dll_dir / dll
         if not backup.is_file():
             continue
         try:
@@ -373,7 +393,9 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
 
     invalidate(root)
     remaining_backups = any(
-        child.name.lower().endswith(BACKUP_SUFFIX) for child in root.iterdir() if child.is_file()
+        child.name.lower().endswith(BACKUP_SUFFIX)
+        for child in dll_dir.iterdir()
+        if child.is_file()
     )
     ledger.record(
         root,
@@ -391,11 +413,12 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
 def remove_dxvk(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None) -> list[str]:
     """Delete the DXVK DLLs without touching the backups."""
     root = Path(game_dir)
+    dll_dir = dll_dir_for(root)
     status = inspect(root)
     wanted = list(dlls) if dlls else (status.dxvk_files or list(DEFAULT_DLLS))
     removed: list[str] = []
     for dll in wanted:
-        path = root / dll
+        path = dll_dir / dll
         if path.is_file():
             try:
                 path.unlink()
@@ -416,7 +439,9 @@ def write_conf(game_dir: str | os.PathLike[str], text: str, name: str = CONF_NAM
     """
     root = Path(game_dir)
     root.mkdir(parents=True, exist_ok=True)
-    target = root / name
+    dll_dir = dll_dir_for(root)
+    dll_dir.mkdir(parents=True, exist_ok=True)
+    target = dll_dir / name
     if target.is_file():
         try:
             shutil.copy2(target, target.with_suffix(target.suffix + ".bkp"))
@@ -429,7 +454,7 @@ def write_conf(game_dir: str | os.PathLike[str], text: str, name: str = CONF_NAM
 
 
 def read_conf(game_dir: str | os.PathLike[str], name: str = CONF_NAME) -> str:
-    target = Path(game_dir) / name
+    target = dll_dir_for(game_dir) / name
     try:
         return target.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -437,7 +462,7 @@ def read_conf(game_dir: str | os.PathLike[str], name: str = CONF_NAME) -> str:
 
 
 def delete_conf(game_dir: str | os.PathLike[str], name: str = CONF_NAME) -> bool:
-    target = Path(game_dir) / name
+    target = dll_dir_for(game_dir) / name
     try:
         target.unlink()
         return True
