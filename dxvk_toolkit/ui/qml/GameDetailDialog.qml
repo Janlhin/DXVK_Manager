@@ -68,30 +68,38 @@ Dialog {
         bridge.loadVersions(sheet.kind, false)
     }
 
-    // Combine the remote catalogue with the local cache: every downloadable
-    // version is listed (DLSS Swapper style) and flagged with what is already
-    // on disk. Locally installed versions survive a stale or empty remote list.
+    // Combine the remote catalogue with the local cache. Downloaded versions
+    // sort into their own group ABOVE the not-downloaded ones (each group
+    // newest first) - a mixed order made the blue "pick to auto-download"
+    // rows drown the ones that are ready to apply.
     function applyKind() {
-        var rows = []
+        var downloadedRows = []
+        var pendingRows = []
         var seen = {}
         for (var i = 0; i < sheet.remote.length; i++) {
             var name = String(sheet.remote[i].version || "")
             if (name === "" || seen[name])
                 continue
             seen[name] = true
-            rows.push({
+            var installed = sheet.installedHere(name)
+            var row = {
                 name: name,
                 display: sheet.kind === "gplasync" ? name.replace(/^v/, "") : name,
-                installed: sheet.installedHere(name)
-            })
+                installed: installed
+            }
+            if (installed)
+                downloadedRows.push(row)
+            else
+                pendingRows.push(row)
         }
-        var installed = sheet.versions[sheet.kind] || []
-        for (var j = 0; j < installed.length; j++) {
-            var local = installed[j]
+        var locals = sheet.versions[sheet.kind] || []
+        for (var j = 0; j < locals.length; j++) {
+            var local = locals[j]
             var full = sheet.kind === "gplasync" ? "v" + local : local
             if (!seen[full])
-                rows.push({ name: full, display: local, installed: true })
+                downloadedRows.push({ name: full, display: local, installed: true })
         }
+        var rows = downloadedRows.concat(pendingRows)
         sheet.versionRows = rows
         versionPicker.model = rows
         // Default to the newest downloaded version, else the newest known one.
