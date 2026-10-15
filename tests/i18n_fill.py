@@ -42,6 +42,13 @@ BRIDGE = {
     "还原失败": "Restore failed",
     "已移除 {} 个文件": "Removed {} files",
     "移除失败": "Removal failed",
+    "读取缓存统计失败": "Failed to read cache statistics",
+    "已清理 {} 个缓存版本": "Cleared {} cached versions",
+    "没有可清理的缓存版本": "No cache versions to clear",
+    "清理缓存失败": "Cache cleanup failed",
+    "没有失效的安装记录": "No stale install records",
+    "已清理 {} 条失效的安装记录": "Removed {} stale install records",
+    "清理记录失败": "Record cleanup failed",
     "正在载入 dxvk.conf 选项…": "Loading dxvk.conf options…",
     "未找到参考文件": "reference file not found",
     "共 {} 个选项（{}）": "{} options ({})",
@@ -205,6 +212,13 @@ GAME_DETAIL = {
     "即将删除：DXVK v%1。": "About to delete: DXVK v%1.",
     "取消": "Cancel",
     "仍要移除": "Remove anyway",
+    "移除 DXVK？": "Remove DXVK?",
+    "即将从游戏目录删除 DXVK v%1 并清除接管记录。":
+        "DXVK v%1 will be deleted from the game folder and the takeover record cleared.",
+    "即将从游戏目录删除 DXVK 并清除接管记录。":
+        "DXVK will be deleted from the game folder and the takeover record cleared.",
+    "同时清理 dxvk.conf、DXVK 日志与着色器缓存":
+        "Also remove dxvk.conf, the DXVK logs and the shader cache",
 }
 
 GAMES_PAGE = {
@@ -254,6 +268,22 @@ SETTINGS_PAGE = {
     "已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。":
         "Downloaded versions live here; a game folder only ever shows the DXVK DLLs and the .bkp backups created on install.",
     "打开数据目录": "Open data folder",
+    "存储与清理": "Storage & cleanup",
+    "dxvk 缓存 %1（%2 个版本） · gplasync 缓存 %3（%4 个版本） · 失效安装记录 %5 条":
+        "dxvk cache %1 (%2 versions) · gplasync cache %3 (%4 versions) · %5 stale install records",
+    "清空缓存会保留正在被游戏使用的版本；游戏目录里的着色器缓存等伴生文件在游戏详情的「移除 DXVK」里清理。":
+        "A blanket wipe keeps the versions some game runs on; shader caches and other companion files in a game folder are cleaned via \"Remove DXVK\" in the game details.",
+    "清空 dxvk 缓存": "Clear dxvk cache",
+    "清空 gplasync 缓存": "Clear gplasync cache",
+    "清理失效安装记录": "Prune stale install records",
+    "清空 dxvk 缓存？": "Clear the dxvk cache?",
+    "清空 gplasync 缓存？": "Clear the gplasync cache?",
+    "没有可清理的版本——其余版本正被游戏使用，会保留。":
+        "Nothing to clear - the remaining versions are in use by games and will be kept.",
+    "将删除 %1 个版本，共 %2。正在被游戏使用的版本会保留。":
+        "%1 versions (%2) will be deleted. Versions in use by games are kept.",
+    "取消": "Cancel",
+    "清空": "Clear",
     "官方资源": "Official resources",
     "鸣谢": "Credits",
     "查看完整第三方声明": "View full third-party notices",

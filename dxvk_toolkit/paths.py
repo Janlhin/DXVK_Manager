@@ -210,6 +210,24 @@ class Ledger:
         with _LOCK:
             return {k: dict(v) for k, v in self._games.items()}
 
+    def prune_missing(self) -> list[str]:
+        """Drop records whose game folder no longer exists; returns their paths.
+
+        Uninstalled games would otherwise keep their "managed/adopted" entry
+        forever, cluttering the ledger with directories that can never be
+        upgraded or restored again.
+        """
+        with _LOCK:
+            dropped: list[str] = []
+            for key in list(self._games):
+                install_dir = str(self._games[key].get("install_dir") or key)
+                if not os.path.isdir(install_dir):
+                    self._games.pop(key, None)
+                    dropped.append(install_dir)
+            if dropped:
+                _write_json(ledger_path(), {"version": 1, "games": self._games})
+            return dropped
+
 
 ledger = Ledger()
 

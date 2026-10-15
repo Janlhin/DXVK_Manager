@@ -591,14 +591,7 @@ Dialog {
                     Button {
                         text: qsTr("移除 DXVK")
                         padding: 6
-                        onClicked: {
-                            if (sheet.fp.managed === false && sheet.fpHasDxvk) {
-                                removeConfirm.open()
-                                return
-                            }
-                            bridge.removeDxvk(sheet.gameKey)
-                            sheet.close()
-                        }
+                        onClicked: removeConfirm.open()
                         background: Rectangle {
                             radius: Th.radiusControl
                             color: parent.hovered ? Th.errorHover : Th.error
@@ -633,14 +626,14 @@ Dialog {
         }
     }
 
-    // A foreign DXVK install (never installed through this tool) is the
-    // user's own property - deleting it is irreversible from here, so the
-    // red remove button asks once before touching files it did not create.
+    // Removing DXVK touches files this tool created (and, for foreign
+    // installs, files the user brought) - one confirm, with a checkbox for
+    // the companion files, is cheaper than a surprise either way.
     Dialog {
         id: removeConfirm
         modal: true
         anchors.centerIn: parent
-        width: Math.min(parent.width - 120, 440)
+        width: Math.min(parent.width - 120, 460)
         padding: Th.space5
         Overlay.modal: Rectangle { color: "#99000000" }
         background: Rectangle {
@@ -654,7 +647,7 @@ Dialog {
             spacing: Th.space3
 
             Text {
-                text: qsTr("移除未接管的 DXVK？")
+                text: sheet.fpShow ? qsTr("移除未接管的 DXVK？") : qsTr("移除 DXVK？")
                 color: Th.text
                 font.pixelSize: Th.fontTitle
                 wrapMode: Text.WordWrap
@@ -662,14 +655,51 @@ Dialog {
             }
 
             Text {
-                text: qsTr("这套 DXVK 不是本工具安装的，移除后无法通过本工具还原。")
-                      + (sheet.fp.version !== ""
-                         ? "\n" + qsTr("即将删除：DXVK v%1。").arg(sheet.fp.version)
-                         : "")
+                text: {
+                    if (sheet.fpShow)
+                        return qsTr("这套 DXVK 不是本工具安装的，移除后无法通过本工具还原。")
+                             + (sheet.fp.version !== ""
+                                ? "\n" + qsTr("即将删除：DXVK v%1。").arg(sheet.fp.version)
+                                : "")
+                    if (sheet.fp.version !== "")
+                        return qsTr("即将从游戏目录删除 DXVK v%1 并清除接管记录。").arg(sheet.fp.version)
+                    return qsTr("即将从游戏目录删除 DXVK 并清除接管记录。")
+                }
                 color: Th.textMuted
                 font.pixelSize: Th.fontSmall
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
+            }
+
+            CheckBox {
+                id: artifactsBox
+                text: qsTr("同时清理 dxvk.conf、DXVK 日志与着色器缓存")
+                checked: true
+                font.pixelSize: Th.fontSmall
+                contentItem: Text {
+                    text: artifactsBox.text
+                    color: Th.text
+                    font.pixelSize: Th.fontSmall
+                    leftPadding: artifactsBox.indicator.width + artifactsBox.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                }
+                indicator: Rectangle {
+                    x: artifactsBox.leftPadding
+                    y: artifactsBox.height / 2 - height / 2
+                    width: 16
+                    height: 16
+                    radius: 3
+                    color: artifactsBox.checked ? Th.primary : Th.surfaceAlt
+                    border.width: 1
+                    border.color: artifactsBox.checked ? Th.primary : Th.borderStrong
+                    Text {
+                        anchors.centerIn: parent
+                        text: artifactsBox.checked ? "✓" : ""
+                        color: Th.primaryText
+                        font.pixelSize: 11
+                    }
+                }
             }
 
             RowLayout {
@@ -699,7 +729,7 @@ Dialog {
                     padding: 6
                     onClicked: {
                         removeConfirm.close()
-                        bridge.removeDxvk(sheet.gameKey)
+                        bridge.removeDxvk(sheet.gameKey, artifactsBox.checked)
                         sheet.close()
                     }
                     background: Rectangle {

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from . import net
-from .paths import archives_dir, cache_dir, data_root, settings
+from .paths import archives_dir, cache_dir, data_root, ledger, settings
 from .util import log, parse_version_tuple, safe_name
 
 GITHUB_RELEASES = "https://api.github.com/repos/doitsujin/dxvk/releases?per_page=100&page={page}"
@@ -598,6 +598,81 @@ def download_release(
 
 def remove_version(kind: str, version: str) -> None:
     shutil.rmtree(version_dir(kind, version), ignore_errors=True)
+
+
+def used_versions() -> set[tuple[str, str]]:
+    """(kind, version) pairs some game in the ledger currently runs on."""
+    out: set[tuple[str, str]] = set()
+    for entry in ledger.all().values():
+        version = str(entry.get("dxvk_version") or "")
+        if version:
+            out.add((str(entry.get("dxvk_type") or "dxvk"), version))
+    return out
+
+
+def _dir_size(path: Path) -> int:
+    total = 0
+    try:
+        for child in path.rglob("*"):
+            try:
+                if child.is_file():
+                    total += child.stat().st_size
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return total
+
+
+def cache_stats(kind: str) -> dict[str, Any]:
+    """Size and health of one download cache, for the storage page.
+
+    versions carry flags: used = some game runs this exact build (the entry
+    is protected from a blanket wipe), broken = the folder lacks the x32/x64
+    layout a reinstall would need.
+    """
+    used = used_versions()
+    root = cache_dir(kind)
+    entries: list[dict[str, Any]] = []
+    total = 0
+    try:
+        children = [child for child in root.iterdir() if child.is_dir()]
+    except OSError:
+        children = []
+    for child in children:
+        size = _dir_size(child)
+        total += size
+        entries.append(
+            {
+                "version": child.name,
+                "size": size,
+                "used": (kind, child.name) in used,
+                "broken": find_bin_root(child) is None,
+            }
+        )
+    entries.sort(key=lambda item: parse_version_tuple(item["version"]), reverse=True)
+    return {"kind": kind, "total": total, "versions": entries}
+
+
+def clear_cache(kind: str, keep_used: bool = True) -> list[str]:
+    """Delete cached versions; returns the removed version names.
+
+    With keep_used the versions some game currently runs on survive a
+    blanket wipe - deleting those would turn a working setup into a
+    "restore needed" one.
+    """
+    protected = used_versions() if keep_used else set()
+    removed: list[str] = []
+    try:
+        children = [child for child in cache_dir(kind).iterdir() if child.is_dir()]
+    except OSError:
+        return removed
+    for child in children:
+        if (kind, child.name) in protected:
+            continue
+        shutil.rmtree(child, ignore_errors=True)
+        removed.append(child.name)
+    return removed
 
 
 REFERENCE_URL = "https://raw.githubusercontent.com/doitsujin/dxvk/{ref}/dxvk.conf"

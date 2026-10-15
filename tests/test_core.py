@@ -390,6 +390,79 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((bin_dir / "d3d11.dll.bkp").exists())
         self.assertFalse(ledger.get(self.game))
 
+    def test_remove_artifacts(self) -> None:
+        make_fake_pe(self.game / "game.exe", 0x8664)
+        make_dxvk_dll(self.game / "d3d11.dll")
+        (self.game / "dxvk.conf").write_text("dxvk.hud = fps\n", encoding="utf-8")
+        (self.game / "game.exe_dxgi.log").write_text("info:", encoding="utf-8")
+        (self.game / "game.exe.dxvk-cache").write_bytes(b"\x00" * 8)
+        (self.game / "unrelated.log").write_text("keep me", encoding="utf-8")
+
+        removed = installer.remove_artifacts(self.game)
+        self.assertIn("dxvk.conf", removed)
+        self.assertIn("game.exe_dxgi.log", removed)
+        self.assertIn("game.exe.dxvk-cache", removed)
+        self.assertNotIn("unrelated.log", removed)
+        self.assertTrue((self.game / "unrelated.log").is_file())
+        self.assertTrue((self.game / "d3d11.dll").is_file())  # DLLs are not artifacts
+
+    def test_remove_dxvk_with_artifacts(self) -> None:
+        make_fake_pe(self.game / "game.exe", 0x8664)
+        (self.game / "d3d11.dll").write_bytes(b"original")
+        result = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertTrue(result.success, result.message)
+        installer.write_conf(self.game, 'dxvk.hud = "fps"\n')
+        (self.game / "game.exe_d3d11.log").write_text("info:", encoding="utf-8")
+
+        removed = installer.remove_dxvk(self.game, artifacts=True)
+        self.assertIn("d3d11.dll", removed)
+        self.assertIn("dxgi.dll", removed)
+        self.assertIn("dxvk.conf", removed)
+        self.assertIn("game.exe_d3d11.log", removed)
+        self.assertFalse((self.game / "d3d11.dll").exists())
+        # The originals stay restorable; only DXVK's own traces go.
+        self.assertTrue((self.game / "d3d11.dll.bkp").is_file())
+
+    def test_prune_missing(self) -> None:
+        gone = Path(self.tmp.name) / "uninstalled-game"
+        ledger.record(gone, patched=True, dxvk_version="v1.0")
+        ledger.record(self.game, patched=True, dxvk_version="v2.7.1")
+
+        dropped = ledger.prune_missing()
+        self.assertTrue(any("uninstalled-game" in path for path in dropped))
+        self.assertFalse(ledger.get(gone))
+        self.assertTrue(ledger.get(self.game))  # live folders survive
+
+    def test_cache_stats_and_clear(self) -> None:
+        # Own cache dir: clearing must not disturb the shared fixture for the
+        # other tests in this class.
+        own = Path(self.tmp.name) / "own-cache"
+        (own / "v2.7.1" / "x64").mkdir(parents=True)
+        (own / "v2.7.1" / "x32").mkdir(parents=True)
+        (own / "v0.9").mkdir()
+        for dll in ("d3d11.dll", "dxgi.dll"):
+            make_dxvk_dll(own / "v2.7.1" / "x64" / dll)
+            make_dxvk_dll(own / "v2.7.1" / "x32" / dll)
+        real = sources.cache_dir
+        sources.cache_dir = lambda kind="dxvk": own  # type: ignore[assignment]
+
+        ledger.record(self.game, patched=True, dxvk_version="v2.7.1", dxvk_type="dxvk")
+        stats = sources.cache_stats("dxvk")
+        by_name = {entry["version"]: entry for entry in stats["versions"]}
+        self.assertTrue(by_name["v2.7.1"]["used"])
+        self.assertFalse(by_name["v2.7.1"]["broken"])
+        self.assertTrue(by_name["v0.9"]["broken"])  # no x32/x64 layout
+
+        removed = sources.clear_cache("dxvk", keep_used=True)
+        self.assertIn("v0.9", removed)
+        self.assertNotIn("v2.7.1", removed)
+        self.assertTrue((own / "v2.7.1").is_dir())
+
+        removed = sources.clear_cache("dxvk", keep_used=False)
+        self.assertIn("v2.7.1", removed)
+        self.assertFalse((own / "v2.7.1").is_dir())
+        sources.cache_dir = real  # type: ignore[assignment]
+
     def test_install_inspect_restore(self) -> None:
         make_fake_pe(self.game / "game.exe", 0x8664)
         (self.game / "d3d11.dll").write_bytes(b"original-d3d11")

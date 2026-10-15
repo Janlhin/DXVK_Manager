@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import time
 from collections.abc import Iterable
@@ -427,8 +428,16 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
     return RestoreResult(True, message, restored, failed)
 
 
-def remove_dxvk(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None) -> list[str]:
-    """Delete the DXVK DLLs without touching the backups."""
+def remove_dxvk(
+    game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None, *, artifacts: bool = False
+) -> list[str]:
+    """Delete the DXVK DLLs without touching the backups.
+
+    With artifacts=True the companion files go too (dxvk.conf, the per-API
+    DXVK logs and the shader cache), leaving no trace of DXVK in the game
+    folder. The shader cache is safe to delete but the first game start
+    afterwards recompiles shaders and can stutter for a while.
+    """
     root = Path(game_dir)
     dll_dir = dll_dir_for(root)
     status = inspect(root)
@@ -442,9 +451,48 @@ def remove_dxvk(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = N
                 removed.append(dll)
             except OSError as exc:
                 log.warning("could not remove %s: %s", path, exc)
+    if artifacts:
+        removed.extend(name for name in remove_artifacts(root) if name not in removed)
     if removed:
         ledger.record(root, patched=False, dxvk_version="", dxvk_type="")
         invalidate(root)
+    return removed
+
+
+# DXVK writes one log per API next to the game executable: <exe>_d3d11.log and
+# friends, plus <exe>.dxvk-cache for the compiled shader cache.
+_ARTIFACT_LOG_RE = re.compile(r"_(?:d3d8|d3d9|d3d10core|d3d11|d3d12|dxgi)\.log$", re.IGNORECASE)
+
+
+def remove_artifacts(game_dir: str | os.PathLike[str]) -> list[str]:
+    """Remove dxvk.conf, the per-API DXVK logs and the shader cache.
+
+    The DLLs themselves are untouched - pair this with remove_dxvk.
+    """
+    directory = dll_dir_for(game_dir)
+    removed: list[str] = []
+    try:
+        candidates = list(directory.iterdir())
+    except OSError:
+        return removed
+    for child in candidates:
+        if not child.is_file():
+            continue
+        lowered = child.name.lower()
+        hit = (
+            lowered == CONF_NAME.lower()
+            or lowered.endswith(".dxvk-cache")
+            or _ARTIFACT_LOG_RE.search(lowered) is not None
+        )
+        if not hit:
+            continue
+        try:
+            child.unlink()
+            removed.append(child.name)
+        except OSError as exc:
+            log.warning("could not remove %s: %s", child, exc)
+    if removed:
+        invalidate(game_dir)
     return removed
 
 

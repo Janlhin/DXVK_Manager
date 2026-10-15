@@ -40,6 +40,27 @@ Item {
         }
     }
 
+    // --- storage & cleanup ----------------------------------------------
+    property var storageStats: ({})
+
+    function humanSize(bytes) {
+        var v = bytes || 0
+        if (v < 1024)
+            return v + " B"
+        if (v < 1048576)
+            return (v / 1024).toFixed(1) + " KB"
+        if (v < 1073741824)
+            return (v / 1048576).toFixed(1) + " MB"
+        return (v / 1073741824).toFixed(1) + " GB"
+    }
+
+    Component.onCompleted: bridge.requestCacheStats()
+
+    Connections {
+        target: bridge
+        function onCacheStatsReady(stats) { page.storageStats = stats }
+    }
+
     Flickable {
         anchors.fill: parent
         clip: true
@@ -450,6 +471,57 @@ Item {
                 }
             }
 
+            // --- storage & cleanup -----------------------------------------
+            Card {
+                height: storageBody.height + 32
+
+                Column {
+                    id: storageBody
+                    x: 16
+                    y: 16
+                    width: parent.width - 32
+                    spacing: 8
+
+                    SectionTitle { text: qsTr("存储与清理") }
+
+                    Hint {
+                        width: parent.width
+                        text: {
+                            var dxvk = page.storageStats.dxvk || {total: 0, versions: []}
+                            var gpl = page.storageStats.gplasync || {total: 0, versions: []}
+                            var orphans = (page.storageStats.orphans || []).length
+                            return qsTr("dxvk 缓存 %1（%2 个版本） · gplasync 缓存 %3（%4 个版本） · 失效安装记录 %5 条")
+                                .arg(page.humanSize(dxvk.total)).arg(dxvk.versions.length)
+                                .arg(page.humanSize(gpl.total)).arg(gpl.versions.length)
+                                .arg(orphans)
+                        }
+                    }
+                    Hint {
+                        width: parent.width
+                        text: qsTr("清空缓存会保留正在被游戏使用的版本；游戏目录里的着色器缓存等伴生文件在游戏详情的「移除 DXVK」里清理。")
+                        color: Th.textDim
+                    }
+
+                    Flow {
+                        width: parent.width
+                        spacing: 8
+
+                        FlatButton {
+                            text: qsTr("清空 dxvk 缓存")
+                            onClicked: cleanupDialog.openFor("dxvk")
+                        }
+                        FlatButton {
+                            text: qsTr("清空 gplasync 缓存")
+                            onClicked: cleanupDialog.openFor("gplasync")
+                        }
+                        FlatButton {
+                            text: qsTr("清理失效安装记录")
+                            onClicked: bridge.pruneLedger()
+                        }
+                    }
+                }
+            }
+
             // --- official resources ----------------------------------------
             Card {
                 height: 118
@@ -676,6 +748,97 @@ Item {
             }
 
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        }
+    }
+
+    // Deleting cache versions is cheap (a re-download brings them back), but
+    // wiping a build a game currently runs on would turn a working setup into
+    // a "restore needed" one - so the confirm states exactly what goes.
+    Dialog {
+        id: cleanupDialog
+        property string kind: "dxvk"
+
+        function openFor(target: string) {
+            kind = target
+            open()
+        }
+
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 120, 440)
+        padding: Th.space5
+        Overlay.modal: Rectangle { color: "#99000000" }
+        background: Rectangle {
+            radius: Th.radiusCard
+            color: Th.surface
+            border.width: 1
+            border.color: Th.border
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Th.space3
+
+            Text {
+                text: cleanupDialog.kind === "dxvk" ? qsTr("清空 dxvk 缓存？") : qsTr("清空 gplasync 缓存？")
+                color: Th.text
+                font.pixelSize: Th.fontTitle
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            Text {
+                color: Th.textMuted
+                font.pixelSize: Th.fontSmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                text: {
+                    var stats = page.storageStats[cleanupDialog.kind] || {versions: [], total: 0}
+                    var count = 0
+                    var size = 0
+                    for (var i = 0; i < stats.versions.length; i++) {
+                        if (!stats.versions[i].used) {
+                            count++
+                            size += stats.versions[i].size
+                        }
+                    }
+                    if (count === 0)
+                        return qsTr("没有可清理的版本——其余版本正被游戏使用，会保留。")
+                    return qsTr("将删除 %1 个版本，共 %2。正在被游戏使用的版本会保留。")
+                        .arg(count).arg(page.humanSize(size))
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Th.space2
+
+                Item { Layout.fillWidth: true }
+
+                FlatButton {
+                    text: qsTr("取消")
+                    padding: 6
+                    onClicked: cleanupDialog.close()
+                }
+
+                Button {
+                    text: qsTr("清空")
+                    padding: 6
+                    onClicked: {
+                        cleanupDialog.close()
+                        bridge.clearCache(cleanupDialog.kind, true)
+                    }
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.primaryHover : Th.primary
+                    }
+                    contentItem: Text {
+                        text: parent.text; color: Th.primaryText
+                        font.pixelSize: Th.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+            }
         }
     }
 }

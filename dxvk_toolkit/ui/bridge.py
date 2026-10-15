@@ -16,7 +16,7 @@ from typing import Any
 from PySide6.QtCore import QObject, Signal, Slot
 
 from .. import APP_VERSION, confbuild, confspec, covers, fingerprint, installer, net, sources, steam
-from ..paths import data_root, settings
+from ..paths import data_root, ledger, settings
 from ..util import log
 from .models import ConfigListModel, GameListModel, status_for
 
@@ -37,6 +37,8 @@ class Bridge(QObject):
     # every result.
     versionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # kind / releases / installed
     localVersionsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]  # {"dxvk": [...], "gplasync": [...]}
+    # Storage page: sizes, per-version health and orphaned install records.
+    cacheStatsReady = Signal("QVariantMap")  # pyright: ignore[reportArgumentType]
     fingerprintReady = Signal(str, "QVariantMap")  # pyright: ignore[reportArgumentType]  # key / fingerprint payload
     busyChanged = Signal(bool)
     # Worker threads hand results back through this signal so every callback
@@ -404,6 +406,93 @@ class Bridge(QObject):
 
         self._submit(work, done, self.tr("删除失败"))
 
+    # -- storage / cleanup -------------------------------------------------
+    @Slot(str, bool)
+    def removeDxvk(self, key: str, artifacts: bool) -> None:
+        """Remove DXVK from a game, optionally wiping conf/logs/shader cache."""
+        game = self._games.get(key)
+        if game is None:
+            self.statusMessage.emit(self.tr("请先选择一款游戏"), "warn")
+            return
+        self._set_busy(True)
+
+        def work() -> Any:
+            installer.invalidate(game.install_dir)
+            return installer.remove_dxvk(game.install_dir, artifacts=artifacts)
+
+        def done(removed: Any) -> None:
+            message = self.tr("已移除 {} 个文件").format(len(removed))
+            self.statusMessage.emit(message, "ok")
+            self._refresh_one(game)
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("移除失败"))
+
+    @Slot()
+    def requestCacheStats(self) -> None:
+        """Sizes and per-version health of both caches, plus dead records."""
+        self._set_busy(True)
+
+        def work() -> Any:
+            payload: dict[str, Any] = {}
+            for kind in ("dxvk", "gplasync"):
+                payload[kind] = sources.cache_stats(kind)
+            payload["orphans"] = [
+                str(entry.get("install_dir") or key)
+                for key, entry in ledger.all().items()
+                if not Path(str(entry.get("install_dir") or key)).is_dir()
+            ]
+            return payload
+
+        def done(stats: Any) -> None:
+            self.cacheStatsReady.emit(stats)
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("读取缓存统计失败"))
+
+    @Slot(str, bool)
+    def clearCache(self, kind: str, keepUsed: bool) -> None:
+        """Wipe a download cache; versions some game runs on can survive."""
+        self._set_busy(True)
+
+        def work() -> Any:
+            removed = sources.clear_cache(kind, keep_used=keepUsed)
+            fingerprint.forget_cache_index()
+            return removed
+
+        def done(removed: Any) -> None:
+            if removed:
+                self.statusMessage.emit(
+                    self.tr("已清理 {} 个缓存版本").format(len(removed)), "ok"
+                )
+            else:
+                self.statusMessage.emit(self.tr("没有可清理的缓存版本"), "warn")
+            self.loadLocalVersions()
+            self.requestCacheStats()
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("清理缓存失败"))
+
+    @Slot()
+    def pruneLedger(self) -> None:
+        """Forget install records whose game folder no longer exists."""
+        self._set_busy(True)
+
+        def work() -> Any:
+            return ledger.prune_missing()
+
+        def done(dropped: Any) -> None:
+            if dropped:
+                self.statusMessage.emit(
+                    self.tr("已清理 {} 条失效的安装记录").format(len(dropped)), "ok"
+                )
+            else:
+                self.statusMessage.emit(self.tr("没有失效的安装记录"), "warn")
+            self.requestCacheStats()
+            self._set_busy(False)
+
+        self._submit(work, done, self.tr("清理记录失败"))
+
     # -- fingerprint / takeover -------------------------------------------
     @Slot(str)
     def requestFingerprint(self, key: str) -> None:
@@ -508,22 +597,6 @@ class Bridge(QObject):
             self._set_busy(False)
 
         self._submit(work, done, self.tr("还原失败"))
-
-    @Slot(str)
-    def removeDxvk(self, key: str) -> None:
-        game = self._games.get(key)
-        if game is None:
-            return
-
-        def work() -> Any:
-            installer.invalidate(game.install_dir)
-            return installer.remove_dxvk(game.install_dir)
-
-        def done(removed: Any) -> None:
-            self.statusMessage.emit(self.tr("已移除 {} 个文件").format(len(removed)), "ok" if removed else "warn")
-            self._refresh_one(game)
-
-        self._submit(work, done, self.tr("移除失败"))
 
     def _refresh_one(self, game: steam.Game) -> None:
         def work() -> tuple[str, str, str, bool, bool]:
