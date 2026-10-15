@@ -3,6 +3,7 @@ and the scan_all_games dedupe pipeline."""
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -135,6 +136,58 @@ class ScanAllTests(unittest.TestCase):
         self.assertEqual(steam.PLATFORM_LABELS["epic"], "Epic")
         self.assertEqual(steam.PLATFORM_LABELS["gog"], "GOG")
         self.assertEqual(steam.PLATFORM_LABELS["ubisoft"], "Ubisoft")
+
+
+class EpicInstallationsTests(unittest.TestCase):
+    def test_installations_jsonl_names_games(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            game_dir = root / "MyGame"
+            game_dir.mkdir()
+            # Header line + one installed game + a stale (incomplete, missing
+            # on disk) duplicate that must be ignored.
+            jsonl = root / "installations.jsonl"
+            jsonl.write_text(
+                "\n".join([
+                    json.dumps({"version": 1, "writtenAt": "x", "entries": 3}),
+                    json.dumps({"dir": str(game_dir), "platform": "Windows",
+                                "namespace": "ns_real", "complete": True}),
+                    json.dumps({"dir": "C:/Ghost/Game", "platform": "Windows",
+                                "namespace": "ns_missing", "complete": False}),
+                ]),
+                encoding="utf-8",
+            )
+            catalog = root / "cache" / "prod"
+            catalog.mkdir(parents=True)
+            (catalog / "catalog-cache.json").write_text(
+                json.dumps({"items": {
+                    "id1": {"item": {"namespace": "ns_real",
+                                    "title": "My Cool Game"}},
+                }}),
+                encoding="utf-8",
+            )
+            with mock.patch.object(steam, "_egl_data_root", lambda: root):
+                games = steam.scan_epic_games()
+        self.assertEqual(len(games), 1)
+        self.assertEqual(games[0].name, "My Cool Game")
+        self.assertEqual(games[0].source, "epic")
+        self.assertEqual(games[0].install_dir, game_dir)
+
+    def test_fallback_to_folder_name_without_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            game_dir = root / "RawFolderName"
+            game_dir.mkdir()
+            jsonl = root / "installations.jsonl"
+            jsonl.write_text(
+                json.dumps({"dir": str(game_dir), "namespace": "ns_x",
+                            "complete": True}),
+                encoding="utf-8",
+            )
+            with mock.patch.object(steam, "_egl_data_root", lambda: root):
+                games = steam.scan_epic_games()
+        self.assertEqual(len(games), 1)
+        self.assertEqual(games[0].name, "RawFolderName")
 
 
 if __name__ == "__main__":

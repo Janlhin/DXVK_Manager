@@ -320,23 +320,8 @@ def game_from_folder(folder: str | os.PathLike[str], name: str = "") -> Game:
 # Other launchers: Epic, GOG, Ubisoft
 # --------------------------------------------------------------------------
 
-def _epic_manifest_dir() -> Path | None:
-    """Where the Epic Games Launcher stores its installed-game manifests."""
-    candidates = (
-        Path(os.environ.get("ProgramData", r"C:\ProgramData"))
-        / "Epic" / "EpicGamesLauncher" / "Data" / "Manifests",
-        Path(r"C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests"),
-    )
-    for candidate in candidates:
-        try:
-            if candidate.is_dir():
-                return candidate
-        except OSError:
-            continue
-    return None
-
-
 def _read_epic_manifest(path: Path) -> Game | None:
+    """Parse one Epic ``.item`` install manifest into a Game (or skip it)."""
     try:
         data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
     except (OSError, ValueError):
@@ -355,23 +340,178 @@ def _read_epic_manifest(path: Path) -> Game | None:
     return Game(appid=appid, name=name, install_dir=Path(install), source="epic")
 
 
-def scan_epic_games(manifest_dir: str | os.PathLike[str] | None = None) -> list[Game]:
-    """Epic Games Launcher titles from their .item manifests."""
-    directory = Path(manifest_dir) if manifest_dir is not None else _epic_manifest_dir()
-    if directory is None:
-        return []
+def _egl_data_root() -> Path | None:
+    """Root of the Epic Games Launcher (EGL) v2 data folder.
+
+    Modern launchers keep installed-game metadata under
+    ``com.epicgames.eglv2``; the path is advertised in the registry, so we
+    read it there first and fall back to the well-known default.
+    """
+    if os.name == "nt":
+        try:
+            import winreg  # noqa: WPS433
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER, r"Software\Epic Games\EpicGamesLauncher"
+            ) as key:
+                value, _ = winreg.QueryValueEx(key, "AppDataPath")
+                if value and Path(str(value)).is_dir():
+                    return Path(str(value))
+        except (OSError, ValueError, ImportError):
+            pass
+    default = Path(os.environ.get("LOCALAPPDATA", "")) / "com.epicgames.eglv2"
+    return default if default.is_dir() else None
+
+
+def _epic_catalog_titles(egl_root: Path) -> dict[str, str]:
+    """Map an Epic catalog ``namespace`` to its display title.
+
+    The launcher caches the store catalog locally; reusing it gives us the
+    proper localized name (e.g. "Alan Wake Remastered") instead of the raw
+    install-folder name.
+    """
+    cache = egl_root / "cache" / "prod" / "catalog-cache.json"
+    titles: dict[str, str] = {}
+    if not cache.is_file():
+        return titles
     try:
-        manifests = sorted(directory.glob("*.item"))
+        data = json.loads(cache.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return titles
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, dict):
+        return titles
+    for value in items.values():
+        if not isinstance(value, dict):
+            continue
+        item = value.get("item")
+        if not isinstance(item, dict):
+            continue
+        namespace = item.get("namespace")
+        title = item.get("title")
+        if namespace and title and str(namespace) not in titles:
+            titles[str(namespace)] = str(title)
+    return titles
+
+
+def _epic_name_from_manifests(egl_root: Path, directory: str) -> str:
+    """Find a display name for ``directory`` in any readable ``.item`` file."""
+    key = os.path.normcase(os.path.abspath(directory))
+    for sub in ("Manifests", os.path.join("import-scan", "v1-items")):
+        search = egl_root / sub
+        if not search.is_dir():
+            continue
+        for item in search.glob("*.item"):
+            game = _read_epic_manifest(item)
+            if game is None:
+                continue
+            if os.path.normcase(os.path.abspath(str(game.install_dir))) == key:
+                return game.name
+    return ""
+
+
+def _epic_installations(egl_root: Path | None) -> list[Game]:
+    """Installed Epic games from EGL v2's authoritative ``installations.jsonl``.
+
+    Each line is a JSON record carrying ``dir`` (install location),
+    ``namespace`` and ``complete``. The header line (and unrelated records)
+    carry no ``dir`` and are skipped. Folders missing from disk are dropped;
+    duplicates sharing a folder keep the fully-installed entry.
+    """
+    if egl_root is None:
+        return []
+    jsonl = egl_root / "installations.jsonl"
+    if not jsonl.is_file():
+        return []
+    titles = _epic_catalog_titles(egl_root)
+    best: dict[str, tuple[bool, Game]] = {}
+    try:
+        lines = jsonl.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(data, dict) or not data.get("dir"):
+            continue  # header / non-install record
+        directory = str(data["dir"]).strip()
+        try:
+            key = os.path.normcase(os.path.abspath(directory))
+        except OSError:
+            continue
+        if not os.path.isdir(directory):
+            continue
+        namespace = str(data.get("namespace") or "").strip()
+        name = titles.get(namespace) or _epic_name_from_manifests(egl_root, directory)
+        if not name:
+            name = Path(directory).name
+        appid = namespace or Path(directory).name.lower()
+        game = Game(appid=appid, name=name, install_dir=Path(directory), source="epic")
+        complete = bool(data.get("complete"))
+        existing = best.get(key)
+        if existing is None or (complete and not existing[0]):
+            best[key] = (complete, game)
+    return [game for _, game in best.values()]
+
+
+def _epic_legacy_manifests() -> list[Game]:
+    """Fallback ``.item`` manifests for older / side-by-side EGL installs."""
     games: list[Game] = []
     seen: set[str] = set()
-    for manifest in manifests:
-        game = _read_epic_manifest(manifest)
-        if game is None or game.key in seen:
+    directories: list[Path] = []
+    program_data = Path(os.environ.get("ProgramData", r"C:\ProgramData"))
+    directories.append(program_data / "Epic" / "EpicGamesLauncher" / "Data" / "Manifests")
+    directories.append(program_data / "EpicGamesLauncher" / "Data" / "Manifests")
+    egl_root = _egl_data_root()
+    if egl_root is not None:
+        directories.append(egl_root / "Manifests")
+        directories.append(egl_root / "import-scan" / "v1-items")
+    for directory in directories:
+        if not directory.is_dir():
             continue
-        seen.add(game.key)
-        games.append(game)
+        for item in sorted(directory.glob("*.item")):
+            game = _read_epic_manifest(item)
+            if game is None or game.key in seen:
+                continue
+            seen.add(game.key)
+            games.append(game)
+    return games
+
+
+def scan_epic_games(manifest_dir: str | os.PathLike[str] | None = None) -> list[Game]:
+    """Epic Games Launcher titles.
+
+    With ``manifest_dir`` supplied we scan that folder's ``.item`` manifests
+    only (used by tests and for explicit paths). Otherwise we read EGL v2's
+    authoritative ``installations.jsonl`` and merge in any legacy ``.item``
+    manifests so older installs are still covered.
+    """
+    if manifest_dir is not None:
+        directory = Path(manifest_dir)
+        if not directory.is_dir():
+            return []
+        games: list[Game] = []
+        seen: set[str] = set()
+        for manifest in sorted(directory.glob("*.item")):
+            game = _read_epic_manifest(manifest)
+            if game is None or game.key in seen:
+                continue
+            seen.add(game.key)
+            games.append(game)
+        return games
+
+    games = _epic_installations(_egl_data_root())
+    seen = {game.key for game in games}
+    for legacy in _epic_legacy_manifests():
+        if legacy.key in seen:
+            continue
+        seen.add(legacy.key)
+        games.append(legacy)
+    games.sort(key=lambda g: g.name.lower())
     return games
 
 
