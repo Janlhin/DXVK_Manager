@@ -104,7 +104,7 @@ def run(argv: list[str] | None = None) -> int:
     set_language(str(settings.get("ui_lang") or "zh"))
     app.setPalette(_dark_palette())
     app.setApplicationName("DXVK Version Manager")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion("1.0.1")
     app.setOrganizationName("dxvk-toolkit")
 
     engine = QQmlApplicationEngine()
