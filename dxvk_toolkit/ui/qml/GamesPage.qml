@@ -84,11 +84,12 @@ Item {
         bridge.requestRange(0, gameModel.count - 1)
     }
 
-    function openDetail(key, name, path, platformLabel, direct3d, arch, statusText, statusKind, coverUrl) {
+    function openDetail(key, name, path, platformLabel, direct3d, arch, statusText, statusKind, coverUrl, platform) {
         gameSheet.gameKey = key
         gameSheet.gameName = name
         gameSheet.installPath = path
         gameSheet.platformLabel = platformLabel
+        gameSheet.platform = platform
         gameSheet.direct3d = direct3d
         gameSheet.arch = arch
         gameSheet.statusText = statusText
@@ -343,10 +344,11 @@ Item {
                                 onActivated: page.openDetail(model.gameKey, model.name, model.installPath,
                                                              model.platformLabel, model.direct3d,
                                                              model.arch, model.statusText, model.statusKind,
-                                                             model.coverUrl)
+                                                             model.coverUrl, model.platform)
                                 onOpened: page.openDetail(model.gameKey, model.name, model.installPath,
                                                           model.platformLabel, model.direct3d, model.arch,
-                                                          model.statusText, model.statusKind, model.coverUrl)
+                                                          model.statusText, model.statusKind, model.coverUrl,
+                                                          model.platform)
                             }
                         }
                     }
@@ -536,7 +538,8 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: page.openDetail(row.gameKey, row.name, row.installPath,
                                                        row.platformLabel, row.direct3d, row.arch,
-                                                       row.statusText, row.statusKind, row.coverUrl)
+                                                       row.statusText, row.statusKind, row.coverUrl,
+                                                       row.platform)
                         }
 
                         // Circular cover thumbnail.
@@ -548,7 +551,7 @@ Item {
                             anchors.left: parent.left
                             anchors.leftMargin: Th.space3
                             anchors.verticalCenter: parent.verticalCenter
-                            color: Th.platformColor((row.platformLabel || "").toLowerCase())
+                            color: Th.platformColor((row.platform || "").toLowerCase())
                             clip: true
 
                             Image {
@@ -620,7 +623,8 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             onClicked: page.openDetail(row.gameKey, row.name, row.installPath,
                                                        row.platformLabel, row.direct3d, row.arch,
-                                                       row.statusText, row.statusKind, row.coverUrl)
+                                                       row.statusText, row.statusKind, row.coverUrl,
+                                                       row.platform)
                         }
 
                         BarButton {

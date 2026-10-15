@@ -9,6 +9,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QTranslator  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 
 from dxvk_toolkit import steam  # noqa: E402
@@ -123,6 +124,60 @@ class ConfigListModelDocTests(unittest.TestCase):
             i for i, row in enumerate(model._rows) if row.get("kind") == "header"
         )
         self.assertIsNone(model.data(model.index(header, 0), ConfigListModel.DocRole))
+
+
+class GameListModelPlatformI18nTests(unittest.TestCase):
+    """T23: platform labels follow the UI language, raw keys stay raw.
+
+    "platformLabel" is what cards, list rows and filter chips display, so it
+    goes through _tr(). "platform" keeps the source key (steam, mihoyo, …)
+    because filtering and the QML platform colors match on it — 米哈游 used
+    to leak into the English UI and never matched the color table either.
+    """
+
+    def setUp(self) -> None:
+        self._app = QGuiApplication.instance() or QGuiApplication(["tests"])
+        self._translator = QTranslator(self._app)
+        qm = Path(__file__).resolve().parent.parent / "assets" / "i18n" / "app_en.qm"
+        self.assertTrue(qm.is_file(), f"missing catalogue {qm} - run the i18n pipeline")
+        self.assertTrue(self._translator.load(str(qm)), f"cannot load {qm}")
+        self._app.installTranslator(self._translator)
+
+        from dxvk_toolkit.paths import settings
+
+        settings.set("games_sort", "name:asc", save=False)
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.model = GameListModel()
+        self.model.set_games([
+            steam.game_from_folder(base / "manual", "Manual Game"),
+            steam.Game(appid="12345", name="Genshin", install_dir=base / "genshin",
+                       source="mihoyo"),
+        ])
+
+    def tearDown(self) -> None:
+        self._app.removeTranslator(self._translator)
+        self.tmp.cleanup()
+
+    def test_platform_label_is_translated(self) -> None:
+        labels = {row["name"]: row["platformLabel"] for row in self.model._all_rows}
+        self.assertEqual(labels["Manual Game"], "Manual")
+        self.assertEqual(labels["Genshin"], "miHoYo")
+
+    def test_raw_platform_key_is_kept(self) -> None:
+        keys = {row["name"]: row["platform"] for row in self.model._all_rows}
+        self.assertEqual(keys["Manual Game"], "manual")
+        self.assertEqual(keys["Genshin"], "mihoyo")
+
+    def test_filter_chips_are_translated(self) -> None:
+        options = {opt["value"]: opt["label"] for opt in self.model.platform_options()}
+        self.assertEqual(options[""], "All")
+        self.assertEqual(options["manual"], "Manual")
+        self.assertEqual(options["mihoyo"], "miHoYo")
+
+    def test_filtering_still_matches_the_raw_key(self) -> None:
+        self.model.apply_filter("", "mihoyo", "all")
+        self.assertEqual([row["name"] for row in self.model._rows], ["Genshin"])
 
 
 if __name__ == "__main__":

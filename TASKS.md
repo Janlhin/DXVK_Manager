@@ -27,7 +27,7 @@
 | T20 | **整体重写：编译语言 + 从零 I18N（终极形态评估）** | refactor | — | 特大 | 待裁决（**最核心长线项**） | 语言候选 Go / Rust / C++ / C# / TypeScript；PS7 定位为编排层、不作重写主体；i18n 自首日起为架构约束而非事后补丁；裁决点与可复用资产见下方附注 |
 | T21 | 配置页文档角标 + 提示卡排版重构（§34） | feat | — | 中 | 🔄 实现中 | 选项行 label 右侧 ⓘ 角标 → 可滚动文档卡：说明/示例/DXVK 原文三区、示例与原文等宽暗底代码块、高度封顶 70%、✕ 与点外部关闭；`ConfigListModel` 选项行新增 `doc` role（`OptionGroup.doc_parts()`）；悬停 DarkTip 保留显示中文摘要 |
 | T22 | README / THIRD_PARTY_NOTICES 措辞批改 | docs | — | 低 | ✅ 已完成（2026-10-15） | 「Python 重写版」→「独立实现，未复制任何第三方代码；功能设计参考其行为」（THIRD_PARTY_NOTICES §3 同步）；删过时的「未实现：封面图显示」；「两类文件」→ 补 dxvk.conf 与伴生文件；界面表补设置页新卡片、游戏墙三段分组、ⓘ 文档角标；「本机 py -3.13」→「于 Python 3.13 验证」、命令统一 `py -3`；开头依赖去重；《用 AI 做项目》书名引用改为指向 AGENTS.md |
-| T23 | 平台标签 i18n（米哈游 / 手动添加） | fix | — | 低 | 待实现 | `PLATFORM_LABELS` 仅米哈游/手动添加是中文且 `models.py` 组装 `platformLabel` 未过 `_tr`：行数据与筛选下拉均过 `_tr`；`i18n_fill.py` GAME_LIST_MODEL 补 `米哈游→miHoYo`、`手动添加→Manual`（其余平台名一并登记防漏）；英文界面真机验证 |
+| T23 | 平台标签 i18n（米哈游 / 手动添加） | fix | — | 低 | ✅ 已完成（2026-10-15，待真机英文验证） | `models.py` 行数据与筛选 chip 的 platformLabel 均过 `_tr`；`i18n_fill.py` GAME_LIST_MODEL 补 10 个平台名 + 「全部」共 11 词条；管线重跑 290 条全译；新增 4 个模型测试（翻译/原始键/筛选/过滤）；QML 配色与详情弹窗改走原始 platform key（顺带修复米哈游/Battle.net 平台色从未命中的老问题）；英文探测 0 failures |
 | T24 | 版本库元数据补全（CLI 下载路径） | fix | — | 低 | 待复验 | 症状：v3.1.1 详情面板日期/大小显示 "-"（`--download` 只解压不更新 releases 缓存元数据）。修复：`--download` 成功后失效该 kind 的 releases 缓存（下次进页面强制刷新）；详情面板 date/size 恢复真实值；详情面板旁疑似残留文案（截图"尚未下载"四字在现行代码中不存在）待用户重启应用后复验 |
 
 ## T20 附注：编译语言重写 + 从零 I18N

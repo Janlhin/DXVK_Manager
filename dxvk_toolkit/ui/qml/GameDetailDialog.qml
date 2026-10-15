@@ -15,6 +15,7 @@ Dialog {
     property string gameName: ""
     property string installPath: ""
     property string platformLabel: ""
+    property string platform: ""      // raw source key, drives the color only
     property string direct3d: ""
     property string arch: ""
     property string statusText: ""
@@ -180,7 +181,7 @@ Dialog {
                     width: 200
                     height: 300
                     radius: Th.radiusCard
-                    color: Th.platformColor(sheet.platformLabel.toLowerCase())
+                    color: Th.platformColor(sheet.platform.toLowerCase())
                     clip: true
 
                     Image {

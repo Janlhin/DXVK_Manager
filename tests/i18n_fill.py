@@ -355,6 +355,21 @@ GAME_LIST_MODEL = {
     "兼容性": "Compatibility",
     "显示与诊断": "Rendering and diagnostics",
     "其他": "Other",
+    # Platform labels from steam.PLATFORM_LABELS, routed through _tr() when the
+    # row data and the filter chips are built. Most are identical in English;
+    # they are registered so a renamed label cannot silently stay Chinese.
+    "Steam": "Steam",
+    "Epic": "Epic",
+    "GOG": "GOG",
+    "Ubisoft": "Ubisoft",
+    "Battle.net": "Battle.net",
+    "Riot": "Riot",
+    "WeGame": "WeGame",
+    "米哈游": "miHoYo",
+    "EA": "EA",
+    "itch.io": "itch.io",
+    "手动添加": "Manual",
+    "全部": "All",
 }
 
 TABLES = {

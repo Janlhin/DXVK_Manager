@@ -151,7 +151,10 @@ class GameListModel(QAbstractListModel):
                 "name": game.name,
                 "nameZh": "",
                 "platform": game.source,
-                "platformLabel": game.platform_label,
+                # Translated at build time: the UI language is fixed until the
+                # next restart, and set_games runs on every (re)scan. Raw keys
+                # stay in "platform" for filtering and the QML platform colors.
+                "platformLabel": _tr(game.platform_label),
                 "direct3d": "",
                 "arch": "",
                 "statusText": "",
@@ -377,12 +380,12 @@ class GameListModel(QAbstractListModel):
                 counts[platform] = 0
                 order.append(platform)
             counts[platform] += 1
-        options = [{"value": "", "label": "全部", "count": len(self._all_rows)}]
+        options = [{"value": "", "label": _tr("全部"), "count": len(self._all_rows)}]
         for platform in order:
             options.append(
                 {
                     "value": platform,
-                    "label": labels.get(platform, platform.title()),
+                    "label": _tr(labels.get(platform, platform.title())),
                     "count": counts[platform],
                 }
             )

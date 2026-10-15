@@ -41,6 +41,11 @@ SPOT_CHECKS = (
     ("SettingsPage", "界面语言", "Interface language"),
     ("Bridge", "正在扫描游戏库…", "Scanning the game library…"),
     ("GameListModel", "未安装", "Not installed"),
+    # Platform labels reach the UI through _tr() with a variable source, so
+    # lupdate never sees them - the catalogue entry is the only guard (T23).
+    ("GameListModel", "米哈游", "miHoYo"),
+    ("GameListModel", "手动添加", "Manual"),
+    ("GameListModel", "全部", "All"),
 )
 
 
