@@ -459,6 +459,7 @@ class ConfigListModel(QAbstractListModel):
     SummaryRole = Qt.UserRole + 10
     KindRole = Qt.UserRole + 11
     BuildRole = Qt.UserRole + 12
+    DocRole = Qt.UserRole + 13
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -494,6 +495,7 @@ class ConfigListModel(QAbstractListModel):
             self.SummaryRole: b"summary",
             self.KindRole: b"rowKind",
             self.BuildRole: b"build",
+            self.DocRole: b"doc",
         }
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
@@ -516,6 +518,7 @@ class ConfigListModel(QAbstractListModel):
             self.SummaryRole: "summary",
             self.KindRole: "kind",
             self.BuildRole: "build",
+            self.DocRole: "doc",
         }
         field = mapping.get(role)
         return row.get(field) if field else None
@@ -525,12 +528,18 @@ class ConfigListModel(QAbstractListModel):
         self._all = []
         for group in groups:
             placeholder = _placeholder_for(group)
+            doc_summary, doc_example, doc_original = group.doc_parts()
             self._all.append(
                 {
                     "key": group.key,
                     "label": group.label,
                     "description": group.tooltip(),
                     "summary": group.summary(),
+                    "doc": {
+                        "summary": doc_summary,
+                        "example": doc_example,
+                        "original": doc_original,
+                    },
                     "type": group.type,
                     "example": placeholder,
                     "section": group.members[0].section if group.members else "",

@@ -127,6 +127,9 @@ CONFIG_PAGE = {
     "还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。":
         "No config options available yet.\nDownload any DXVK version on the Versions page first (it bundles a reference file), or point to a dxvk.conf manually in Settings.",
     "GPLAsync 专有": "GPLAsync only",
+    "说明": "Summary",
+    "示例": "Example",
+    "DXVK 原文": "Upstream text",
     "dxvk.conf 预览": "dxvk.conf preview",
     "带注释": "Comments",
     "复制": "Copy",

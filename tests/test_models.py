@@ -78,5 +78,52 @@ class GameListModelGroupingTests(unittest.TestCase):
         )
 
 
+class ConfigListModelDocTests(unittest.TestCase):
+    """T21: the doc role carries the sectioned documentation for the ⓘ card."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._app = QGuiApplication.instance() or QGuiApplication(["tests"])
+
+    def test_doc_role_carries_three_parts(self) -> None:
+        from dxvk_toolkit import confspec
+        from dxvk_toolkit.ui.models import ConfigListModel
+
+        model = ConfigListModel()
+        model.set_groups(confspec.load_model().groups)
+        docs = [row["doc"] for row in model._all if row.get("kind") == "option"]
+        self.assertTrue(docs)
+        for doc in docs:
+            self.assertIsInstance(doc, dict)
+            for field in ("summary", "example", "original"):
+                self.assertIn(field, doc)
+        # Every option documents itself: the example is a key line (the
+        # qualifier follows the section - dxvk./dxgi./d3d9.) and the raw
+        # upstream block is always available.
+        for doc in docs:
+            self.assertIn("=", doc["example"])
+            self.assertTrue(doc["original"])
+        # Curated Chinese summaries exist for at least the common keys.
+        self.assertTrue(any(doc["summary"] for doc in docs))
+
+    def test_doc_role_reachable_through_data(self) -> None:
+        from dxvk_toolkit import confspec
+        from dxvk_toolkit.ui.models import ConfigListModel
+
+        model = ConfigListModel()
+        model.set_groups(confspec.load_model().groups)
+        position = next(
+            i for i, row in enumerate(model._rows) if row.get("kind") == "option"
+        )
+        doc = model.data(model.index(position, 0), ConfigListModel.DocRole)
+        self.assertIsInstance(doc, dict)
+        self.assertIn("original", doc)
+        # Header rows carry no doc.
+        header = next(
+            i for i, row in enumerate(model._rows) if row.get("kind") == "header"
+        )
+        self.assertIsNone(model.data(model.index(header, 0), ConfigListModel.DocRole))
+
+
 if __name__ == "__main__":
     unittest.main()

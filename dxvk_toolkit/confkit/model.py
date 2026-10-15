@@ -121,18 +121,28 @@ class OptionGroup:
             joined = self.comment.strip()
         return joined[:limit] + ("…" if len(joined) > limit else "")
 
-    def tooltip(self) -> str:
-        """Full documentation for a hover tooltip: Chinese, example, English."""
-        parts: list[str] = []
+    def doc_parts(self) -> tuple[str, str, str]:
+        """The documentation split for a sectioned doc card: (说明, 示例, 原文).
+
+        说明 is the curated Chinese text when a translation exists; 原文 is the
+        raw English block from dxvk.conf and is always available. Callers lay
+        the three parts out as separate visual sections instead of one blob.
+        """
         translated = documentation_overrides().get(self.key, "")
-        if translated:
-            parts.append(translated)
         example = " | ".join(
             f"{member.qualified} = {member.example or _default_example(self.type)}"
             for member in self.members
         )
-        parts.append(f"示例：{example}")
         original = self.description_en()
+        return (translated, example, original)
+
+    def tooltip(self) -> str:
+        """Full documentation for a hover tooltip: Chinese, example, English."""
+        translated, example, original = self.doc_parts()
+        parts: list[str] = []
+        if translated:
+            parts.append(translated)
+        parts.append(f"示例：{example}")
         if translated and original:
             parts.append("【DXVK 原文】\n" + original)
         elif original:
