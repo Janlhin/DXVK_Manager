@@ -70,3 +70,15 @@
 - 被否决替代：仅加滚动条不改分区（排版层次依旧差）；改用 Markdown 渲染
   （TextEdit Markdown 对代码块样式控制弱，且上游原文不是规范 Markdown）。
 - 理由：核心层已可 100% 复用，等功能待办清完、界面不再大改后再评估重构（见 `TASKS.md` 的 bridge 拆分）。
+
+== 2026-10-15 项目许可变更为 GPL-3.0
+
+- 决策：本项目代码许可由 MIT 变更为 **GPL-3.0**（GNU General Public License v3.0）：
+  `LICENSE` 全文替换为 GNU 官方 GPLv3 文本；`README.md`「许可证与致谢」与
+  `THIRD_PARTY_NOTICES.md`（首句、§4 结语）同步更新；版权行 © 2026 DXVK Version Manager
+  （Python edition）贡献者随 README 保留。
+- 被否决的替代方案：沿用 MIT——与「项目 License 是 GPL 3.0」的明确定位不符。
+- 理由与影响：① 版权人自主的单向兼容变更，无第三方障碍（PySide6/Pillow 为运行时依赖、
+  不并入源码；`assets/dxvk.conf` 为 zlib，可并入 GPL 项目）；② 与 §30「外部参考克隆
+  不入库、不复制代码」的隔离决策不冲突；③ GitHub licensee 识别将由 MIT 自动更新为
+  GPL-3.0；④ v1.0.0 Release 说明补充「许可证」章节。

@@ -135,7 +135,7 @@
 
 ## 许可证与致谢
 
-* 本项目代码：MIT（见 `LICENSE`）
+* 本项目代码：GPL-3.0（GNU General Public License v3.0，见 `LICENSE`）；© 2026 DXVK Version Manager（Python edition）贡献者
 * 内置的 `assets/dxvk.conf` 来自 [doitsujin/dxvk](https://github.com/doitsujin/dxvk)（zlib 许可），
   为该项目的配置参考文件原文
 * DXVK © doitsujin 及贡献者；DXVK-gplasync 由 Ph42oN 维护；两者均由本工具下载安装，授权不变
