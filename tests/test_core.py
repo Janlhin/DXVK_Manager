@@ -229,6 +229,46 @@ class SteamTests(unittest.TestCase):
             self.assertTrue(steam.scan_runtime_dlls(root)["d3d11.dll"])
             self.assertEqual(steam.guess_direct3d(root), "Direct3D 11")
 
+    def test_detect_arch_follows_main_exe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            make_fake_pe(root / "EAC.exe", 0x014C)  # 32-bit helper in the root
+            exe = bin_dir / "game.exe"
+            make_fake_pe(exe, 0x8664)
+            with exe.open("ab") as handle:
+                handle.write(b"\x00" * 0x2000)  # the real binary is the big one
+            self.assertEqual(steam.detect_arch(root), "x64")
+
+    def test_describe_game_sees_bin_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            exe = bin_dir / "game.exe"
+            make_fake_pe(exe, 0x8664)
+            with exe.open("ab") as handle:
+                handle.write(b"\x00" * 0x2000)
+            (bin_dir / "d3d11.dll").write_bytes(b"x")
+            (bin_dir / "dxgi.dll").write_bytes(b"x")
+            info = steam.describe_game(root, persist=False)
+            self.assertEqual(info["direct3d"], "Direct3D 11")
+            self.assertEqual(info["arch"], "x64")
+
+    def test_folder_stamp_tracks_dll_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            make_fake_pe(bin_dir / "game.exe", 0x8664)
+            (bin_dir / "d3d11.dll").write_bytes(b"x")
+            stamp_before = steam._folder_stamp(root)
+            # Touching the bin directory (DLLs landed or were removed there)
+            # must invalidate the stamp - the root mtime alone never changes.
+            os.utime(bin_dir, (1_500_000_000, 1_500_000_000))
+            self.assertNotEqual(stamp_before, steam._folder_stamp(root))
+
 
 class ResolveDllDirTests(unittest.TestCase):
     """DXVK lives next to the main executable, which is not always the root."""

@@ -770,11 +770,13 @@ def _safe_size(path: Path) -> int:
 
 def detect_arch(game_dir: str | os.PathLike[str]) -> str:
     """x32/x64 of the game's main executable, or an empty string."""
-    from .util import guess_main_executable, pe_machine
+    from .util import biggest_executable, pe_machine
 
-    exe, arch = guess_main_executable(game_dir)
-    if arch in ("x32", "x64"):
-        return arch
+    exe = biggest_executable(game_dir)
+    if exe is not None:
+        arch = pe_machine(exe)
+        if arch in ("x32", "x64"):
+            return arch
     # Fall back to any executable we can read a header from.
     for candidate in iter_executables(game_dir, max_depth=1):
         found = pe_machine(candidate)
@@ -812,10 +814,28 @@ def _load_detect_cache() -> dict[str, dict[str, str]]:
 
 
 def _folder_stamp(game_dir: str | os.PathLike[str]) -> str:
+    """Invalidation signal for a detection cache entry.
+
+    The root's mtime alone is not enough: the DLLs live next to the
+    executable, often in a subdirectory, and writing or removing them does
+    not touch the root - the old stamp kept stale "Unknown/x32" detections
+    alive forever. The directory the DLLs resolve to is folded in, so its
+    changes invalidate the entry as well.
+    """
+    from .util import resolve_dll_dir
+
     try:
-        return str(int(Path(game_dir).stat().st_mtime))
+        parts = [str(int(Path(game_dir).stat().st_mtime))]
     except OSError:
         return "0"
+    root = Path(game_dir)
+    dll_dir = resolve_dll_dir(root, KNOWN_DLLS)
+    if dll_dir != root:
+        try:
+            parts.append(str(int(dll_dir.stat().st_mtime)))
+        except OSError:
+            pass
+    return ":".join(parts)
 
 
 def flush_detect_cache() -> None:

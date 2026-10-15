@@ -320,10 +320,10 @@ Dialog {
                             onClicked: { bridge.adoptDxvk(sheet.gameKey, true); sheet.close() }
                             background: Rectangle {
                                 radius: Th.radiusControl
-                                color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                                color: parent.hovered ? Th.okHover : Th.ok
                             }
                             contentItem: Text {
-                                text: parent.text; color: Th.text
+                                text: parent.text; color: Th.primaryText
                                 font.pixelSize: Th.fontSmall
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
@@ -591,13 +591,20 @@ Dialog {
                     Button {
                         text: qsTr("移除 DXVK")
                         padding: 6
-                        onClicked: { bridge.removeDxvk(sheet.gameKey); sheet.close() }
+                        onClicked: {
+                            if (sheet.fp.managed === false && sheet.fpHasDxvk) {
+                                removeConfirm.open()
+                                return
+                            }
+                            bridge.removeDxvk(sheet.gameKey)
+                            sheet.close()
+                        }
                         background: Rectangle {
                             radius: Th.radiusControl
-                            color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                            color: parent.hovered ? Th.errorHover : Th.error
                         }
                         contentItem: Text {
-                            text: parent.text; color: Th.text
+                            text: parent.text; color: Th.primaryText
                             font.pixelSize: Th.fontSmall
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -620,6 +627,90 @@ Dialog {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // A foreign DXVK install (never installed through this tool) is the
+    // user's own property - deleting it is irreversible from here, so the
+    // red remove button asks once before touching files it did not create.
+    Dialog {
+        id: removeConfirm
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 120, 440)
+        padding: Th.space5
+        Overlay.modal: Rectangle { color: "#99000000" }
+        background: Rectangle {
+            radius: Th.radiusCard
+            color: Th.surface
+            border.width: 1
+            border.color: Th.border
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Th.space3
+
+            Text {
+                text: qsTr("移除未接管的 DXVK？")
+                color: Th.text
+                font.pixelSize: Th.fontTitle
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            Text {
+                text: qsTr("这套 DXVK 不是本工具安装的，移除后无法通过本工具还原。")
+                      + (sheet.fp.version !== ""
+                         ? "\n" + qsTr("即将删除：DXVK v%1。").arg(sheet.fp.version)
+                         : "")
+                color: Th.textMuted
+                font.pixelSize: Th.fontSmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Th.space2
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: qsTr("取消")
+                    padding: 6
+                    onClicked: removeConfirm.close()
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.surfaceHover : Th.surfaceAlt
+                    }
+                    contentItem: Text {
+                        text: parent.text; color: Th.text
+                        font.pixelSize: Th.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                Button {
+                    text: qsTr("仍要移除")
+                    padding: 6
+                    onClicked: {
+                        removeConfirm.close()
+                        bridge.removeDxvk(sheet.gameKey)
+                        sheet.close()
+                    }
+                    background: Rectangle {
+                        radius: Th.radiusControl
+                        color: parent.hovered ? Th.errorHover : Th.error
+                    }
+                    contentItem: Text {
+                        text: parent.text; color: Th.primaryText
+                        font.pixelSize: Th.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
             }

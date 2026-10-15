@@ -199,6 +199,12 @@ GAME_DETAIL = {
     "接管并补还原点": "Adopt + build restore points",
     "接管后此 DXVK 归本工具管理：显示版本、可直接升级；还原点从 Windows 系统目录补建（并非游戏原始文件）。":
         "After adoption this DXVK is managed here: its version is shown and upgrades work directly; restore points are built from the Windows system directories (they are not the game's original files).",
+    "移除未接管的 DXVK？": "Remove the unmanaged DXVK?",
+    "这套 DXVK 不是本工具安装的，移除后无法通过本工具还原。":
+        "This DXVK was not installed by this tool; once removed it cannot be restored here.",
+    "即将删除：DXVK v%1。": "About to delete: DXVK v%1.",
+    "取消": "Cancel",
+    "仍要移除": "Remove anyway",
 }
 
 GAMES_PAGE = {

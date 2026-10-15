@@ -22,8 +22,10 @@ var accent = "#58a6ff"
 var accentHover = "#79c0ff"
 var accentDark = "#1f6feb"
 var ok = "#3fb950"
+var okHover = "#2ea043"
 var warn = "#d29922"
 var error = "#f85149"
+var errorHover = "#da3630"
 var gold = "#d29922"
 
 // Filled buttons: a solid accent with dark text is unreadable at this size,
