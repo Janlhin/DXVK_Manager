@@ -998,39 +998,34 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
         <translation>Official resources</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="486" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="500" />
         <source>鸣谢</source>
         <translation>Credits</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="534" />
-        <source>许可：%1</source>
-        <translation>License: %1</translation>
-    </message>
-    <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="551" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="507" />
         <source>查看完整第三方声明</source>
         <translation>View full third-party notices</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="567" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="594" />
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="570" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="597" />
         <source>DXVK Version Manager · Python edition v%1
 界面：PySide6 + QML（Qt Quick）；核心逻辑为与界面无关的纯 Python 标准库实现。中文选项说明由本项目翻译，英文原文来自 DXVK 的 dxvk.conf。</source>
         <translation>DXVK Version Manager · Python edition v%1
 UI: PySide6 + QML (Qt Quick); the core logic is a pure Python standard-library implementation independent of the UI. The Chinese option descriptions are translated by this project; the English originals come from DXVK's dxvk.conf.</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="604" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="631" />
         <source>第三方声明</source>
         <translation>Third-Party Notices</translation>
     </message>
     <message>
-        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="639" />
+        <location filename="../../dxvk_toolkit/ui/qml/SettingsPage.qml" line="666" />
         <source>未找到第三方声明文件。</source>
         <translation>The third-party notices file was not found.</translation>
     </message>

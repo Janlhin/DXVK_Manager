@@ -476,68 +476,102 @@ Item {
             }
 
             // --- credits ---------------------------------------------------
+            // One cramped full-width row per entry read like a form dump;
+            // a two-column grid of compact cells halves the height and gives
+            // the eye a clean scan path. The notices link lives in the header
+            // row instead of dangling at the bottom edge.
             Card {
-                height: creditsColumn.height + 60
+                height: creditsBody.height + 32
+
                 Column {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 8
+                    id: creditsBody
+                    x: 16
+                    y: 16
+                    width: parent.width - 32
+                    spacing: 10
 
-                    SectionTitle { text: qsTr("鸣谢") }
-
-                    Column {
-                        id: creditsColumn
+                    Item {
                         width: parent.width
-                        spacing: 8
+                        height: 28
+
+                        SectionTitle {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("鸣谢")
+                        }
+
+                        FlatButton {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            padding: 6
+                            text: qsTr("查看完整第三方声明")
+                            // 「查看」就该在应用内直接读：此前是 explorer /select
+                            // 选中 .md 文件，窗口常被压在后面，.md 还未必有打开方式。
+                            onClicked: noticesDialog.open()
+                        }
+                    }
+
+                    GridLayout {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 8
+                        rowSpacing: 8
 
                         Repeater {
                             model: bridge.credits()
+
                             delegate: Rectangle {
-                                width: creditsColumn.width
-                                height: 62
+                                Layout.fillWidth: true
+                                implicitHeight: 56
                                 radius: Th.radiusSmall
-                                color: Th.surfaceAlt
+                                color: mouse.containsMouse ? Th.surfaceHover : Th.surfaceAlt
+                                Behavior on color { ColorAnimation { duration: 120 } }
 
-                                Column {
+                                Item {
                                     anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 4
+                                    anchors.margins: 10
 
-                                    Row {
-                                        width: parent.width
-                                        spacing: 8
+                                    Text {
+                                        anchors.left: parent.left
+                                        anchors.top: parent.top
+                                        text: modelData.name
+                                        color: Th.text
+                                        font.pixelSize: Th.fontSmall
+                                        font.bold: true
+                                    }
+
+                                    Rectangle {
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        width: licenseLabel.width + 12
+                                        height: 16
+                                        radius: 8
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: Th.border
 
                                         Text {
-                                            text: modelData.name
-                                            color: Th.text
-                                            font.pixelSize: Th.fontBody
-                                            font.bold: true
-                                        }
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: modelData.author
+                                            id: licenseLabel
+                                            anchors.centerIn: parent
+                                            text: modelData.license
                                             color: Th.textMuted
-                                            font.pixelSize: Th.fontCaption
+                                            font.pixelSize: Th.fontMicro
                                         }
-                                        Item { width: 1; height: 1 }
                                     }
+
                                     Text {
-                                        width: parent.width
-                                        text: modelData.role
-                                        color: Th.textDim
-                                        font.pixelSize: Th.fontCaption
-                                        wrapMode: Text.WordWrap
-                                        maximumLineCount: 2
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        text: qsTr("许可：%1").arg(modelData.license)
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        text: modelData.author + " · " + modelData.role
                                         color: Th.textDim
                                         font.pixelSize: Th.fontMicro
+                                        elide: Text.ElideRight
                                     }
                                 }
 
                                 MouseArea {
+                                    id: mouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -545,13 +579,6 @@ Item {
                                 }
                             }
                         }
-                    }
-
-                    FlatButton {
-                        text: qsTr("查看完整第三方声明")
-                        // 「查看」就该在应用内直接读：此前是 explorer /select
-                        // 选中 .md 文件，窗口常被压在后面，.md 还未必有打开方式。
-                        onClicked: noticesDialog.open()
                     }
                 }
             }

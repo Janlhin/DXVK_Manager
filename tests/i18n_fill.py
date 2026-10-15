@@ -250,7 +250,6 @@ SETTINGS_PAGE = {
     "打开数据目录": "Open data folder",
     "官方资源": "Official resources",
     "鸣谢": "Credits",
-    "许可：%1": "License: %1",
     "查看完整第三方声明": "View full third-party notices",
     "第三方声明": "Third-Party Notices",
     "未找到第三方声明文件。": "The third-party notices file was not found.",
