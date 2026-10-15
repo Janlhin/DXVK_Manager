@@ -301,12 +301,17 @@ Item {
                         }
                         Rectangle {
                             Layout.fillWidth: true
+                            // Height from the content: a bare Rectangle would
+                            // collapse to 0 and let the TextEdit overlap the
+                            // next section.
+                            implicitHeight: exampleText.implicitHeight + Th.space2 * 2
                             radius: Th.radiusSmall
                             color: Th.bg
                             border.width: 1
                             border.color: Th.border
 
                             TextEdit {
+                                id: exampleText
                                 x: Th.space3
                                 y: Th.space2
                                 width: parent.width - Th.space5
@@ -334,12 +339,14 @@ Item {
                         }
                         Rectangle {
                             Layout.fillWidth: true
+                            implicitHeight: originalText.implicitHeight + Th.space2 * 2
                             radius: Th.radiusSmall
                             color: Th.bg
                             border.width: 1
                             border.color: Th.border
 
                             TextEdit {
+                                id: originalText
                                 x: Th.space3
                                 y: Th.space2
                                 width: parent.width - Th.space5
