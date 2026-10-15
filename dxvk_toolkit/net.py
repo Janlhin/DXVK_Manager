@@ -27,6 +27,11 @@ USER_AGENT = "DXVK-Version-Manager-Py/1.0 (+https://github.com/artmakh/dxvk-vers
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_RETRIES = 3
 
+# Console-less (PyInstaller windowed) builds must not flash console windows:
+# spawning a console binary like curl.exe would otherwise create a visible
+# console for every call. CREATE_NO_WINDOW is Windows-only; 0 elsewhere.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 
 class NetworkError(RuntimeError):
     """Raised when every transport failed for a URL."""
@@ -125,7 +130,7 @@ def _curl_get(url: str, proxy: str | None, timeout: float, headers: dict[str, st
         command += ["-H", f"{name}: {value}"]
     if proxy:
         command += ["--proxy", proxy]
-    completed = subprocess.run(command + [url], capture_output=True)
+    completed = subprocess.run(command + [url], capture_output=True, creationflags=_NO_WINDOW)
     if completed.returncode != 0:
         raise NetworkError(
             f"curl failed with code {completed.returncode}: "
@@ -213,7 +218,12 @@ def _curl_download(
     if proxy:
         command += ["--proxy", proxy]
     command.append(url)
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        creationflags=_NO_WINDOW,
+    )
     total = 0
     while process.poll() is None:
         if cancel is not None and cancel.is_set():
