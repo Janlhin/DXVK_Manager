@@ -64,6 +64,7 @@
 | 类型不一致 | ✔（pyright basic） | ✔ | ✔ | 门禁为 0 errors；UI 层 PySide6 动态属性属已知 warning
 | 界面回归 | 手动 | qml_smoke（需显示） | ✔ | 无显示环境时转待裁决
 | QML 结构回归 | ✔（qml_check.py） | ✔ | ✔ | 纯标准库，进 CI：import 可解析、id 唯一、`qsTr` 词条与 `objectName` 基线。拆分 QML 后不得增删界面文字与对象名
+| 英文词库漂移 | ✔（i18n_fill.py --check） | ✔ | ✔ | 纯标准库，进 CI：词库须与源码逐条一致。Qt 以 QML **文件名**为翻译 context，拆分即改名——拆分后必须重跑 `python tests/i18n_fill.py` 重建 `app_en.ts`，再用 `pyside6-lrelease` 编译 `app_en.qm`；`qml_check.py` 另设 context 门禁（每个 `qsTr` 必须存在于同名 context 下） |
 | QML 组件加载 | ✔（qml_components.py） | ✘ | ✔ | 组件级离屏逐个加载 20 个组件。CI 装 PySide6 会引入 200MB 下载与 Linux 系统库依赖，故只进本地 verify
 | 桥接契约 | ✔（test_bridge_contract.py） | ✔ | ✔ | 56 个槽 + 15 个信号的名称与参数个数；拆分 bridge 后 QML 侧零改动的硬约束
 |===

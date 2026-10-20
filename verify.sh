@@ -11,6 +11,9 @@ echo "== pytest: 全量核心套件（无 PySide6 时模型测试自动跳过）
 python -m pytest tests -q
 echo "== qml: 静态结构与词条基线（纯标准库）=="
 python tests/qml_check.py
+echo "== i18n: 英文词库与源码一致（纯标准库）=="
+# 词库必须与源码同步：QML 拆分会让 qsTr 的 context 改名，漏了就静默留中文。
+python tests/i18n_fill.py --check
 echo "== golden: 配置层金标准（逐字节比对）=="
 python tests/test_conf_golden.py
-echo "verify: ruff + pyright + tests + qml + golden OK"
+echo "verify: ruff + pyright + tests + qml + i18n + golden OK"

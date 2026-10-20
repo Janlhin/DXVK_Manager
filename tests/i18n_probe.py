@@ -34,12 +34,25 @@ WINDOWS_FONTS = (
 )
 
 # (context, source, expected English) — straight from assets/i18n/app_en.ts.
+# The context of a QML string is the file name of its QML file, so the config
+# page entries are spread over the nine components it was split into.
 SPOT_CHECKS = (
     ("GamesPage", "名称", "Name"),
     ("GamesPage", "平台", "Platform"),
-    ("ConfigPage", "带注释", "Comments"),
+    ("ConfigPreviewPane", "带注释", "Comments"),
+    ("ConfigToolbar", "搜索选项…", "Search options…"),
+    ("ConfigRail", "分类", "Categories"),
+    ("ConfigContextBar", "重置为默认", "Reset to defaults"),
+    ("ConfigOptionList", "GPLAsync 专有", "GPLAsync only"),
+    ("ConfigDocCard", "DXVK 原文", "Upstream text"),
+    ("ConfigGamePicker", "写入前会把已有的 dxvk.conf 备份为 .bkp",
+     "Any existing dxvk.conf is backed up as .bkp before writing"),
+    ("ConfigPresetDialog", "保存", "Save"),
     ("SettingsPage", "界面语言", "Interface language"),
+    ("VersionsPage", "Release 页", "Release page"),
     ("Bridge", "正在扫描游戏库…", "Scanning the game library…"),
+    ("Bridge", "内置预设不能覆盖，请换一个名字",
+     "Built-in presets cannot be overwritten - please pick another name"),
     ("GameListModel", "未安装", "Not installed"),
     # Platform labels reach the UI through _tr() with a variable source, so
     # lupdate never sees them - the catalogue entry is the only guard (T23).

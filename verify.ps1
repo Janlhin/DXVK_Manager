@@ -50,6 +50,11 @@ Write-Host '== qml: 静态结构与词条基线（纯标准库）=='
 & $PyExe @PyArgs tests/qml_check.py
 Assert-Step 'qml-check'
 
+Write-Host '== i18n: 英文词库与源码一致（纯标准库）=='
+# 词库必须与源码同步：QML 拆分会让 qsTr 的 context 改名，漏了就静默留中文。
+& $PyExe @PyArgs tests/i18n_fill.py --check
+Assert-Step 'i18n-check'
+
 Write-Host '== qml: 组件级离屏加载（需 PySide6，缺失时跳过）=='
 & $PyExe @PyArgs -c 'import PySide6' 2>$null
 if ($LASTEXITCODE -eq 0) {
@@ -63,5 +68,5 @@ Write-Host '== golden: 配置层金标准（逐字节比对）=='
 & $PyExe @PyArgs tests/test_conf_golden.py
 Assert-Step 'golden'
 
-Write-Host 'verify: ruff + pyright + tests + qml + golden OK'
+Write-Host 'verify: ruff + pyright + tests + qml + i18n + golden OK'
 exit 0

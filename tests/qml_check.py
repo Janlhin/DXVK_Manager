@@ -20,6 +20,12 @@ Three families of checks:
    a page into components must not add, drop or translate any user-facing
    string: the English catalogue is compiled from these strings, so a
    silent drop would leave an untranslated label in the English build.
+4. Translation contexts - Qt derives the context of a QML ``qsTr()`` from
+   the *file name* of the QML file. Every ``qsTr`` string must therefore
+   exist in ``assets/i18n/app_en.ts`` under a context named after its own
+   file. Splitting ``ConfigPage.qml`` into components silently renamed the
+   context and left half the page Chinese in the English build; this check
+   makes that class of regression impossible to miss.
 
 Run standalone::
 
@@ -36,11 +42,13 @@ from __future__ import annotations
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 QML_DIR = ROOT / "dxvk_toolkit" / "ui" / "qml"
 BASELINE = Path(__file__).resolve().parent / "qml_baseline.json"
+TS_CATALOGUE = ROOT / "assets" / "i18n" / "app_en.ts"
 
 # ``import "theme.js" as Th`` / ``import "../theme.js" as Th``
 IMPORT_RE = re.compile(r'^\s*import\s+"([^"]+)"', re.MULTILINE)
@@ -93,6 +101,79 @@ def check_ids(files: list[Path]) -> list[str]:
     return problems
 
 
+def _unescape(raw: str) -> str:
+    out: list[str] = []
+    i = 0
+    while i < len(raw):
+        ch = raw[i]
+        if ch == "\\" and i + 1 < len(raw):
+            out.append({"n": "\n", "t": "\t", "r": "\r", '"': '"',
+                        "\\": "\\", "'": "'"}.get(raw[i + 1], raw[i + 1]))
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def load_catalogue() -> dict[str, dict[str, str]]:
+    """context -> {source: translation} from assets/i18n/app_en.ts."""
+    catalogue: dict[str, dict[str, str]] = {}
+    if not TS_CATALOGUE.is_file():
+        return catalogue
+    root = ET.parse(TS_CATALOGUE).getroot()
+    for ctx in root.iter("context"):
+        name_el = ctx.find("name")
+        if name_el is None or not name_el.text:
+            continue
+        bucket: dict[str, str] = {}
+        for msg in ctx.findall("message"):
+            src = msg.find("source")
+            tr = msg.find("translation")
+            if src is None or src.text is None:
+                continue
+            bucket[src.text] = (tr.text or "") if tr is not None else ""
+        catalogue[name_el.text] = bucket
+    return catalogue
+
+
+def check_translation_contexts(files: list[Path]) -> list[str]:
+    """Every qsTr() must be translated under the context of its own QML file.
+
+    Qt uses the QML file name as the translation context. If the catalogue
+    does not carry that context, the English build silently falls back to the
+    Chinese source string - the page still renders, just half untranslated.
+    """
+    problems: list[str] = []
+    catalogue = load_catalogue()
+    if not catalogue:
+        return [f"{_rel(TS_CATALOGUE)} is missing or unreadable"]
+    for path in files:
+        context = path.stem
+        text = path.read_text(encoding="utf-8")
+        sources = {_unescape(raw) for raw in QSTR_ANY_RE.findall(text)}
+        if not sources:
+            continue
+        bucket = catalogue.get(context)
+        if bucket is None:
+            problems.append(
+                f"{_rel(path)}: no translation context '{context}' in "
+                f"{_rel(TS_CATALOGUE)} (the file was split or renamed)"
+            )
+            continue
+        for source in sorted(sources):
+            if source not in bucket:
+                problems.append(
+                    f"{_rel(path)}: '{source}' is not in context '{context}'"
+                )
+            elif not bucket[source].strip():
+                problems.append(
+                    f"{_rel(path)}: '{source}' has an empty translation in "
+                    f"context '{context}'"
+                )
+    return problems
+
+
 def collect_inventory(files: list[Path]) -> dict[str, list[str]]:
     """User-facing strings and object names, the things a split must not change."""
     strings: set[str] = set()
@@ -128,6 +209,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failures.extend(check_imports(files))
     failures.extend(check_ids(files))
+    failures.extend(check_translation_contexts(files))
 
     inventory = collect_inventory(files)
     baseline = load_baseline()
