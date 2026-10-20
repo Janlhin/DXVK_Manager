@@ -110,6 +110,19 @@ def test_wrap_comment_latin_token_integrity():
     assert "hello" in joined and "sentence" in joined
 
 
+def test_wrap_comment_keeps_the_space_between_latin_words():
+    """Latin words must not be glued together.
+
+    The token regex used to skip the whitespace, so an English sentence
+    came out as "SetsenabledHUDelements" and the Chinese documentation lost
+    the space in "relaxed fifo".
+    """
+    lines = wrap_comment("Sets enabled HUD elements Behaves like the variable", width=76)
+    body = " ".join(line[2:] if line.startswith("# ") else line for line in lines)
+    assert "Sets enabled HUD elements" in body
+    assert "Setsenabled" not in body
+
+
 def test_wrap_comment_cjk_double_width():
     from dxvk_toolkit.confkit.build import display_width
     text = "这是一段用来测试中文换行宽度是否正确的较长文字内容示例"

@@ -5,7 +5,8 @@
 # 意：如果系统里已有其他限帧工具，不要用这个。
 dxvk.maxFrameRate = 90
 # 撕裂控制，配合游戏内的垂直同步设置：True在关闭常规Vsync时使用mailbox呈现模
-# 式（彻底无撕裂，但部分系统不支持）；False使用relaxedfifo；Auto交给DXVK判断。
+# 式（彻底无撕裂，但部分系统不支持）；False使用relaxed fifo；Auto交给DXVK判
+# 断。
 dxvk.tearFree = True
 # 管线编译线程数。启用图形管线库时会用这些线程编译着色器，其中一部分预留给高
 # 优先级任务。0表示自动。
@@ -51,7 +52,7 @@ d3d9.maxFrameRate = 90
 d3d9.presentInterval = 1
 # 覆盖所有采样器的各向异性过滤：正值（1-16）强制开启，-1表示沿用游戏自身设置。
 d3d9.samplerAnisotropy = 16
-# 为所有采样器叠加mipmapLOD偏移，例如-0.5让纹理更锐利。默认0。
+# 为所有采样器叠加mipmap LOD偏移，例如-0.5让纹理更锐利。默认0。
 d3d9.samplerLodBias = -0.5
 
 # [d3d11]
@@ -60,5 +61,5 @@ d3d9.samplerLodBias = -0.5
 d3d11.maxFeatureLevel = 12_1
 # 覆盖所有采样器的各向异性过滤：正值（1-16）强制开启，-1表示沿用游戏自身设置。
 d3d11.samplerAnisotropy = 16
-# 为所有采样器叠加mipmapLOD偏移，例如-0.5让纹理更锐利。默认0。
+# 为所有采样器叠加mipmap LOD偏移，例如-0.5让纹理更锐利。默认0。
 d3d11.samplerLodBias = -0.5

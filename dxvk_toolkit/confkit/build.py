@@ -52,8 +52,10 @@ COMMENT_WIDTH = 76
 
 
 # Latin words stay whole; CJK has no spaces, so those characters are their own
-# tokens and a line can break between any two of them.
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_./\\:+=@-]+|[^\sA-Za-z0-9_./\\:+=@-]")
+# tokens and a line can break between any two of them. The whitespace between
+# two tokens is kept as its own token, so the words of an English sentence do
+# not end up glued together ("SetsenabledHUDelements").
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_./\\:+=@-]+|\s+|[^\sA-Za-z0-9_./\\:+=@-]")
 
 # Punctuation that must not start a line (the CJK "kinsoku" rule), so a comment
 # never begins with a stray full stop or bracket.
@@ -90,13 +92,20 @@ def wrap_comment(text: str, width: int = COMMENT_WIDTH) -> list[str]:
     limit = max(8, width - display_width("# "))
     lines: list[str] = []
     current = ""
-    for token in _TOKEN_RE.findall(" ".join(str(text).split())):
-        if token == " ":
+    tokens = _TOKEN_RE.findall(" ".join(str(text).split()))
+    for index, token in enumerate(tokens):
+        if not token.strip():
+            # Whitespace separates the words of a Latin sentence. It is kept
+            # only between two Latin words - the CJK text has no spaces of its
+            # own, and the space between a Chinese and a Latin word is not
+            # part of the source sentence.
+            if not _between_latin_words(tokens, index):
+                continue
             if current and not current.endswith(" "):
                 current += " "
             continue
         overflows = (current.strip()
-                     and display_width(current.rstrip()) + display_width(token) > limit)
+                     and display_width(current) + display_width(token) > limit)
         if overflows and token not in _NO_LINE_START:
             lines.append("# " + current.rstrip())
             current = ""
@@ -104,6 +113,28 @@ def wrap_comment(text: str, width: int = COMMENT_WIDTH) -> list[str]:
     if current.strip():
         lines.append("# " + current.rstrip())
     return lines or ["#"]
+
+
+def _between_latin_words(tokens: list[str], index: int) -> bool:
+    """Is the whitespace at ``index`` between two Latin words?"""
+    before = ""
+    for token in reversed(tokens[:index]):
+        if token.strip():
+            before = token
+            break
+    after = ""
+    for token in tokens[index + 1:]:
+        if token.strip():
+            after = token
+            break
+    if not before or not after:
+        return False
+    return _is_latin_word(before[-1]) and _is_latin_word(after[0])
+
+
+def _is_latin_word(char: str) -> bool:
+    """Is this character part of a Latin word (as opposed to CJK)?"""
+    return char.isascii() and (char.isalnum() or char in "_./\\:+=@-")
 
 
 def comment_block(group: OptionGroup, *, lang: str | None = None) -> list[str]:
