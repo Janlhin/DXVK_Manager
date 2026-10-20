@@ -2,7 +2,7 @@
 
 一个**核心层纯标准库** 🐍 的 Windows 🪟 桌面工具（图形界面需 PySide6、封面需 Pillow，均已在 `MANIFEST.md` 登记）：
 
-* 🔍 检测 Steam 游戏（含所有库文件夹）与手动添加的游戏目录
+* 🔍 检测 Steam / Epic / GOG / Ubisoft / WeGame / 米哈游 游戏与手动添加的游戏目录
 * 📦 下载 / 管理官方 DXVK 与 DXVK-GPLAsync 版本
 * ⚡ 一键为某个游戏安装 DXVK（自动备份原始 DLL，可随时还原）
 * ⚙️ **DXVK 配置生成器**：按官方 dxvk.conf 参考文件勾选选项，生成 dxvk.conf 并直接写入游戏目录
@@ -18,62 +18,74 @@
 
 🐍 需要 Python 3.10+（于 Python 3.13 验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
 
-    :: 启动图形界面
-    py -3 main.py
+    :: 一键启动：自动挑选可用解释器，必要时创建 .venv 并安装依赖
+    .\启动.ps1
 
-    :: 或者双击（无控制台窗口）
+    :: 或者直接用 Python 启动
+    python main.py
+
+    :: 双击（无控制台窗口）
     "DXVK Version Manager.pyw"
 
-🔎 首次启动会自动扫描 Steam 库，并在后台识别每款游戏的 Direct3D 版本与架构；
+> `py -3` 只在 Windows 的 Python 启动器注册过解释器时可用；若它报
+> “No suitable Python runtime found”，改用 `python` 或 `.\启动.ps1`。
+
+🔎 首次启动会自动扫描各平台游戏库，并在后台识别每款游戏的 Direct3D 版本与架构；
 识别结果会缓存到数据目录，之后启动是瞬时的 ⚡。
 
 ## 🖥️ 界面
 
 | 页面 | 作用 |
 | --- | --- |
-| **📦 DXVK 版本** | 列出官方 DXVK 全部发布版本，下载 / 删除本地副本，显示大小与日期 |
-| **🧵 GPLAsync 版本** | 同上，来源为 GitLab 上的 Ph42oN/dxvk-gplasync（async 分支） |
-| **🎮 已安装游戏** | Steam + 多平台（Epic / GOG / Ubisoft / WeGame / 米哈游）+ 手动目录；Direct3D / 架构 / DXVK 状态 / dxvk.conf 状态；安装、还原、移除、打开目录。「全部」视图按「已装 DXVK / 已装·未接管 / 未安装」三段分组 |
-| **⚙️ DXVK 配置** | 配置生成器：简单 / 进阶 / 完全 模式、搜索、实时预览、复制、导出、写入游戏目录；选项行 ⓘ 角标可查看说明、示例与 dxvk.conf 原文 |
-| **🔧 设置** | 离线模式、代理与下载源、参考文件（内置 / 自定义 / 按 tag 在线获取）、界面语言、dxvk.conf 注释开关、数据目录、存储与清理（缓存体积统计 / 清空缓存 / 清理失效记录） |
+| **🎮 游戏库** | Steam + Epic / GOG / Ubisoft / WeGame / 米哈游 + 手动目录；网格与列表两种视图、搜索、平台与 DXVK 状态筛选、列头排序；安装、还原、移除、打开目录、接管外来安装。「全部」视图按「已装 DXVK / 已装·未接管 / 未安装」三段分组 |
+| **📦 版本库** | 官方 DXVK 与 DXVK-GPLAsync 分段切换，列出全部发布版本；下载 / 删除本地副本，显示大小与日期；可把选中版本直接应用到某款游戏 |
+| **⚙️ 配置** | 配置生成器：简单 / 进阶 / 完全 模式、分类栏、搜索、实时预览、复制、导出、写入游戏目录、预设；选项行 ⓘ 角标可查看说明、示例与 dxvk.conf 原文 |
+| **🔧 设置** | 离线模式、代理与下载源、参考文件（内置 / 自定义 / 按 tag 在线获取）、界面语言、dxvk.conf 注释开关、数据目录、存储与清理（缓存体积统计 / 清空缓存 / 清理失效记录）、官方链接与鸣谢 |
 
 ## 💻 命令行
 
 ⌨️ 不用图形界面也能完成全部事情：
 
-    py -3 main.py --scan-games                     # 列出检测到的游戏
-    py -3 main.py --versions --limit 10            # 列出可下载版本
-    py -3 main.py --download v2.7.1                # 下载并解压一个版本
-    py -3 main.py --install v2.7.1 --game "D:\Games\Foo"
-    py -3 main.py --restore  --game "D:\Games\Foo"
-    py -3 main.py --status   --game "D:\Games\Foo"
-    py -3 main.py --fingerprint --game "D:\Games\Foo"     # 识别已有的 DXVK：版本 + 哈希比对
-    py -3 main.py --adopt --game "D:\Games\Foo"           # 接管已有安装（--backup-system 补还原点）
-    py -3 main.py --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
+    python main.py --scan-games                     # 列出检测到的游戏
+    python main.py --versions --limit 10            # 列出可下载版本
+    python main.py --download v2.7.1                # 下载并解压一个版本
+    python main.py --install v2.7.1 --game "D:\Games\Foo"
+    python main.py --restore  --game "D:\Games\Foo"
+    python main.py --status   --game "D:\Games\Foo"
+    python main.py --fingerprint --game "D:\Games\Foo"     # 识别已有的 DXVK：版本 + 哈希比对
+    python main.py --adopt --game "D:\Games\Foo"           # 接管已有安装（--backup-system 补还原点）
+    python main.py --gen-conf --set hud=fps --set maxFrameRate=60 -o dxvk.conf
 
 ## 📁 它把文件写到哪里
 
 🗂️ 全部集中在 `%LOCALAPPDATA%\DXVK-Version-Manager-Py`：
 
-    settings.json            设置
-    games.json               已安装 DXVK 的记录（哪款游戏、哪个版本、何时）
+    settings.json            设置（含每个游戏的配置快照与自定义预设）
+    games.json               已安装 DXVK 的记录（哪款游戏、哪个版本、何时、DLL 落点）
     dxvk-cache\<版本>\       解压好的官方 DXVK（x32 / x64）
-    dxvk-gplasync-cache\     解压好的 GPLAsync 版本
+    dxvk-gplasync-cache\     解压好的 GPLAsync 版本（目录名不带前导 v）
     releases\                版本列表缓存（离线时也能显示）
+    references\              按 tag 在线获取的 dxvk.conf 参考文件
     cache\detection.json     游戏的 Direct3D / 架构识别缓存
-    games-meta\              PCGamingWiki 元数据与封面缓存
+    games-meta\covers\       封面原图与卡片 / 圆形切片缓存
+    archives\                下载中的压缩包（默认下载完成即删除）
+    steam-names.json         Steam 中文名缓存（供搜索使用）
     logs\app.log             运行日志
 
-📂 游戏目录里通常只有三类文件：DXVK 的 DLL、安装时生成的 `<原名>.bkp` 备份，
-以及可选的 `dxvk.conf`（由配置生成器写入）。移除 DXVK 时还可勾选清理伴生文件：
-`dxvk.conf`、DXVK 日志（`*_d3d11.log` 等）与着色器缓存（`.dxvk-cache`）。
+📂 游戏目录里通常只有：DXVK 的 DLL（放在主程序 exe 旁边，很多游戏在 `bin\` 等子目录）、
+安装时生成的 `<原名>.bkp` 备份、可选的 `dxvk.conf`（已有同名文件时先备份为
+`dxvk.conf.bkp`），以及 DXVK 自己写的日志（`<exe>_d3d11.log` 等）与着色器缓存
+（`<exe>.dxvk-cache`）。移除 DXVK 时还可勾选清理这些伴生文件。
 ♻️ 点「还原原始 DLL」会把备份改回原名并删除 DXVK 的 DLL。
 
 ## 🛠️ 实现要点
 
 * 🕹️ **Steam 检测**：读注册表得到 Steam 安装位置，再解析 `libraryfolders.vdf`
   与每个 `appmanifest_*.acf`，因此 D 盘等其他库文件夹的游戏也能被发现。
-* 🔍 **Direct3D 识别（离线）**：按信号强度依次使用 —— 游戏根目录自带的 D3D 运行库 DLL、
+* 🧭 **其他平台**：Epic 读 EGL v2 的 `installations.jsonl` 权威清单，用
+  `catalog-cache.json` 反查标题（旧 `.item` 清单兜底）；GOG / Ubisoft / 米哈游读注册表；
+  WeGame 扫盘上的 `rail_apps\<名称>(<id>)`，用「<名称>卸载.exe」取中文名，注册表兜底。
+* 🔍 **Direct3D 识别（离线）**：按信号强度依次使用 —— 主程序所在目录自带的 D3D 运行库 DLL、
   D3D12 Agility SDK 标记文件（`D3D12Core.dll` 等，被加壳的游戏也带）、
   主 exe 的 PE 导入表、其余 exe 的导入表，最后才是 exe 中出现的模块名字符串
   （引擎常在次要代码路径里提到别的 D3D 模块，所以放在最后以防误判）。
@@ -92,9 +104,9 @@
   （安装目录名与 exe 名匹配 > PE 头有效 > 体积 > 层级深度），
   再以 exe 所在目录为准；根目录已有 DXVK 的旧安装保持原位不动。
 * 🌐 **网络**：标准库 `urllib`，失败时自动重试，并回退到系统 `curl.exe`；
-  代理默认「先直连，失败后尝试 Windows 系统代理」。
-* 📋 **版本列表**：优先 GitHub API；触发限流（未认证 60 次/小时）时自动改用
-  release atom feed + 可预测的下载直链；再不行就用本地缓存。
+  代理默认「先直连，失败后尝试 Windows 系统代理」；下载按「官方地址 → 可关闭的镜像」依次尝试。
+* 📋 **版本列表**：优先 GitHub API；触发限流（未认证 60 次/小时）时依次改用
+  jsDelivr 的 tag 列表、release atom feed + 可预测的下载直链；再不行就用本地缓存。
 * 🎛️ **配置生成器**：`dxvk.conf` 是唯一数据源 —— 解析其中的注释块、示例值与类型，
   按文件里的顺序呈现选项，因此 DXVK 新增选项时不需要改代码。
   生成时一个选项会写入它出现的**所有** section（例如 `dxvk/dxgi/d3d9.maxFrameRate`），
@@ -103,35 +115,42 @@
 
 ## 🆚 与原版的差异
 
-✅ 保留：Steam 游戏检测、官方 DXVK 与 GPLAsync 版本下载、按 Direct3D 版本决定 DLL 组合、
-`.bkp` 备份与还原、dxvk.conf 生成。
+✅ 保留：游戏检测（Steam 为主，另含 Epic / GOG / Ubisoft / WeGame / 米哈游）、官方 DXVK 与
+GPLAsync 版本下载、按 Direct3D 版本决定 DLL 组合、`.bkp` 备份与还原、dxvk.conf 生成。
 
 ✨ 改进：
 
 * 📚 所有 Steam 库文件夹都会扫描（原版硬编码 `C:\Program Files (x86)\Steam\steamapps`）
-* 📴 游戏识别完全离线（原版依赖 PCGamingWiki 接口；这里作为兜底，结果缓存 45 天）
+* 📴 游戏识别完全离线（原版依赖 PCGamingWiki 接口；这里全部由本地信号判定，
+  结果按目录时间戳缓存，重装或打补丁后自动重新识别）
 * 🛡️ GitHub 限流不影响使用（原版只调 API 且未分页，最多只能看到 30 个版本）
-* 🎛️ 配置生成器：简单模式覆盖 9 个常用项（原版 3 个）、支持搜索、
+* 🎛️ 配置生成器：简单模式覆盖 16 个常用项（原版 3 个）、支持搜索、
   切换 简单/进阶/完全 模式不会清空已填内容、生成文件带注释小节
-* 🀄 中文界面、⌨️ 命令行接口、🐍 纯标准库（原版需要 Node/Electron 运行时）
+* 🀄 中文界面（可热切换英文）、⌨️ 命令行接口、🐍 核心层与 CLI 纯标准库
+  （原版需要 Node/Electron 运行时）
 * 🔬 外来 DXVK 安装可指纹识别并接管（原版没有安装记录概念，混装后无法升级/还原）
 
 ## 🧪 开发 / 校验
 
 本项目的工程约束见 `AGENTS.md`。本地与 CI 共用唯一验收入口 `verify`：
 
-    # Windows
-    py -3 -m pip install -r requirements-dev.txt
+    # Windows（脚本会在 .venv / py -3 / python 之间挑一个可用解释器）
+    python -m pip install -r requirements-dev.txt
     .\verify.ps1
 
     # Linux / CI
     python -m pip install -r requirements-dev.txt
     bash verify.sh
 
-🤖 推送（或开 PR）后由 GitHub Actions（`.github/workflows/verify.yml`）权威判定：跑 `pytest` 核心套件、
-`ruff` 静态检查、以及 PR 提交信息的 Conventional Commits 规范。🖼️ GUI 冒烟测试 `tests/qml_smoke.py`
-需要显示环境，不在无显示 CI 的必过门禁内。📎 第三方来源登记见 `MANIFEST.md`；AI 协作约束见 `AGENTS.md`；
-决策与待裁决项见 `DECISIONS.md` / `TAKEOVER.md` / `TASKS.md`。
+`verify` 依次执行：`ruff`（零告警）、`pyright`（门禁为 0 errors）、`pytest tests`
+（全量核心套件；未安装 PySide6 时模型测试自动跳过）、`tests/test_conf_golden.py`
+（配置层逐字节金标准）。🤖 推送（或开 PR）后由 GitHub Actions
+（`.github/workflows/verify.yml`）权威判定：测试、`ruff`、`pyright`，以及 PR 提交信息的
+Conventional Commits 规范。🖼️ GUI 冒烟测试 `tests/qml_smoke.py` 需要显示环境，
+不在无显示 CI 的必过门禁内，改动界面后请在本机手动运行。📎 第三方来源登记见
+`MANIFEST.md`；AI 协作约束见 `AGENTS.md`；决策与待裁决项见
+`DECISIONS.md` / `TAKEOVER.md` / `TASKS.md`；最近一次代码与架构审计见
+`docs/audit/2026-10-20-audit.md`。
 
 ## 📜 许可证与致谢
 

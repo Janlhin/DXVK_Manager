@@ -42,8 +42,6 @@ $PyExe = $null
 $PyPre = @()
 
 $candidates = @(
-    @{ Exe = 'C:\Users\Janlhin\.local\bin\python.exe';                                  Pre = @() },
-    @{ Exe = 'C:\Users\Janlhin\.workbuddy\binaries\python\versions\3.13.12\python.exe'; Pre = @() },
     @{ Exe = 'py';      Pre = @('-3.13') },
     @{ Exe = 'py';      Pre = @('-3.12') },
     @{ Exe = 'py';      Pre = @('-3.11') },

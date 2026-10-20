@@ -58,8 +58,9 @@
 |===
 | 缺陷类型 | 本地 verify | CI 流水线 | 人工审查 | 备注
 
-| 逻辑行为错误 | ✔（pytest） | ✔ | — | 核心/金标准测试
-| 导入/死代码 | ✔（ruff+vulture） | ✔ | — | ruff 零警告（T6）；vulture 零报告（T7） |
-| 类型不一致 | ✔（pyright basic） | ✔ | ✔ | 核心层零错误；UI 层 PySide6 动态属性为已知 warning |
+| 逻辑行为错误 | ✔（pytest tests 全量） | ✔ | — | 含回滚、缓存保护、下载失败清理的回归用例
+| 配置层回归 | ✔（test_conf_golden.py） | ✔ | — | 90 个选项 + 12 份生成文件逐字节比对
+| 导入/死代码 | ⚠️ 仅 ruff（未使用导入等规则） | ✔ | ✔ | vulture 未接入门禁，T7 为一次性手动核查；审计已列出无引用符号清单
+| 类型不一致 | ✔（pyright basic） | ✔ | ✔ | 门禁为 0 errors；UI 层 PySide6 动态属性属已知 warning
 | 界面回归 | 手动 | qml_smoke（需显示） | ✔ | 无显示环境时转待裁决
 |===

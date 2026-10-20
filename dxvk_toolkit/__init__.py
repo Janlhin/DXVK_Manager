@@ -1,20 +1,24 @@
 """DXVK Version Manager - Python edition.
 
-A dependency-free (standard library only) reimplementation of the DXVK version
-manager concept, with a built-in dxvk.conf generator.
+A reimplementation of the DXVK version manager concept with a built-in
+dxvk.conf generator. The core is standard library only; the optional QML
+front end needs PySide6, and cover slicing needs Pillow.
 
 The package is split so that every piece can be used without a GUI:
 
-    paths      - where the app stores caches, settings and its ledger
-    util       - small helpers (PE headers, sizes, logging, shell integration)
-    net        - resilient HTTP with retries, proxy support and a curl fallback
-    steam      - Steam library discovery and appmanifest parsing
-    metadata   - optional PCGamingWiki enrichment with an on-disk cache
-    sources    - DXVK / DXVK-gplasync release listing, download and extraction
-    installer  - DLL planning, backup, install, restore and status detection
-    confspec   - parses a reference dxvk.conf into a UI-ready option model
-    confbuild  - turns user selections back into a dxvk.conf document
-    gui        - Tkinter front end
+    paths       - where the app stores caches, settings and its ledger
+    util        - small helpers (PE headers, sizes, logging, shell integration)
+    net         - resilient HTTP with retries, proxy support and a curl fallback
+    steam       - game discovery across launchers, D3D/arch detection
+    metadata    - PCGamingWiki enrichment (dormant, kept for the cover work)
+    sources     - DXVK / DXVK-gplasync listing, download and extraction
+    installer   - DLL planning, backup, install, restore and status detection
+    fingerprint - identify and adopt DXVK installed by other tools
+    confkit     - portable dxvk.conf toolkit (parse / curate / i18n / build)
+    confspec    - app-side entry point to the config layer
+    confbuild   - app-side alias for the dxvk.conf writer
+    covers      - cover download plus cached card/round slices
+    ui          - PySide6 + QML front end (bridge, models, qml/)
 """
 
 APP_NAME = "DXVK Version Manager"

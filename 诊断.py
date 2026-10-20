@@ -11,10 +11,13 @@ def line(s: str = "") -> None:
 
 
 def find_base_python() -> str | None:
-    candidates = [
-        r"C:\Users\Janlhin\.local\bin\python.exe",
-        r"C:\Users\Janlhin\.workbuddy\binaries\python\versions\3.13.12\python.exe",
-    ]
+    """First usable interpreter: the project venv, then PATH.
+
+    The old list hardcoded the author's profile paths, which are meaningless on
+    any other machine (and leaked that path into a public repository).
+    """
+    root = os.path.dirname(os.path.abspath(__file__))
+    candidates = [os.path.join(root, ".venv", "Scripts", "python.exe")]
     for c in candidates:
         if os.path.exists(c):
             return c
