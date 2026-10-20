@@ -9,8 +9,8 @@ The package is split so that every piece can be used without a GUI:
     paths       - where the app stores caches, settings and its ledger
     util        - small helpers (PE headers, sizes, logging, shell integration)
     net         - resilient HTTP with retries, proxy support and a curl fallback
-    steam       - game discovery across launchers, D3D/arch detection
-    metadata    - PCGamingWiki enrichment (dormant, kept for the cover work)
+    steam       - game discovery across launchers
+    detect      - offline Direct3D family / architecture detection
     sources     - DXVK / DXVK-gplasync listing, download and extraction
     installer   - DLL planning, backup, install, restore and status detection
     fingerprint - identify and adopt DXVK installed by other tools
@@ -18,7 +18,7 @@ The package is split so that every piece can be used without a GUI:
     confspec    - app-side entry point to the config layer
     confbuild   - app-side alias for the dxvk.conf writer
     covers      - cover download plus cached card/round slices
-    ui          - PySide6 + QML front end (bridge, models, qml/)
+    ui          - PySide6 + QML front end (bridge, models, config store, qml/)
 """
 
 APP_NAME = "DXVK Version Manager"
