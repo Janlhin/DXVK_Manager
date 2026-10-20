@@ -11,6 +11,9 @@ Rectangle {
     property string mode: "simple"
     property string importMessage: ""
     property int selectedCount: 0
+    // The standalone configurator opens .conf files through its own file
+    // bar, so the import button is hidden there.
+    property bool showImport: true
 
     // The search text belongs to the field; the page reads it back through
     // this read-only alias so the filter calls always use the same value.
@@ -83,6 +86,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("导入 dxvk.conf…")
             padding: 6
+            visible: toolbar.showImport
             onClicked: toolbar.importRequested()
             background: Rectangle {
                 radius: Th.radiusControl

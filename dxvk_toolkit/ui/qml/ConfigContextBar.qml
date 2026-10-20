@@ -16,6 +16,10 @@ Rectangle {
     property string statusKind: "muted"
     property string gameKey: ""
     property bool showStatus: false
+    // Whether the "what am I editing" half is shown. The standalone
+    // configurator has no game list - its target is the open .conf file - so
+    // it hides that half and keeps only the preset and bulk actions.
+    property bool showTarget: true
 
     signal targetActivated(int index)
     signal presetActivated(string name)
@@ -31,6 +35,7 @@ Rectangle {
         anchors.leftMargin: Th.pad
         anchors.verticalCenter: parent.verticalCenter
         spacing: Th.space2
+        visible: contextBar.showTarget
 
         Text {
             anchors.verticalCenter: parent.verticalCenter

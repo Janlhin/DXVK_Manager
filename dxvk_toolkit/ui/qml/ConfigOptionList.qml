@@ -25,6 +25,11 @@ ListView {
     // new value by hand).
     signal importMessageCleared()
 
+    // Shown when the catalogue is empty. The full application points at the
+    // Versions and Settings pages; the standalone configurator has neither,
+    // so it overrides this text.
+    property string emptyText: qsTr("还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。")
+
     clip: true
     model: configModel
     boundsBehavior: Flickable.StopAtBounds
@@ -49,7 +54,7 @@ ListView {
         anchors.centerIn: parent
         visible: configModel.optionCount === 0
         width: Math.min(420, optionList.width - 48)
-        text: qsTr("还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。")
+        text: optionList.emptyText
         color: Th.textDim
         font.pixelSize: Th.fontBody
         wrapMode: Text.WordWrap

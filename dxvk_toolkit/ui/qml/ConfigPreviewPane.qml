@@ -16,6 +16,15 @@ Item {
     property string gameKey: ""
     property string gameName: ""
 
+    // "game" (the full application) previews a file that will be written
+    // into a game folder; "file" (the standalone configurator) previews the
+    // .conf file that is open and writes it back.
+    property string mode: "game"
+
+    // Whether the write button is usable. The full application always can
+    // (it opens a game picker); the standalone sets it to "a file is open".
+    property bool writeEnabled: true
+
     signal writeRequested()
     signal gamePickerRequested()
     signal refreshRequested()
@@ -92,9 +101,17 @@ Item {
             Button {
                 id: writeButton
                 padding: 6
-                text: preview.gameKey !== "" ? qsTr("应用并写入 %1").arg(preview.gameName) : qsTr("写入游戏…")
+                // In "file" mode the button writes the result back to the
+                // .conf file that is open, so it is only enabled when there
+                // is one.
+                text: preview.mode === "file"
+                      ? qsTr("保存")
+                      : (preview.gameKey !== "" ? qsTr("应用并写入 %1").arg(preview.gameName) : qsTr("写入游戏…"))
+                enabled: preview.writeEnabled
                 onClicked: {
-                    if (preview.gameKey !== "")
+                    if (preview.mode === "file")
+                        preview.writeRequested()
+                    else if (preview.gameKey !== "")
                         preview.writeRequested()
                     else
                         preview.gamePickerRequested()
@@ -149,7 +166,9 @@ Item {
         anchors.bottom: parent.bottom
         anchors.margins: Th.space3
         height: 32
-        text: qsTr("和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。")
+        text: preview.mode === "file"
+              ? qsTr("把文件放在游戏 exe 所在目录即可生效；也可以直接导出到任意位置。")
+              : qsTr("和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。")
         color: Th.textDim
         font.pixelSize: Th.fontCaption
         wrapMode: Text.WordWrap

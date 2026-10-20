@@ -123,11 +123,16 @@ def build_conf(
     section_order: Iterable[str] = (),
     include_header: bool = True,
     comments: bool = True,
+    header: str = HEADER,
 ) -> str:
     """Compose a dxvk.conf containing every line the selection implies.
 
     A single control can cover the same option in several sections; all of
     them are written so the file works regardless of which one the game reads.
+
+    ``header`` names the tool in the comment at the top of the file. It is a
+    parameter because two tools generate this file: the full application and
+    the standalone configurator.
     """
     buckets: dict[str, list[str]] = {}
     for group in groups:
@@ -149,14 +154,14 @@ def build_conf(
 
     parts: list[str] = []
     if include_header:
-        parts.append(HEADER.format(date=time.strftime("%Y-%m-%d %H:%M")))
+        parts.append(header.format(date=time.strftime("%Y-%m-%d %H:%M")))
     for section in order:
         parts.append(f"# [{section}]")
         parts.extend(buckets[section])
         parts.append("")
     text = "\n".join(parts).rstrip() + "\n"
     if not order and include_header:
-        text = HEADER.format(date=time.strftime("%Y-%m-%d %H:%M"))
+        text = header.format(date=time.strftime("%Y-%m-%d %H:%M"))
         text += "# No options selected yet.\n"
     return text
 

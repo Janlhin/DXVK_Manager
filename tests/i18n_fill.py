@@ -186,6 +186,11 @@ CONFIG_PREVIEW_PANE = {
     "应用并写入 %1": "Apply and write to %1",
     "写入游戏…": "Write to game…",
     "保存为文件…": "Save as file…",
+    # The standalone configurator's mode: the button writes the result back
+    # to the .conf file that is open.
+    "保存": "Save",
+    "把文件放在游戏 exe 所在目录即可生效；也可以直接导出到任意位置。":
+        "Placed next to the game exe it takes effect; you can also export it anywhere.",
     "和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。":
         "Placed next to the game exe it takes effect; export it here on its own, no library scan needed.",
 }

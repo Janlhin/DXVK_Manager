@@ -585,39 +585,49 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
     <context>
         <name>ConfigPreviewPane</name>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="41" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="50" />
             <source>dxvk.conf 预览</source>
             <translation>dxvk.conf preview</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="117" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="108" />
+            <source>保存</source>
+            <translation>Save</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="134" />
             <source>保存为文件…</source>
             <translation>Save as file…</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="95" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="109" />
             <source>写入游戏…</source>
             <translation>Write to game…</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="152" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="171" />
             <source>和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。</source>
             <translation>Placed next to the game exe it takes effect; export it here on its own, no library scan needed.</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="75" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="84" />
             <source>复制</source>
             <translation>Copy</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="59" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="68" />
             <source>带注释</source>
             <translation>Comments</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="95" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="109" />
             <source>应用并写入 %1</source>
             <translation>Apply and write to %1</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/ui/qml/ConfigPreviewPane.qml" line="170" />
+            <source>把文件放在游戏 exe 所在目录即可生效；也可以直接导出到任意位置。</source>
+            <translation>Placed next to the game exe it takes effect; you can also export it anywhere.</translation>
         </message>
     </context>
     <context>

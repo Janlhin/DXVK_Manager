@@ -9,6 +9,12 @@ Dialog {
 
     signal presetConfirmed(string name)
 
+    // The explanation and the built-in note differ between the two tools:
+    // the full application applies a preset to a game, the standalone
+    // applies it to the file that is open.
+    property string descriptionText: qsTr("把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。")
+    property string builtInNoteText: qsTr("「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。")
+
     modal: true
     anchors.centerIn: parent
     width: 400
@@ -46,7 +52,7 @@ Dialog {
 
         Text {
             width: presetDialog.availableWidth - Th.space6
-            text: qsTr("把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。")
+            text: presetDialog.descriptionText
             color: Th.textMuted
             font.pixelSize: Th.fontCaption
             wrapMode: Text.WordWrap
@@ -76,7 +82,7 @@ Dialog {
             anchors.left: parent.left
             anchors.leftMargin: Th.space4
             anchors.verticalCenter: parent.verticalCenter
-            text: qsTr("「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。")
+            text: presetDialog.builtInNoteText
             color: Th.textDim
             font.pixelSize: Th.fontCaption
         }
