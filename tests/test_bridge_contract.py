@@ -12,17 +12,21 @@ from __future__ import annotations
 
 import unittest
 
-from PySide6.QtCore import QMetaMethod
-
+# The CI gate installs requirements-dev.txt only; PySide6 is a runtime
+# dependency of the GUI and is absent there. Skipping keeps the suite
+# runnable in both environments instead of failing collection on the Linux
+# runner.
 try:
-    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtCore import QMetaMethod  # noqa: E402
 
-    _HAS_QT = True
-except ImportError:  # pragma: no cover - PySide6 missing
-    QGuiApplication = None  # type: ignore[assignment,misc]
-    _HAS_QT = False
+    HAS_QT = True
+except ImportError:  # pragma: no cover - exercised on the CI runner
+    # The names stay unbound on purpose: every class that touches them is
+    # skipped below, and binding them to None would turn the skipped code into
+    # a static "None has no attribute" error.
+    HAS_QT = False
 
-requires_qt = unittest.skipUnless(_HAS_QT, "PySide6 is not installed")
+requires_qt = unittest.skipUnless(HAS_QT, "PySide6 is not installed")
 
 # Slots the QML side calls. Listed explicitly so a rename cannot slip through
 # unnoticed: the UI would simply stop working at runtime.
@@ -202,6 +206,7 @@ class BridgeContractTests(unittest.TestCase):
         self.assertIs(self.bridge._library._host, self.bridge)
 
 
+@requires_qt
 class BridgeServiceBaseTests(unittest.TestCase):
     """The shared helpers of the service base class."""
 
