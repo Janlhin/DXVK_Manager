@@ -396,7 +396,7 @@ Item {
                                     bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))
                             }
                             BarButton {
-                                text: "Release 页"
+                                text: qsTr("Release 页")
                                 enabled: page.selected !== null
                                 onClicked: bridge.openUrl(
                                     bridge.releaseUrl(page.kind, page.selected ? page.selected.version : ""))

@@ -11,6 +11,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtWidgets import QApplication
 
+from .. import APP_NAME, APP_VERSION
 from ..paths import asset_path, settings
 from ..util import log, setup_logging
 from .bridge import Bridge
@@ -103,8 +104,8 @@ def run(argv: list[str] | None = None) -> int:
     app = QApplication(argv if argv is not None else sys.argv)
     set_language(str(settings.get("ui_lang") or "zh"))
     app.setPalette(_dark_palette())
-    app.setApplicationName("DXVK Version Manager")
-    app.setApplicationVersion("1.0.1")
+    app.setApplicationName(APP_NAME)
+    app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName("dxvk-toolkit")
 
     engine = QQmlApplicationEngine()

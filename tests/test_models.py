@@ -4,22 +4,43 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Never touch the real user profile: the model constructor reads settings and
+# a sort click persists one.
+os.environ.setdefault(
+    "DXVK_MANAGER_HOME", str(Path(tempfile.gettempdir()) / "dxvk-model-tests")
+)
 
-from PySide6.QtCore import QTranslator  # noqa: E402
-from PySide6.QtGui import QGuiApplication  # noqa: E402
+# The CI gate installs requirements-dev.txt only; PySide6 is a runtime
+# dependency of the GUI and is absent there. Skipping keeps the suite runnable
+# in both environments instead of failing collection on the Linux runner.
+try:
+    from PySide6.QtCore import QTranslator  # noqa: E402
+    from PySide6.QtGui import QGuiApplication  # noqa: E402
+
+    from dxvk_toolkit.ui.models import GameListModel  # noqa: E402
+
+    HAS_QT = True
+except ImportError:  # pragma: no cover - exercised on the CI runner
+    # The names stay unbound on purpose: every class that touches them is
+    # skipped below, and binding them to None would turn the skipped code into
+    # a static "None has no attribute" error.
+    HAS_QT = False
+
+requires_qt = unittest.skipUnless(HAS_QT, "PySide6 is not installed")
 
 from dxvk_toolkit import steam  # noqa: E402
-from dxvk_toolkit.ui.models import GameListModel  # noqa: E402
 
 
 def _game(folder: Path, name: str) -> steam.Game:
     return steam.game_from_folder(folder, name)
 
 
+@requires_qt
 class GameListModelGroupingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -79,6 +100,7 @@ class GameListModelGroupingTests(unittest.TestCase):
         )
 
 
+@requires_qt
 class ConfigListModelDocTests(unittest.TestCase):
     """T21: the doc role carries the sectioned documentation for the ⓘ card."""
 
@@ -126,6 +148,7 @@ class ConfigListModelDocTests(unittest.TestCase):
         self.assertIsNone(model.data(model.index(header, 0), ConfigListModel.DocRole))
 
 
+@requires_qt
 class GameListModelPlatformI18nTests(unittest.TestCase):
     """T23: platform labels follow the UI language, raw keys stay raw.
 
@@ -180,6 +203,7 @@ class GameListModelPlatformI18nTests(unittest.TestCase):
         self.assertEqual([row["name"] for row in self.model._rows], ["Genshin"])
 
 
+@requires_qt
 class GameListModelRetranslateTests(unittest.TestCase):
     """T25: ui_lang hot-swap rebuilds Python-resolved model strings (§28).
 
@@ -228,6 +252,48 @@ class GameListModelRetranslateTests(unittest.TestCase):
         self._app.removeTranslator(self._translator)
         self.model.retranslate()
         self.assertEqual(self.model._all_rows[0]["platformLabel"], "米哈游")
+
+
+@requires_qt
+class BridgeRefreshTests(unittest.TestCase):
+    """The single-row refresh after install/restore must reach the model.
+
+    ``_refresh_one`` used to hand ``_apply_statuses`` a five-field badge tuple,
+    which the ``(key, status)`` unpacking rejected silently, so every card kept
+    its pre-install state until the next full scan.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._app = QGuiApplication.instance() or QGuiApplication(["tests"])
+
+    @staticmethod
+    def _status_text(bridge: object, key: str) -> str:
+        row = bridge.model.row(key)  # type: ignore[attr-defined]
+        return "" if row is None else str(row.get("statusText") or "")
+
+    def test_refresh_reaches_the_row(self) -> None:
+        from dxvk_toolkit.ui.bridge import Bridge
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "refresh"
+            folder.mkdir()
+            game = steam.game_from_folder(folder, "Refresh")
+            bridge = Bridge()
+            try:
+                bridge._games = {game.key: game}
+                bridge.model.set_games([game])
+                self.assertEqual(self._status_text(bridge, game.key), "")
+                bridge._refresh_one(game)
+                deadline = time.time() + 5
+                while time.time() < deadline:
+                    self._app.processEvents()
+                    if self._status_text(bridge, game.key):
+                        break
+                    time.sleep(0.02)
+                self.assertEqual(self._status_text(bridge, game.key), "未安装")
+            finally:
+                bridge.shutdown()
 
 
 if __name__ == "__main__":

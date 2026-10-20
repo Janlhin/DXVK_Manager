@@ -400,7 +400,7 @@ Item {
                     BarButton {
                         id: folderPH
                         visible: false
-                        text: "打开目录"
+                        text: qsTr("打开目录")
                         anchors.right: parent.right
                         anchors.rightMargin: Th.space3
                         anchors.verticalCenter: parent.verticalCenter
@@ -408,7 +408,7 @@ Item {
                     BarButton {
                         id: detailPH
                         visible: false
-                        text: "详情"
+                        text: qsTr("详情")
                         anchors.right: folderPH.left
                         anchors.rightMargin: Th.space2
                         anchors.verticalCenter: parent.verticalCenter
@@ -417,7 +417,7 @@ Item {
                         id: chipPH
                         visible: false
                         fixedWidth: true
-                        text: "已装 DXVK"
+                        text: qsTr("已装 DXVK")
                         anchors.right: detailPH.left
                         anchors.rightMargin: Th.space2
                         anchors.verticalCenter: parent.verticalCenter

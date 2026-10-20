@@ -27,9 +27,10 @@ class Bridge(QObject):
     statusMessage = Signal(str, str)          # text, kind (info/ok/warn/error)
     progressChanged = Signal(float, str)      # 0..1 (negative = hide), label
     gamesReady = Signal(int)                  # row count, after a scan
+    # Row keys whose DXVK state changed; QML refreshes its state counters.
     statusesReady = Signal("QVariantList")  # pyright: ignore[reportArgumentType]
     # Localized (Chinese) store name for one game.
-    nameZhReady = Signal(str, str)    # list of (key, text, kind)
+    nameZhReady = Signal(str, str)            # key, localized name
     detected = Signal(str, str, str)          # key, direct3d, arch
     coverReady = Signal(str, str, str)        # key, card_url, round_url (§22 scheme B)
     # QVariantMap matters: a bare Python dict arrives in QML as an opaque
@@ -78,7 +79,9 @@ class Bridge(QObject):
 
         # Signals are emitted from worker threads; these connections deliver
         # them on the interface thread because the bridge lives there.
-        self.statusesReady.connect(self._apply_statuses)
+        # statusesReady is deliberately NOT connected back into the bridge: it
+        # is a one-way notification for QML (the DXVK-state counters), and a
+        # self-connection would turn the emit in _apply_statuses into a loop.
         self.detected.connect(self._apply_detected)
         self.nameZhReady.connect(self._apply_name_zh)
         self.coverReady.connect(self._apply_cover)
@@ -98,7 +101,11 @@ class Bridge(QObject):
             for entry in manual:
                 if not isinstance(entry, dict):
                     continue
-                game = steam.Game.from_dict(entry)
+                try:
+                    game = steam.Game.from_dict(entry)
+                except ValueError as exc:
+                    log.warning("skipping invalid manual game entry: %s", exc)
+                    continue
                 if game.key not in known:
                     found.append(game)
                     known.add(game.key)
@@ -116,7 +123,9 @@ class Bridge(QObject):
                 statuses.append((game.key, status))
             return found, statuses
 
-        def done(result: tuple[list[steam.Game], list[tuple[str, str, str, bool, bool]]]) -> None:
+        def done(
+            result: tuple[list[steam.Game], list[tuple[str, installer.GameStatus]]]
+        ) -> None:
             games, statuses = result
             self._games = {game.key: game for game in games}
             self._urls = {game.key: covers.source_urls(game) for game in games}
@@ -140,7 +149,15 @@ class Bridge(QObject):
             return
         entries = list(settings.get("manual_games") or [])
         game = steam.game_from_folder(folder)
-        if any(str(entry.get("install_dir", "")) == folder for entry in entries if isinstance(entry, dict)):
+        existing: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                existing.add(steam.Game.from_dict(entry).key)
+            except ValueError:
+                continue  # an unreadable legacy record is replaced below
+        if game.key in existing:
             self.statusMessage.emit(self.tr("该目录已在列表中"), "warn")
             return
         entries.append(game.to_dict())
@@ -604,11 +621,17 @@ class Bridge(QObject):
         self._submit(work, done, self.tr("还原失败"))
 
     def _refresh_one(self, game: steam.Game) -> None:
-        def work() -> tuple[str, str, str, bool, bool]:
+        """Re-read one game's state after we changed its folder.
+
+        The worker returns the same ``(key, GameStatus)`` pair the scan path
+        produces. Handing back a pre-formatted badge tuple instead was
+        silently rejected by ``_apply_statuses``, so every card kept showing
+        its pre-install state until the next full scan.
+        """
+
+        def work() -> tuple[str, installer.GameStatus]:
             installer.invalidate(game.install_dir)
-            status = installer.inspect(game.install_dir)
-            text, kind, patched, managed = status_for(game, status)
-            return game.key, text, kind, patched, managed
+            return game.key, installer.inspect(game.install_dir)
 
         self._submit(work, lambda item: self._apply_statuses([item]), None, quiet=True)
 
@@ -671,6 +694,9 @@ class Bridge(QObject):
     def resetOption(self, key: str) -> None:  # noqa: N802
         """Revert one option to default (§33 modified-list revert button)."""
         self.config.resetOption(key)
+        # Every other edit is persisted immediately; a reset must be too, or
+        # the old value comes back as soon as the target is reloaded.
+        self._persist_target_values(self._config_target, self.config.values)
         self.statusMessage.emit(self.tr("已还原：{}").format(key), "info")
 
     @Slot(result=str)
@@ -899,7 +925,7 @@ class Bridge(QObject):
         if not name or self._config_model_data is None:
             return
         if name in self.BUILTIN_PRESETS or name == "纯净":
-            self.statusMessage.emit("内置预设不能覆盖，请换一个名字", "warn")
+            self.statusMessage.emit(self.tr("内置预设不能覆盖，请换一个名字"), "warn")
             return
         custom = settings.get("config_presets", {})
         custom = dict(custom) if isinstance(custom, dict) else {}
@@ -1007,7 +1033,13 @@ class Bridge(QObject):
 
         app_qml.set_language(lang)
         self.model.retranslate()
-        self._config_target_name = self.tr("默认配置")
+        # Keep the active target's name: switching the language while editing
+        # a game config used to rename that target to the shared default.
+        if self._config_target:
+            game = self._games.get(self._config_target)
+            self._config_target_name = game.name if game is not None else self._config_target
+        else:
+            self._config_target_name = self.tr("默认配置")
         self.configTargetChanged.emit(self._config_target, self._config_target_name)
         self.languageChanged.emit()
 
@@ -1259,6 +1291,10 @@ class Bridge(QObject):
                 self._patched.add(key)
             else:
                 self._patched.discard(key)
+        # The filter chips count DXVK states, so they go stale whenever a
+        # single row is refreshed after an install/restore/removal.
+        if parsed:
+            self.statusesReady.emit([key for key, _patched, _managed in parsed])
 
     def _apply_cover(self, key: str, card_uri: str, round_uri: str) -> None:
         """Apply the sliced cover URLs (card + round) to the row (§22 B)."""

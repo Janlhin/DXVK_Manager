@@ -3,6 +3,11 @@
 <context>
     <name>Bridge</name>
     <message>
+        <location filename="../../dxvk_toolkit/ui/bridge.py" line="902" />
+        <source>内置预设不能覆盖，请换一个名字</source>
+        <translation>Built-in presets cannot be overwritten - please pick another name</translation>
+    </message>
+    <message>
         <location filename="../../dxvk_toolkit/ui/bridge.py" line="71" />
         <location filename="../../dxvk_toolkit/ui/bridge.py" line="774" />
         <source>默认配置</source>
@@ -1188,6 +1193,11 @@ UI: PySide6 + QML (Qt Quick); the core logic is a pure Python standard-library i
 </context>
 <context>
     <name>VersionsPage</name>
+    <message>
+        <location filename="../../dxvk_toolkit/ui/qml/VersionsPage.qml" line="399" />
+        <source>Release 页</source>
+        <translation>Release page</translation>
+    </message>
     <message>
         <location filename="../../dxvk_toolkit/ui/qml/VersionsPage.qml" line="112" />
         <source>官方 DXVK</source>
