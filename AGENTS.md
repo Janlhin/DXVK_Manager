@@ -67,4 +67,5 @@
 | 英文词库漂移 | ✔（i18n_fill.py --check） | ✔ | ✔ | 纯标准库，进 CI：词库须与源码逐条一致。Qt 以 QML **文件名**为翻译 context，拆分即改名——拆分后必须重跑 `python tests/i18n_fill.py` 重建 `app_en.ts`，再用 `pyside6-lrelease` 编译 `app_en.qm`；`qml_check.py` 另设 context 门禁（每个 `qsTr` 必须存在于同名 context 下） |
 | QML 组件加载 | ✔（qml_components.py） | ✘ | ✔ | 组件级离屏逐个加载 20 个组件。CI 装 PySide6 会引入 200MB 下载与 Linux 系统库依赖，故只进本地 verify
 | 桥接契约 | ✔（test_bridge_contract.py） | ✔ | ✔ | 56 个槽 + 15 个信号的名称与参数个数；拆分 bridge 后 QML 侧零改动的硬约束
+| 独立配置器 | ✔（test_standalone.py） | ✔ | ✔ | 22 个槽 + 3 个信号的契约、与主应用的设置/预设隔离、文件往返。组件级加载另在 qml_components.py 中以独立桥接跑第二棵 QML 树 |
 |===
