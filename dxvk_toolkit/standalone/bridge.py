@@ -57,6 +57,7 @@ class ConfiguratorBridge(QObject):
     statusMessage = Signal(str, str)      # text, kind (info/ok/warn/error)
     fileOpened = Signal(str, str)         # path, display name
     presetsChanged = Signal()
+    languageChanged = Signal(str)         # the new language code
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -72,20 +73,7 @@ class ConfiguratorBridge(QObject):
     def loadConfig(self) -> str:
         """Load the option catalogue from the reference dxvk.conf."""
         source = self._reference_source()
-        if source is None:
-            self._model = build_model("", source="no reference file")
-        else:
-            try:
-                if source.stat().st_size > MAX_CONF_BYTES:
-                    raise ValidationError(
-                        f"reference file too large: {source.stat().st_size} bytes "
-                        f"exceeds limit of {MAX_CONF_BYTES}"
-                    )
-                text = source.read_text(encoding="utf-8", errors="replace")
-            except OSError as exc:
-                self._model = build_model("", source=f"unreadable reference: {exc}")
-            else:
-                self._model = build_model(text, source=str(source), path=source)
+        self._model = self._build_model(source)
         self.config.set_groups(self._model.groups)
         stored = str(settings.get("config_mode") or "simple")
         self.config.apply_filter("", stored if stored in ("simple", "advanced", "full") else "simple")
@@ -98,6 +86,39 @@ class ConfiguratorBridge(QObject):
         else:
             self.statusMessage.emit(_tr("未找到参考文件"), "warn")
         return str(self._model.source_path or "")
+
+    def _build_model(self, source: Path | None) -> Any:
+        """Parse the reference file into the option model."""
+        if source is None:
+            return build_model("", source="no reference file")
+        try:
+            if source.stat().st_size > MAX_CONF_BYTES:
+                raise ValidationError(
+                    f"reference file too large: {source.stat().st_size} bytes "
+                    f"exceeds limit of {MAX_CONF_BYTES}"
+                )
+            text = source.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            return build_model("", source=f"unreadable reference: {exc}")
+        return build_model(text, source=str(source), path=source)
+
+    def _rebuild_model(self) -> None:
+        """Rebuild the option list, keeping the current selection.
+
+        The option names, their explanations and the generated comments come
+        from the pure core, which caches its catalogue per language. After a
+        language switch that cache has to be rebuilt - otherwise the list
+        would keep showing the previous language's wording.
+        """
+        if self._model is None:
+            return
+        source = self._reference_source()
+        self._model = self._build_model(source)
+        self.config.set_groups(self._model.groups)
+        if self._values:
+            self.config.apply_values(dict(self._values))
+        search, mode, section = self.config.current_filter()
+        self.config.apply_filter(search, mode, section)
 
     def _reference_source(self) -> Path | None:
         """The dxvk.conf the option list is built from."""
@@ -272,6 +293,33 @@ class ConfiguratorBridge(QObject):
         if config_store.save_preset(name, self.config.values, settings):
             self.statusMessage.emit(_tr("已保存预设「{}」").format(name), "ok")
             self.presetsChanged.emit()
+
+    # -- language ----------------------------------------------------------
+    @Slot(str)
+    def setLanguage(self, lang: str) -> None:
+        """Switch the interface and the option explanations to ``lang``.
+
+        The two travel together on purpose: this tool has one audience, and
+        an English interface showing English option explanations is what
+        someone who picked English wants. The full application keeps them
+        separate because it also serves people who want the original DXVK
+        comments in English while reading the interface in Chinese.
+        """
+        code = "en" if str(lang or "").strip().lower() == "en" else "zh"
+        settings.set("ui_lang", code)
+        settings.set("docs_language", code)
+        from . import app as standalone_app
+
+        standalone_app.set_language(code)
+        # The option list is built from the pure core, which caches the
+        # catalogue per language - it has to be re-pointed and rebuilt.
+        configure_catalogue()
+        self._rebuild_model()
+        self.languageChanged.emit(code)
+        self.statusMessage.emit(
+            _tr("已切换到英文") if code == "en" else _tr("已切换到中文"),
+            "ok",
+        )
 
     # -- settings ---------------------------------------------------------
     @Slot(str, result="QVariant")

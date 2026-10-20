@@ -472,6 +472,8 @@ STANDALONE = {
         "Built-in presets cannot be overwritten - please pick another name",
     "已保存预设「{}」": "Saved preset \"{}\"",
     "已复制到剪贴板": "Copied to the clipboard",
+    "已切换到英文": "Switched to English",
+    "已切换到中文": "Switched to Chinese",
 }
 
 GAME_LIST_MODEL = {

@@ -29,6 +29,7 @@ ApplicationWindow {
     property string statusText: qsTr("就绪")
     property string statusKind: "info"
     property string currentFileName: ""
+    property string uiLang: bridge.getSetting("ui_lang") || "zh"
 
     Connections {
         target: bridge
@@ -38,6 +39,12 @@ ApplicationWindow {
         }
         function onFileOpened(path, name) {
             window.currentFileName = name
+        }
+        function onLanguageChanged(lang) {
+            window.uiLang = lang
+            // The generated file carries the option explanations, so the
+            // preview has to be rebuilt with the new language.
+            configPage.refreshPreview()
         }
     }
 
@@ -82,6 +89,15 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
+                // Language switch. The configurator is a one-purpose tool, so
+                // the interface language and the option explanations travel
+                // together - one switch, no settings page.
+                Shared.MiniButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    text: window.uiLang === "en" ? "中文" : "English"
+                    onClicked: bridge.setLanguage(window.uiLang === "en" ? "zh" : "en")
+                }
+
                 Shared.MiniButton {
                     Layout.alignment: Qt.AlignVCenter
                     text: qsTr("打开文件…")
@@ -101,6 +117,7 @@ ApplicationWindow {
 
         // --- the editor ----------------------------------------------------
         ConfiguratorPage {
+            id: configPage
             Layout.fillWidth: true
             Layout.fillHeight: true
         }

@@ -49,6 +49,7 @@ QML_SLOTS: dict[str, int] = {
     "saveFile": 0,
     "savePreset": 1,
     "selectedOptionCount": 0,
+    "setLanguage": 1,
     "setOption": 3,
     "setSetting": 2,
     "toggleSection": 1,
@@ -57,6 +58,7 @@ QML_SLOTS: dict[str, int] = {
 # Signals the standalone QML connects to, with their parameter count.
 QML_SIGNALS: dict[str, int] = {
     "fileOpened": 2,
+    "languageChanged": 1,
     "presetsChanged": 0,
     "statusMessage": 2,
 }
@@ -228,6 +230,68 @@ class StandaloneFileRoundTripTests(unittest.TestCase):
         missing = str(Path(self._dir.name) / "nope.conf")
         self.assertEqual(self.bridge.openFile(missing), "")
         self.assertFalse(self.bridge.hasFile())
+
+
+@requires_qt
+class StandaloneLanguageTests(unittest.TestCase):
+    """The language switch changes the interface and the option wording."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from PySide6.QtGui import QGuiApplication as _App
+
+        cls._app = _App.instance() or _App(["tests"])
+
+    def setUp(self) -> None:
+        from dxvk_toolkit.standalone.bridge import ConfiguratorBridge
+        from dxvk_toolkit.standalone.store import settings
+
+        self.bridge = ConfiguratorBridge()
+        self.bridge.loadConfig()
+        # The switch writes to the settings file, so the test puts the
+        # user's own preference back when it is done.
+        self._original = (
+            str(settings.get("ui_lang") or "zh"),
+            str(settings.get("docs_language") or "zh"),
+        )
+        self.addCleanup(self._restore)
+
+    def _restore(self) -> None:
+        from dxvk_toolkit.standalone import app as standalone_app
+        from dxvk_toolkit.standalone.store import settings
+
+        ui_lang, docs_language = self._original
+        # Drop the translator first: a leftover English catalogue would
+        # translate the strings of the other tests in this process.
+        standalone_app.set_language("zh")
+        settings.set("ui_lang", ui_lang)
+        settings.set("docs_language", docs_language)
+
+    def _label_of(self, key: str) -> str:
+        for row in self.bridge.config._all:  # noqa: SLF001 - test introspection
+            if row["key"] == key:
+                return str(row["label"])
+        return ""
+
+    def test_switching_to_english_rewrites_the_option_wording(self) -> None:
+        chinese = self._label_of("maxFrameRate")
+        self.assertTrue(chinese)
+        self.bridge.setLanguage("en")
+        english = self._label_of("maxFrameRate")
+        self.assertNotEqual(chinese, english, "the wording did not change")
+        self.assertTrue(english.isascii(), f"still Chinese: {english!r}")
+
+    def test_the_selection_survives_a_language_switch(self) -> None:
+        self.bridge.setOption("hud", True, "fps")
+        self.bridge.setLanguage("en")
+        self.assertEqual(self.bridge.config.values.get("hud"), "fps")
+
+    def test_the_language_is_persisted(self) -> None:
+        from dxvk_toolkit.standalone.store import settings
+
+        self.bridge.setLanguage("en")
+        self.assertEqual(settings.get("ui_lang"), "en")
+        self.assertEqual(settings.get("docs_language"), "en")
 
 
 class StandaloneAssetsTests(unittest.TestCase):

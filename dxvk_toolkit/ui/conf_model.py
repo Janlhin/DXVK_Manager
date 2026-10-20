@@ -160,6 +160,26 @@ class ConfigListModel(QAbstractListModel):
         self.endResetModel()
         self.countChanged.emit()
 
+    def retranslate(self) -> None:
+        """Re-apply the interface language to the cached display strings.
+
+        The group headers in the simple mode are resolved through ``_tr``
+        when the filter runs, so re-running it is enough to refresh them
+        after the translator was swapped.
+        """
+        self.beginResetModel()
+        self._apply_filter()
+        self.endResetModel()
+        self.countChanged.emit()
+
+    def current_filter(self) -> tuple[str, str, str]:
+        """The active (search, mode, section) triple.
+
+        Callers that rebuild the list - a language switch, for instance -
+        need to restore what the user had set, not fall back to the default.
+        """
+        return (self._search, self._mode, self._section_filter)
+
     def _apply_filter(self) -> None:
         needle = self._search
         order = {"simple": 0, "advanced": 1, "full": 2}

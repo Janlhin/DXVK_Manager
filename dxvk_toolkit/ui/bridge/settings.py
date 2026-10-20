@@ -78,6 +78,10 @@ class SettingsService(BridgeService):
 
         app_qml.set_language(lang)
         self._host.model.retranslate()
+        # The config list's group headings are translated when the filter
+        # runs, so they have to be rebuilt too - otherwise the simple mode
+        # keeps showing the previous language's headings.
+        self._host.config.retranslate()
         self._host._config_service.refresh_target_name()
         self._host.languageChanged.emit()
 

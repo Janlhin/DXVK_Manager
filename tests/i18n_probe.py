@@ -65,6 +65,7 @@ SPOT_CHECKS = (
     ("StandaloneMain", "打开文件…", "Open file…"),
     ("Standalone", "已复制到剪贴板", "Copied to the clipboard"),
     ("Standalone", "没有打开的文件", "No file is open"),
+    ("Standalone", "已切换到英文", "Switched to English"),
     ("ConfiguratorPage", "「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。",
      '"Performance", "Compatibility" and "Clean" are built-in presets and cannot be overwritten.'),
 )
