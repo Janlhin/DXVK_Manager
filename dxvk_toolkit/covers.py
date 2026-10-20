@@ -1,8 +1,9 @@
-"""Game cover art: resolve a source URL, cache it, hand Tk a ready image.
+"""Game cover art: resolve a source URL, cache it, and slice the variants.
 
-Covers are cosmetic, so every failure path degrades to a locally drawn
-placeholder instead of raising. Pillow is used when present (it decodes JPEG,
-which Tk cannot); without it the grid still works, just without artwork.
+Covers are cosmetic, so every failure path degrades to "no artwork" instead of
+raising. Pillow decodes JPEG and bakes the rounded card / circular avatar
+variants the QML interface loads; without Pillow the original cover is still
+served and the cards simply show their platform colour.
 """
 
 # pyright: reportOptionalMemberAccess=warning
@@ -14,11 +15,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-import queue
 import re
-from collections import OrderedDict
-from collections.abc import Callable, Iterable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,11 +24,10 @@ from . import net
 from .paths import covers_dir
 from .util import log
 
-# Pillow is optional: artwork is nice, not essential. ImageTk is imported on
-# its own because it needs tkinter, which the Qt build never uses. Importing
-# all three together meant a tkinter-less interpreter switched HAS_PIL off and
-# silently disabled every cover operation - including the Pillow slicing the
-# QML interface depends on.
+# Pillow is optional: artwork is nice, not essential. It is imported alone so
+# a tkinter-less interpreter keeps working - the retired Tk front end was the
+# only consumer of ImageTk, and requiring it used to disable every cover
+# operation (including the QML slicing) when tkinter was absent.
 try:
     from PIL import Image, ImageDraw
 
@@ -38,11 +35,6 @@ try:
 except Exception:  # noqa: BLE001 - any import problem disables artwork
     Image = ImageDraw = None  # type: ignore[assignment]
     HAS_PIL = False
-
-try:
-    from PIL import ImageTk
-except Exception:  # noqa: BLE001 - the retired Tk front end is the only user
-    ImageTk = None  # type: ignore[assignment]
 
 # Portrait card artwork, the shape store fronts use.
 CARD_SIZE = (168, 252)
@@ -62,28 +54,6 @@ STEAM_CDN_HOSTS = (
 
 # Tried in order; the portrait library asset looks best in a card grid.
 STEAM_ASSETS = ("library_600x900.jpg", "library_600x900_2x.jpg", "header.jpg", "capsule_231x87.jpg")
-
-PLATFORM_COLORS = {
-    "steam": "#1b6ab8",
-    "epic": "#2a2a2a",
-    "gog": "#7b3fa0",
-    "ubisoft": "#0a63b0",
-    "battlenet": "#0f6fbf",
-    "riot": "#c0392b",
-    "wegame": "#c0392b",
-    "mihoyo": "#3c6ea5",
-    "ea": "#c0392b",
-    "manual": "#4a5568",
-    "unknown": "#3a4150",
-}
-
-_PHOTO_CACHE: OrderedDict[str, Any] = OrderedDict()
-_PHOTO_LIMIT = 90
-
-
-def platform_color(platform: str) -> str:
-    return PLATFORM_COLORS.get((platform or "").lower(), PLATFORM_COLORS["unknown"])
-
 
 def cover_key(game: Any) -> str:
     """Stable cache key for a game (survives reinstalls and path changes)."""
@@ -284,222 +254,3 @@ def ensure_round(key: str, size: tuple[int, int] = ROUND_SIZE) -> Path | None:
     except Exception as exc:  # noqa: BLE001 - a broken image must not break the list
         log.debug("cover round failed for %s: %s", key, exc)
         return None
-
-
-def placeholder_image(label: str, size: tuple[int, int] = CARD_SIZE, color: str = "") -> Any:
-    """A drawn cover stand-in: platform colour plus the game initials."""
-    if not HAS_PIL:
-        return None
-    base = color or PLATFORM_COLORS["unknown"]
-    image = Image.new("RGB", size, base)
-    draw = ImageDraw.Draw(image)
-    width, height = size
-    # Simple diagonal sheen so the placeholder does not look broken.
-    for offset in range(0, height, 6):
-        shade = 8 + int(24 * offset / max(1, height))
-        draw.line([(0, offset), (width, offset - width // 3)], fill=_shade(base, shade), width=6)
-    initials = "".join(word[0] for word in str(label).split()[:3]).upper() or "?"
-    font = None
-    try:
-        from PIL import ImageFont
-
-        for candidate in ("segoeuib.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"):
-            try:
-                font = ImageFont.truetype(candidate, int(height * 0.22))
-                break
-            except OSError:
-                continue
-    except Exception:  # noqa: BLE001
-        font = None
-    text_w, text_h = draw.textbbox((0, 0), initials, font=font)[2:] if font else (0, 0)
-    draw.text(
-        ((width - text_w) / 2, (height - text_h) / 2 - height * 0.05),
-        initials,
-        fill="#e7e9ec",
-        font=font,
-    )
-    return image
-
-
-def _shade(color: str, amount: int) -> tuple[int, int, int]:
-    color = color.lstrip("#")
-    try:
-        r, g, b = (int(color[i : i + 2], 16) for i in (0, 2, 4))
-    except (ValueError, IndexError):
-        r, g, b = 60, 65, 80
-    return (min(255, r + amount), min(255, g + amount), min(255, b + amount))
-
-
-_PLACEHOLDER_CACHE: dict[str, Any] = {}
-
-
-def platform_placeholder(platform: str, size: tuple[int, int] = CARD_SIZE) -> Any:
-    """A neutral card image for one platform, drawn once and reused.
-
-    Game initials are drawn on top by the grid as canvas text, which keeps
-    placeholder cost independent of how many games are on screen.
-    """
-    if not HAS_PIL:
-        return None
-    if ImageTk is None:  # pragma: no cover - only reachable without tkinter
-        return None
-    key = f"{platform or 'unknown'}:{size[0]}x{size[1]}"
-    cached = _PLACEHOLDER_CACHE.get(key)
-    if cached is not None:
-        return cached
-    image = placeholder_image(platform or "?", size, platform_color(platform))
-    if image is None:
-        return None
-    try:
-        photo = ImageTk.PhotoImage(image)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("placeholder creation failed: %s", exc)
-        return None
-    _PLACEHOLDER_CACHE[key] = photo
-    return photo
-
-
-def photo_for(
-    key: str,
-    *,
-    label: str = "",
-    color: str = "",
-    size: tuple[int, int] = CARD_SIZE,
-) -> Any:
-    """A Tk-ready image for a card, from cache when possible.
-
-    Returns None when Pillow is unavailable, in which case the caller draws
-    its own placeholder on a canvas.
-    """
-    if not HAS_PIL:
-        return None
-    if ImageTk is None:  # pragma: no cover - only reachable without tkinter
-        return None
-    cache_key = f"{key}:{size[0]}x{size[1]}"
-    cached = _PHOTO_CACHE.get(cache_key)
-    if cached is not None:
-        _PHOTO_CACHE.move_to_end(cache_key)
-        return cached
-
-    image = None
-    path = card_path(key)
-    if path.is_file():
-        try:
-            with Image.open(path) as opened:
-                image = opened.convert("RGB")
-        except Exception as exc:  # noqa: BLE001
-            log.debug("cover load failed for %s: %s", key, exc)
-    if image is None:
-        image = placeholder_image(label or key, size, color)
-    if image is None:
-        return None
-    try:
-        photo = ImageTk.PhotoImage(image)
-    except Exception as exc:  # noqa: BLE001 - no display / no Tk support
-        log.debug("PhotoImage creation failed: %s", exc)
-        return None
-    _PHOTO_CACHE[cache_key] = photo
-    while len(_PHOTO_CACHE) > _PHOTO_LIMIT:
-        _PHOTO_CACHE.popitem(last=False)
-    return photo
-
-
-def forget(key: str) -> None:
-    for cache_key in [k for k in _PHOTO_CACHE if k.startswith(f"{key}:")]:
-        _PHOTO_CACHE.pop(cache_key, None)
-
-
-class CoverLoader:
-    """Background cover downloader that hands results back on the Tk thread.
-
-    The grid only asks for the cards that are actually visible, so opening a
-    library of a hundred games costs a handful of requests, not a hundred.
-    """
-
-    def __init__(self, root: Any, *, workers: int = 4, interval_ms: int = 70) -> None:
-        self._root = root
-        self._pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="cover")
-        self._queue: queue.Queue[tuple[str, list[str], Callable[[str, bool], None]]] = queue.Queue()
-        self._results: queue.Queue[tuple[str, bool, Callable[[str, bool], None]]] = queue.Queue()
-        self._pending: set[str] = set()
-        self._stopped = False
-        self._timer: str | None = None
-        for _ in range(workers):
-            self._pool.submit(self._worker)
-        self._timer = self._root.after(interval_ms, self._drain)
-
-    # -- public API ------------------------------------------------------
-    def request(self, key: str, urls: Iterable[str], callback: Callable[[str, bool], None]) -> None:
-        """Ask for a cover; callback(key, ok) runs on the Tk thread."""
-        if self._stopped or key in self._pending:
-            return
-        url_list = [url for url in urls if url]
-        cached = card_path(key).is_file() or original_path(key).is_file()
-        if cached:
-            # Already on disk: only the resize step is needed.
-            self._pending.add(key)
-            self._pool.submit(self._finish_cached, key, callback)
-            return
-        if not url_list:
-            return
-        self._pending.add(key)
-        self._queue.put((key, url_list, callback))
-
-    def pending(self, key: str) -> bool:
-        return key in self._pending
-
-    def shutdown(self) -> None:
-        self._stopped = True
-        if self._timer is not None:
-            try:
-                self._root.after_cancel(self._timer)
-            except Exception:  # noqa: BLE001
-                pass
-            self._timer = None
-        self._pool.shutdown(wait=False, cancel_futures=True)
-
-    # -- internals -------------------------------------------------------
-    def _worker(self) -> None:
-        while not self._stopped:
-            try:
-                key, urls, callback = self._queue.get(timeout=0.5)
-            except queue.Empty:
-                continue
-            try:
-                ok = download_cover(key, urls)
-                if ok:
-                    ok = ensure_card(key) is not None
-            except Exception as exc:  # noqa: BLE001
-                log.debug("cover worker failed for %s: %s", key, exc)
-                ok = False
-            self._results.put((key, ok, callback))
-
-    def _finish_cached(self, key: str, callback: Callable[[str, bool], None]) -> None:
-        try:
-            ok = ensure_card(key) is not None
-        except Exception:  # noqa: BLE001
-            ok = False
-        self._results.put((key, ok, callback))
-
-    def _drain(self) -> None:
-        self._timer = None
-        if self._stopped:
-            return
-        delivered = 0
-        while delivered < 12:
-            try:
-                key, ok, callback = self._results.get_nowait()
-            except queue.Empty:
-                break
-            self._pending.discard(key)
-            try:
-                callback(key, ok)
-            except Exception as exc:  # noqa: BLE001
-                log.debug("cover callback failed: %s", exc)
-            delivered += 1
-        if self._stopped:
-            return
-        try:
-            self._timer = self._root.after(70, self._drain)
-        except Exception:  # noqa: BLE001 - window closed
-            self._stopped = True

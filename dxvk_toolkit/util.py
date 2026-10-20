@@ -10,7 +10,6 @@ import re
 import struct
 import subprocess
 import sys
-import time
 from collections.abc import Iterable, Iterator
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -111,19 +110,6 @@ def human_size(num: float | int | None) -> str:
     return f"{value:.1f} TB"
 
 
-def human_age(timestamp: float | None) -> str:
-    if not timestamp:
-        return "never"
-    delta = max(0.0, time.time() - float(timestamp))
-    if delta < 90:
-        return "just now"
-    if delta < 5400:
-        return f"{delta / 60:.0f} min ago"
-    if delta < 172800:
-        return f"{delta / 3600:.0f} h ago"
-    return f"{delta / 86400:.0f} d ago"
-
-
 def safe_name(name: str) -> str:
     """Turn an arbitrary version string into a safe folder name."""
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", str(name)).strip(" .")
@@ -176,40 +162,6 @@ def iter_executables(game_dir: str | os.PathLike[str], max_depth: int = 2) -> It
     yield from walk(root, 0)
 
 
-def guess_main_executable(game_dir: str | os.PathLike[str]) -> tuple[Path | None, str | None]:
-    """Pick the most likely main game binary and return (path, architecture).
-
-    Preference order: root level first, then nested folders; setup/redist
-    helpers are skipped; the biggest remaining candidate wins, which matches
-    how games are laid out in practice.
-    """
-    candidates: list[tuple[int, int, Path, int]] = []
-    for index, exe in enumerate(iter_executables(game_dir)):
-        lowered = exe.name.lower()
-        if any(pattern in lowered for pattern in _EXE_SKIP_PATTERNS):
-            continue
-        try:
-            size = exe.stat().st_size
-        except OSError:
-            continue
-        try:
-            depth = len(exe.relative_to(Path(game_dir)).parts) - 1
-        except ValueError:
-            depth = 0
-        arch_rank = 0 if pe_machine(exe) else 1
-        candidates.append((depth, arch_rank, exe, size))
-    if not candidates:
-        # Fall back to any executable at all.
-        for exe in iter_executables(game_dir, max_depth=1):
-            try:
-                return exe, pe_machine(exe)
-            except OSError:
-                continue
-        return None, None
-    best = min(candidates, key=lambda item: (item[0], item[1], -item[3]))
-    return best[2], pe_machine(best[2])
-
-
 def biggest_executable(game_dir: str | os.PathLike[str]) -> Path | None:
     """Most plausible main game binary, heuristics strongest first.
 
@@ -220,9 +172,8 @@ def biggest_executable(game_dir: str | os.PathLike[str]) -> Path | None:
     3. bigger file;
     4. shallower placement.
 
-    Unlike :func:`guess_main_executable` this does not trust depth, because
-    root-level stubs (SplashScreen.exe, PlayGTAV.exe, EAC.exe) must not
-    shadow the real binary sitting in bin/.
+    Depth is deliberately the last criterion: root-level stubs (SplashScreen.exe,
+    PlayGTAV.exe, EAC.exe) must not shadow the real binary sitting in bin/.
     """
     token = re.sub(r"[^a-z0-9]", "", Path(game_dir).name.lower())
     candidates: list[tuple[int, int, int, int, Path]] = []
@@ -440,10 +391,6 @@ def looks_like_dxvk(path: str | os.PathLike[str], probe_bytes: int = 2_500_000) 
     return result
 
 
-def clear_dxvk_probe_cache() -> None:
-    _DXVK_PROBE_CACHE.clear()
-
-
 def open_in_file_manager(path: str | os.PathLike[str]) -> None:
     """Open a folder (or select a file) in the platform file manager."""
     target = str(path)
@@ -459,13 +406,3 @@ def open_in_file_manager(path: str | os.PathLike[str]) -> None:
             subprocess.Popen(["xdg-open", target])
     except Exception:  # pragma: no cover - platform dependent
         log.warning("Could not open %s in the file manager", target)
-
-
-def ensure_unique_dir_name(existing: Iterable[str], wanted: str) -> str:
-    used = set(existing)
-    if wanted not in used:
-        return wanted
-    index = 2
-    while f"{wanted} ({index})" in used:
-        index += 1
-    return f"{wanted} ({index})"

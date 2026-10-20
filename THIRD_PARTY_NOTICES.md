@@ -51,7 +51,6 @@ zlib 许可证要求：本软件按「原样」提供，不附带任何明示或
 | store.steampowered.com | 查询游戏的官方中文名，供搜索使用 | 只发送 AppID，结果缓存到本地 `steam-names.json` |
 | Steam CDN（cloudflare / fastly / akamai / akamaihd） | 下载 Steam 游戏的封面图 | 只按 AppID 请求公开图片资源 |
 | ghproxy.net、gh-proxy.com、ghfast.top、gh.llkk.cc | GitHub 下载镜像 | 仅在「自动」下载源下作为官方地址失败后的回退；可在设置里切换为「仅官方 GitHub」彻底关闭 |
-| pcgamingwiki.com | 预留的数据源模块（`dxvk_toolkit/metadata.py`） | **当前版本不发起任何请求**；模块保留给后续的封面 / 兼容性信息扩展 |
 
 以上请求只发送必要的版本号 / AppID，不发送任何用户标识。「离线模式」开启后所有请求都会被拒绝，
 设置里的「下载源 → 仅官方 GitHub」可以完全避开第三方镜像。

@@ -10,9 +10,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .detect import KNOWN_DLLS, guess_direct3d
 from .paths import ledger
 from .sources import arch_bin_dir
-from .steam import KNOWN_DLLS, guess_direct3d
 from .util import log, looks_like_dxvk, pe_machine, resolve_dll_dir
 
 BACKUP_SUFFIX = ".bkp"

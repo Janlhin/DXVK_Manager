@@ -855,14 +855,3 @@ def fetch_reference_conf(ref: str = "master") -> Path:
     target.write_bytes(body)
     log.info("saved reference for %s to %s", ref, target)
     return target
-
-
-def installed_size(kind: str, version: str) -> int:
-    total = 0
-    for path in version_dir(kind, version).rglob("*"):
-        try:
-            if path.is_file():
-                total += path.stat().st_size
-        except OSError:
-            continue
-    return total

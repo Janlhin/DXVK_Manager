@@ -49,11 +49,6 @@ def validate_conf_text(text: str) -> None:
             )
 
 
-def validate_config_values_text(text: str) -> None:
-    """Validate a user-supplied dxvk.conf before reading its options back."""
-    validate_conf_text(text)
-
-
 def validate_section_name(name: str, *, line: int = 0) -> None:
     """Reject malformed section headers such as an empty ``[]``."""
     where = f"line {line}: " if line else ""

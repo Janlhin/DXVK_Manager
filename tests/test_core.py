@@ -22,7 +22,7 @@ os.environ["DXVK_MANAGER_HOME"] = str(_TMP_ROOT)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from dxvk_toolkit import confbuild, confspec, installer, sources, steam  # noqa: E402
+from dxvk_toolkit import confbuild, confspec, detect, installer, sources, steam  # noqa: E402
 from dxvk_toolkit.paths import asset_path, ledger  # noqa: E402
 from dxvk_toolkit.util import pe_machine  # noqa: E402
 
@@ -277,11 +277,11 @@ class SteamTests(unittest.TestCase):
             bin_dir.mkdir()
             make_fake_pe(bin_dir / "game.exe", 0x8664)
             (bin_dir / "d3d11.dll").write_bytes(b"x")
-            stamp_before = steam._folder_stamp(root)
+            stamp_before = detect._folder_stamp(root)
             # Touching the bin directory (DLLs landed or were removed there)
             # must invalidate the stamp - the root mtime alone never changes.
             os.utime(bin_dir, (1_500_000_000, 1_500_000_000))
-            self.assertNotEqual(stamp_before, steam._folder_stamp(root))
+            self.assertNotEqual(stamp_before, detect._folder_stamp(root))
 
 
 class ResolveDllDirTests(unittest.TestCase):

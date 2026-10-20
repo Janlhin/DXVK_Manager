@@ -84,12 +84,6 @@ def archives_dir() -> Path:
     return path
 
 
-def meta_dir() -> Path:
-    path = data_root() / "games-meta" / "metadata"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
 def covers_dir() -> Path:
     path = data_root() / "games-meta" / "covers"
     path.mkdir(parents=True, exist_ok=True)
