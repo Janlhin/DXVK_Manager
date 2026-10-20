@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import threading
@@ -11,6 +12,10 @@ from pathlib import Path
 from typing import Any
 
 APP_SLUG = "DXVK-Version-Manager-Py"
+
+# paths cannot import util (util imports logs_dir from here), so it takes a
+# plain logger from the package namespace.
+_log = logging.getLogger("dxvk_toolkit")
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     # "auto" tries a direct connection first and then the local proxy found in
@@ -111,8 +116,11 @@ def _read_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
             loaded = json.load(fh)
         if isinstance(loaded, dict):
             return loaded
-    except (FileNotFoundError, OSError, ValueError):
+        _log.warning("%s is not a JSON object; ignoring it", path)
+    except FileNotFoundError:
         pass
+    except (OSError, ValueError) as exc:
+        _log.warning("could not read %s: %s", path, exc)
     return dict(fallback)
 
 
@@ -122,7 +130,8 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         with tmp.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, ensure_ascii=False)
         os.replace(tmp, path)
-    except OSError:
+    except OSError as exc:
+        _log.warning("could not write %s: %s", path, exc)
         try:
             tmp.unlink()
         except OSError:

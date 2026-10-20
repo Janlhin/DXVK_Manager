@@ -393,6 +393,23 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((bin_dir / "d3d11.dll.bkp").exists())
         self.assertFalse(ledger.get(self.game))
 
+    def test_arch_mismatch_restores_the_original_dlls(self) -> None:
+        # The rollback used to delete the fresh copies only. The originals had
+        # already been overwritten and lived on as .bkp, so the game was left
+        # with no runtime DLL at all - a state it cannot start from.
+        make_fake_pe(self.game / "game.exe", 0x8664)
+        (self.game / "d3d11.dll").write_bytes(b"ORIGINAL-D3D11")
+        (self.game / "dxgi.dll").write_bytes(b"ORIGINAL-DXGI")
+        for dll in ("d3d11.dll", "dxgi.dll"):
+            make_fake_pe_dll(self.cache / "v2.7.1" / "x64" / dll, 0x014C)
+
+        result = installer.install(self.game, "dxvk", "v2.7.1", d3d_hint="Direct3D 11")
+        self.assertFalse(result.success)
+        self.assertEqual((self.game / "d3d11.dll").read_bytes(), b"ORIGINAL-D3D11")
+        self.assertEqual((self.game / "dxgi.dll").read_bytes(), b"ORIGINAL-DXGI")
+        self.assertFalse((self.game / "d3d11.dll.bkp").exists())
+        self.assertFalse(ledger.get(self.game))
+
     def test_remove_artifacts(self) -> None:
         make_fake_pe(self.game / "game.exe", 0x8664)
         make_dxvk_dll(self.game / "d3d11.dll")
@@ -494,6 +511,12 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         self.assertIn("fps", installer.read_conf(self.game))
         self.assertTrue(installer.inspect(self.game).conf_present)
+
+    def test_write_conf_does_not_create_a_missing_game_folder(self) -> None:
+        missing = self.game / "not-installed"
+        with self.assertRaises(FileNotFoundError):
+            installer.write_conf(missing, "dxvk.hud = fps\n")
+        self.assertFalse(missing.exists())
 
     def test_install_into_bin_layout(self) -> None:
         bin_dir = self.game / "bin"
@@ -615,6 +638,63 @@ class ReleasesCacheTests(unittest.TestCase):
         self.assertTrue((root / "x64").is_dir())
         self.assertEqual(self._cached()["v3.1.1"].size, tarball.stat().st_size)
 
+    def test_failed_download_leaves_no_version_folder(self) -> None:
+        # A failed download used to leave an empty version directory behind;
+        # is_installed() then answered True and the UI listed it as downloaded
+        # while every install attempt failed with "no x64 folder".
+        from dxvk_toolkit import net
+
+        release = self._release("v7.7")
+        original = net.http_download
+
+        def fail(*args, **kwargs):
+            raise net.NetworkError("offline")
+
+        net.http_download = fail
+        try:
+            with self.assertRaises(net.NetworkError):
+                sources.download_release(release)
+        finally:
+            net.http_download = original
+        self.assertFalse(sources.is_installed("dxvk", "v7.7"))
+        staging = sources.version_dir("dxvk", "v7.7").with_name("v7.7.part")
+        self.assertFalse(staging.exists())
+
+
+class CacheProtectionTests(unittest.TestCase):
+    """T24 follow-up: keep_used must survive the GPLAsync folder naming.
+
+    GPLAsync cache folders drop the leading "v" while the ledger stores the
+    release tag, so the old raw-string comparison marked a build in use as
+    unused and clear_cache(keep_used=True) deleted it.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.cache = Path(self.tmp.name) / "gplasync"
+        for version in ("2.7-1", "2.6"):
+            for arch in ("x32", "x64"):
+                (self.cache / version / arch).mkdir(parents=True)
+        self.real_cache_dir = sources.cache_dir
+        sources.cache_dir = lambda kind="dxvk": self.cache  # type: ignore[assignment]
+
+    def tearDown(self) -> None:
+        sources.cache_dir = self.real_cache_dir  # type: ignore[assignment]
+        self.tmp.cleanup()
+
+    def test_tag_with_leading_v_protects_the_unprefixed_folder(self) -> None:
+        game = Path(self.tmp.name) / "game"
+        game.mkdir()
+        ledger.record(game, patched=True, dxvk_type="gplasync", dxvk_version="v2.7-1")
+
+        stats = sources.cache_stats("gplasync")
+        used = {entry["version"]: entry["used"] for entry in stats["versions"]}
+        self.assertTrue(used["2.7-1"], "the running build must be flagged as used")
+
+        removed = sources.clear_cache("gplasync", keep_used=True)
+        self.assertEqual(removed, ["2.6"])
+        self.assertTrue((self.cache / "2.7-1").is_dir())
+
 
 def main() -> int:
     loader = unittest.TestLoader()
@@ -625,6 +705,7 @@ def main() -> int:
             loader.loadTestsFromTestCase(ResolveDllDirTests),
             loader.loadTestsFromTestCase(InstallerTests),
             loader.loadTestsFromTestCase(ReleasesCacheTests),
+            loader.loadTestsFromTestCase(CacheProtectionTests),
         ]
     )
     runner = unittest.TextTestRunner(verbosity=2)

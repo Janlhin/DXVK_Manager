@@ -26,13 +26,23 @@ from . import net
 from .paths import covers_dir
 from .util import log
 
-try:  # Pillow is optional: artwork is nice, not essential.
-    from PIL import Image, ImageDraw, ImageTk
+# Pillow is optional: artwork is nice, not essential. ImageTk is imported on
+# its own because it needs tkinter, which the Qt build never uses. Importing
+# all three together meant a tkinter-less interpreter switched HAS_PIL off and
+# silently disabled every cover operation - including the Pillow slicing the
+# QML interface depends on.
+try:
+    from PIL import Image, ImageDraw
 
     HAS_PIL = True
 except Exception:  # noqa: BLE001 - any import problem disables artwork
-    Image = ImageDraw = ImageTk = None  # type: ignore[assignment]
+    Image = ImageDraw = None  # type: ignore[assignment]
     HAS_PIL = False
+
+try:
+    from PIL import ImageTk
+except Exception:  # noqa: BLE001 - the retired Tk front end is the only user
+    ImageTk = None  # type: ignore[assignment]
 
 # Portrait card artwork, the shape store fronts use.
 CARD_SIZE = (168, 252)
@@ -331,6 +341,8 @@ def platform_placeholder(platform: str, size: tuple[int, int] = CARD_SIZE) -> An
     """
     if not HAS_PIL:
         return None
+    if ImageTk is None:  # pragma: no cover - only reachable without tkinter
+        return None
     key = f"{platform or 'unknown'}:{size[0]}x{size[1]}"
     cached = _PLACEHOLDER_CACHE.get(key)
     if cached is not None:
@@ -360,6 +372,8 @@ def photo_for(
     its own placeholder on a canvas.
     """
     if not HAS_PIL:
+        return None
+    if ImageTk is None:  # pragma: no cover - only reachable without tkinter
         return None
     cache_key = f"{key}:{size[0]}x{size[1]}"
     cached = _PHOTO_CACHE.get(cache_key)

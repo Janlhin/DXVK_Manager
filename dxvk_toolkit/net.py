@@ -254,50 +254,66 @@ def http_download(
     progress receives (downloaded_bytes, total_bytes); total is 0 when the
     server does not report a content length. Raises Cancelled when the cancel
     event is set, and NetworkError when no transport worked.
+
+    The body is assembled in ``<name>.part`` and renamed only after the
+    transfer completes, so a dropped connection cannot leave a truncated file
+    under the real name (a half-written cover or archive used to look valid to
+    the next run).
     """
     _refuse_offline(url)
     target = Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
+    staging = target.with_name(target.name + ".part")
     proxies = _proxy_candidates(force_proxy)
     last_error: Exception | None = None
 
-    for proxy in proxies:
-        try:
-            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with _opener(proxy).open(request, timeout=timeout) as response:
-                try:
-                    total = int(response.headers.get("Content-Length") or 0)
-                except (TypeError, ValueError):
-                    total = 0
-                written = 0
-                with target.open("wb") as fh:
-                    while True:
-                        if cancel is not None and cancel.is_set():
-                            raise Cancelled("download cancelled")
-                        chunk = response.read(262144)
-                        if not chunk:
-                            break
-                        fh.write(chunk)
-                        written += len(chunk)
-                        if progress:
-                            progress(written, total)
+    try:
+        for proxy in proxies:
+            try:
+                request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                with _opener(proxy).open(request, timeout=timeout) as response:
+                    try:
+                        total = int(response.headers.get("Content-Length") or 0)
+                    except (TypeError, ValueError):
+                        total = 0
+                    written = 0
+                    with staging.open("wb") as fh:
+                        while True:
+                            if cancel is not None and cancel.is_set():
+                                raise Cancelled("download cancelled")
+                            chunk = response.read(262144)
+                            if not chunk:
+                                break
+                            fh.write(chunk)
+                            written += len(chunk)
+                            if progress:
+                                progress(written, total)
+                    os.replace(staging, target)
+                    return written
+            except Cancelled:
+                raise
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                log.debug("urllib download failed (%s, proxy=%s): %s", url, proxy, exc)
+
+        for proxy in proxies:
+            try:
+                written = _curl_download(url, staging, proxy, timeout, progress, cancel)
+                os.replace(staging, target)
                 return written
-        except Cancelled:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
-            log.debug("urllib download failed (%s, proxy=%s): %s", url, proxy, exc)
+            except Cancelled:
+                raise
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                log.debug("curl download failed (%s, proxy=%s): %s", url, proxy, exc)
 
-    for proxy in proxies:
+        raise NetworkError(f"download {url} failed: {last_error}")
+    except BaseException:
         try:
-            return _curl_download(url, target, proxy, timeout, progress, cancel)
-        except Cancelled:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
-            log.debug("curl download failed (%s, proxy=%s): %s", url, proxy, exc)
-
-    raise NetworkError(f"download {url} failed: {last_error}")
+            staging.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def check_connectivity(timeout: float = 8.0) -> bool:

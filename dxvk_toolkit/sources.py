@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import tarfile
@@ -10,7 +11,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from . import net
@@ -42,6 +43,14 @@ MIRROR_PREFIXES = (
 ARCH_FOLDERS = ("x32", "x64")
 
 ProgressFn = Callable[[int, int], None]
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    """int() for values coming from a cache file we do not control."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 @dataclass
@@ -277,7 +286,7 @@ def cache_releases(kind: str, releases: list[Release]) -> None:
             if not data.get("date") and old.get("date"):
                 data["date"] = str(old["date"])
             if not data.get("size") and old.get("size"):
-                data["size"] = int(old["size"])
+                data["size"] = _as_int(old["size"])
         entries.append(data)
 
     payload = {
@@ -308,7 +317,7 @@ def cached_releases(kind: str) -> list[Release]:
                     label=str(item.get("label") or item["version"]),
                     url=str(item["url"]),
                     date=str(item.get("date") or ""),
-                    size=int(item.get("size") or 0),
+                    size=_as_int(item.get("size")),
                     file_name=str(item.get("file_name") or ""),
                     notes=str(item.get("notes") or ""),
                 )
@@ -389,7 +398,7 @@ def fetch_dxvk_releases(pages: int = 2, *, allow_network: bool = True) -> list[R
                             label=str(entry.get("name") or f"DXVK {tag}"),
                             url=str(asset.get("browser_download_url") or ""),
                             date=str(entry.get("published_at") or "")[:10],
-                            size=int(asset.get("size") or 0),
+                            size=_as_int(asset.get("size")),
                             file_name=str(asset.get("name") or ""),
                             notes=clean_notes(entry.get("body")),
                         )
@@ -511,11 +520,25 @@ def is_installed(kind: str, version: str) -> bool:
 # --------------------------------------------------------------------------
 
 def _safe_members(archive: tarfile.TarFile, destination: Path) -> list[tarfile.TarInfo]:
+    """Members that stay inside ``destination`` and contain no links.
+
+    The old check compared string prefixes, so ``../v2.7.1-evil/x`` escaped:
+    its resolved path merely *started with* the cache path. Links are rejected
+    too - on Python 3.10/3.11 ``extractall`` has no data filter, and a symlink
+    member could redirect every later write outside the cache.
+    """
     members: list[tarfile.TarInfo] = []
     root = destination.resolve()
     for member in archive.getmembers():
+        name = member.name.replace("\\", "/")
+        if name.startswith("/") or ".." in PurePosixPath(name).parts:
+            log.warning("skipping unsafe archive member: %s", member.name)
+            continue
+        if member.issym() or member.islnk():
+            log.warning("skipping archive link member: %s", member.name)
+            continue
         target = (destination / member.name).resolve()
-        if not str(target).startswith(str(root)):
+        if not target.is_relative_to(root):
             log.warning("skipping unsafe archive member: %s", member.name)
             continue
         members.append(member)
@@ -618,7 +641,7 @@ def _note_download(kind: str, version: str, archive_size: int) -> None:
     for item in items:
         if isinstance(item, dict) and item.get("version") == version:
             if archive_size and not item.get("size"):
-                item["size"] = int(archive_size)
+                item["size"] = _as_int(archive_size)
                 changed = True
             break
     incomplete = any(
@@ -642,11 +665,18 @@ def download_release(
     progress: ProgressFn | None = None,
     cancel: threading.Event | None = None,
 ) -> Path:
-    """Download and extract a release; returns the folder holding the DLLs."""
+    """Download and extract a release; returns the folder holding the DLLs.
+
+    The package is unpacked into a staging folder next to the version folder
+    and only swapped in once it is complete and carries the x32/x64 layout.
+    A failed or cancelled download therefore never leaves an empty directory
+    that the UI would list as "downloaded", and never destroys a working copy
+    of the same version before its replacement is ready.
+    """
     target = version_dir(release.kind, release.version)
-    if target.is_dir():
-        shutil.rmtree(target, ignore_errors=True)
-    target.mkdir(parents=True, exist_ok=True)
+    staging = target.with_name(target.name + ".part")
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
 
     file_name = release.file_name or Path(release.url).name or f"{release.kind}.tar.gz"
     archive = archives_dir() / f"{release.kind}-{safe_name(file_name)}"
@@ -659,7 +689,7 @@ def download_release(
                 if cancel is not None and cancel.is_set():
                     raise net.Cancelled("cancelled")
                 archive_size = archive.stat().st_size
-                extract_archive(archive, target)
+                extract_archive(archive, staging)
                 if url != release.url:
                     log.info("downloaded %s through a mirror: %s", release.version, url)
                 break
@@ -668,12 +698,27 @@ def download_release(
             except Exception as exc:  # noqa: BLE001 - try the next source
                 last_error = exc
                 log.warning("download attempt failed (%s): %s", url, exc)
-                shutil.rmtree(target, ignore_errors=True)
-                target.mkdir(parents=True, exist_ok=True)
+                shutil.rmtree(staging, ignore_errors=True)
+                staging.mkdir(parents=True, exist_ok=True)
         else:
             raise net.NetworkError(
                 f"所有下载源都失败了，最后一个错误：{last_error}"
             )
+
+        if find_bin_root(staging) is None:
+            raise net.NetworkError(
+                "the downloaded package does not contain x32/x64 folders - it may be corrupt"
+            )
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        try:
+            os.replace(staging, target)
+        except OSError:
+            # Different volume or a transient lock: fall back to a move.
+            shutil.move(str(staging), str(target))
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
     finally:
         if not settings.get("keep_archive", False):
             try:
@@ -686,10 +731,8 @@ def download_release(
     _note_download(release.kind, release.version, archive_size)
 
     root = find_bin_root(target)
-    if root is None:
-        raise net.NetworkError(
-            "the downloaded package does not contain x32/x64 folders - it may be corrupt"
-        )
+    if root is None:  # pragma: no cover - defensive, the staging check passed
+        raise net.NetworkError("the extracted package disappeared after the swap")
     log.info("installed %s %s into %s", release.kind, release.version, target)
     return root
 
@@ -706,6 +749,26 @@ def used_versions() -> set[tuple[str, str]]:
         if version:
             out.add((str(entry.get("dxvk_type") or "dxvk"), version))
     return out
+
+
+def _version_name(version: str) -> str:
+    """Normalized form for comparing a ledger version with a cache folder.
+
+    GPLAsync cache folders drop the leading "v" (see version_dir) while the
+    ledger stores the release tag ("v2.7-1"). Comparing the raw strings marked
+    a version that a game is running on as unused, and a blanket cache wipe
+    with keep_used=True then deleted that very build.
+    """
+    return str(version or "").strip().lstrip("v").lower()
+
+
+def _used_names(kind: str) -> set[str]:
+    """Cache-folder names of the versions a game runs, for one kind."""
+    return {
+        _version_name(version)
+        for entry_kind, version in used_versions()
+        if entry_kind == kind
+    }
 
 
 def _dir_size(path: Path) -> int:
@@ -729,7 +792,7 @@ def cache_stats(kind: str) -> dict[str, Any]:
     is protected from a blanket wipe), broken = the folder lacks the x32/x64
     layout a reinstall would need.
     """
-    used = used_versions()
+    used = _used_names(kind)
     root = cache_dir(kind)
     entries: list[dict[str, Any]] = []
     total = 0
@@ -744,7 +807,7 @@ def cache_stats(kind: str) -> dict[str, Any]:
             {
                 "version": child.name,
                 "size": size,
-                "used": (kind, child.name) in used,
+                "used": _version_name(child.name) in used,
                 "broken": find_bin_root(child) is None,
             }
         )
@@ -759,14 +822,14 @@ def clear_cache(kind: str, keep_used: bool = True) -> list[str]:
     blanket wipe - deleting those would turn a working setup into a
     "restore needed" one.
     """
-    protected = used_versions() if keep_used else set()
+    protected = _used_names(kind) if keep_used else set()
     removed: list[str] = []
     try:
         children = [child for child in cache_dir(kind).iterdir() if child.is_dir()]
     except OSError:
         return removed
     for child in children:
-        if (kind, child.name) in protected:
+        if _version_name(child.name) in protected:
             continue
         shutil.rmtree(child, ignore_errors=True)
         removed.append(child.name)

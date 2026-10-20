@@ -100,10 +100,21 @@ class Game:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> Game:
+        """Rebuild a manually added game from the settings file.
+
+        A missing ``install_dir`` used to fall through to ``Path("")`` - the
+        process working directory - which then looked like a real game folder
+        and could receive DXVK files. The entry is rejected at the boundary
+        instead; callers skip it and log.
+        """
+        raw_dir = str(payload.get("install_dir") or "").strip()
+        if not raw_dir:
+            raise ValueError("manual game entry has no install_dir")
+        install_dir = Path(raw_dir)
         return cls(
             appid=str(payload.get("appid") or "manual"),
-            name=str(payload.get("name") or Path(str(payload.get("install_dir", ""))).name),
-            install_dir=Path(str(payload.get("install_dir") or "")),
+            name=str(payload.get("name") or install_dir.name),
+            install_dir=install_dir,
             library_dir=Path(str(payload["library_dir"])) if payload.get("library_dir") else None,
             size_on_disk=int(payload.get("size_on_disk") or 0),
             state_flags=int(payload.get("state_flags") or 0),

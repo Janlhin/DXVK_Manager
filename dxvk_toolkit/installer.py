@@ -149,7 +149,7 @@ def missing_dlls(game_dir: str | os.PathLike[str], required: Iterable[str]) -> l
 # probe per DLL), and the UI asks for it on every repaint. Entries are keyed by
 # the folder modification time, which changes whenever files are added or
 # removed, so stale data is impossible in practice.
-_STATUS_CACHE: dict[str, tuple[float, int, GameStatus]] = {}
+_STATUS_CACHE: dict[str, tuple[tuple[float, float], int, GameStatus]] = {}
 
 
 def invalidate(game_dir: str | os.PathLike[str]) -> None:
@@ -159,6 +159,32 @@ def invalidate(game_dir: str | os.PathLike[str]) -> None:
 
 def _cache_key(game_dir: str | os.PathLike[str]) -> str:
     return os.path.normcase(os.path.abspath(str(game_dir)))
+
+
+def _folder_stamp(
+    game_dir: str | os.PathLike[str], dll_dir: Path | None
+) -> tuple[float, float]:
+    """Invalidation signal: install root plus the folder the DLLs live in.
+
+    The root mtime alone is not enough. Games keep their executable in a
+    subdirectory (``bin/``, ``bin/x64``), so adding or deleting DXVK there
+    never touches the root - a stale "patched" answer survived until something
+    unrelated changed the root. Folding the DLL folder in closes that hole at
+    the cost of one extra ``stat``.
+    """
+    root_stamp = 0.0
+    try:
+        root_stamp = Path(game_dir).stat().st_mtime
+    except OSError:
+        pass
+    dll_stamp = 0.0
+    if dll_dir is not None:
+        try:
+            if Path(dll_dir) != Path(game_dir):
+                dll_stamp = Path(dll_dir).stat().st_mtime
+        except OSError:
+            pass
+    return (root_stamp, dll_stamp)
 
 
 def inspect(
@@ -174,18 +200,13 @@ def inspect(
     if use_cache:
         cached = _STATUS_CACHE.get(key)
         if cached is not None and cached[1] == int(probe):
-            try:
-                if cached[0] == Path(game_dir).stat().st_mtime:
-                    return cached[2]
-            except OSError:
-                pass
+            cached_dir = Path(cached[2].dll_dir) if cached[2].dll_dir else None
+            if cached[0] == _folder_stamp(game_dir, cached_dir):
+                return cached[2]
 
     status = _inspect_uncached(game_dir, probe)
-    try:
-        stamp = Path(game_dir).stat().st_mtime
-    except OSError:
-        stamp = 0.0
-    _STATUS_CACHE[key] = (stamp, int(probe), status)
+    dll_dir = Path(status.dll_dir) if status.dll_dir else None
+    _STATUS_CACHE[key] = (_folder_stamp(game_dir, dll_dir), int(probe), status)
     return status
 
 
@@ -242,13 +263,64 @@ def guess_arch_from_dxvk(dll_names: Iterable[str]) -> str:
 # Mutating operations
 # --------------------------------------------------------------------------
 
+def _atomic_copy(source: Path, target: Path) -> None:
+    """Copy through a sibling temporary file, then swap it in.
+
+    A half-written file never appears under the real name, so an interrupted
+    copy cannot be mistaken for a valid backup on the next run.
+    """
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    except OSError:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+
+
 def _backup(directory: Path, dll: str) -> bool:
+    """Copy a game's original DLL aside, atomically.
+
+    A failed copy raises: the caller must abort instead of overwriting an
+    original it could not keep.
+    """
     source = directory / dll
     backup = directory / (dll + BACKUP_SUFFIX)
     if not source.is_file() or backup.exists():
         return False
-    shutil.copy2(source, backup)
+    _atomic_copy(source, backup)
     return True
+
+
+def _restore_backup(directory: Path, dll: str) -> bool:
+    """Put a backed-up original back, replacing whatever is there now.
+
+    ``os.replace`` is atomic within one volume, so a crash can never leave the
+    game with neither the DXVK copy nor the original.
+    """
+    backup = directory / (dll + BACKUP_SUFFIX)
+    if not backup.is_file():
+        return False
+    os.replace(backup, directory / dll)
+    return True
+
+
+def _rollback(directory: Path, copied: list[str]) -> None:
+    """Undo a partial install: drop the fresh copies, restore the originals.
+
+    Called from every failure point of :func:`install`. Leaving a half-copied
+    set behind is worse than not installing at all: the game would mix DXVK
+    and system DLLs.
+    """
+    for name in copied:
+        try:
+            (directory / name).unlink(missing_ok=True)
+            _restore_backup(directory, name)
+        except OSError as exc:
+            log.error("rollback could not restore %s: %s", name, exc)
 
 
 def install(
@@ -297,6 +369,9 @@ def install(
         )
 
     status = inspect(root)
+    # Which originals the game actually ships, read before anything is
+    # overwritten: the post-copy check cannot answer that any more.
+    originals = [dll for dll in wanted if (dll_dir / dll).is_file()]
     copied: list[str] = []
     backed_up: list[str] = []
     missing_source: list[str] = []
@@ -308,13 +383,30 @@ def install(
             continue
         already_patched = dll in status.dxvk_files
         if not already_patched or force_backup:
-            if _backup(dll_dir, dll):
-                backed_up.append(dll)
+            try:
+                if _backup(dll_dir, dll):
+                    backed_up.append(dll)
+            except OSError as exc:
+                _rollback(dll_dir, copied)
+                return InstallResult(
+                    False,
+                    f"Could not back up {dll}: {exc} - the installation was rolled back",
+                    copied,
+                    backed_up,
+                    missing_source,
+                )
         try:
             shutil.copy2(source, dll_dir / dll)
             copied.append(dll)
         except OSError as exc:
-            return InstallResult(False, f"Could not copy {dll}: {exc}", copied, backed_up)
+            _rollback(dll_dir, copied)
+            return InstallResult(
+                False,
+                f"Could not copy {dll}: {exc} - the installation was rolled back",
+                copied,
+                backed_up,
+                missing_source,
+            )
 
     if not copied:
         return InstallResult(
@@ -328,17 +420,18 @@ def install(
 
     # Defense in depth: the copied DLLs must match the chosen architecture,
     # otherwise the game cannot load them at all. Roll back entirely rather
-    # than leave files the game would choke on. Nothing has been recorded in
-    # the ledger yet, so removing the fresh copies is all it takes.
+    # than leave files the game would choke on. Deleting the fresh copies is
+    # not enough: the originals were overwritten and only exist as .bkp now,
+    # so they have to be moved back or the game loses its runtime DLLs.
     for dll in copied:
         found = pe_machine(dll_dir / dll)
         if found in ("x32", "x64") and found != chosen_arch:
-            for fresh in copied:
-                (dll_dir / fresh).unlink(missing_ok=True)
+            _rollback(dll_dir, copied)
             return InstallResult(
                 False,
                 f"Architecture mismatch: {dll} is {found} but the game needs "
-                f"{chosen_arch}; the installation was rolled back",
+                f"{chosen_arch}; the installation was rolled back and the "
+                "original DLLs were restored",
                 copied, backed_up, missing_source,
             )
 
@@ -363,8 +456,7 @@ def install(
         write_conf(root, conf_text)
 
     warning = ""
-    absent = missing_dlls(root, wanted)
-    if absent and not status.dxvk_files:
+    if not originals and not status.dxvk_files:
         warning = (
             "None of the original Direct3D DLLs were present in the game folder. "
             "DXVK will still be installed, but the game may not use it."
@@ -393,14 +485,10 @@ def restore(game_dir: str | os.PathLike[str], dlls: Iterable[str] | None = None)
     failed: list[str] = []
 
     for dll in wanted:
-        backup = dll_dir / (dll + BACKUP_SUFFIX)
-        target = dll_dir / dll
-        if not backup.is_file():
+        if not (dll_dir / (dll + BACKUP_SUFFIX)).is_file():
             continue
         try:
-            if target.exists():
-                target.unlink()
-            backup.rename(target)
+            _restore_backup(dll_dir, dll)
             restored.append(dll)
         except OSError as exc:
             log.warning("restore failed for %s: %s", dll, exc)
@@ -500,19 +588,31 @@ def write_conf(game_dir: str | os.PathLike[str], text: str, name: str = CONF_NAM
     """Write a dxvk.conf next to the game executable.
 
     An existing file is kept as <name>.bkp first: the user's own tweaks are
-    worth more than the convenience of overwriting silently.
+    worth more than the convenience of overwriting silently. The new document
+    is written through a temporary file, so a crash cannot truncate the
+    configuration the game reads on its next start.
     """
     root = Path(game_dir)
-    root.mkdir(parents=True, exist_ok=True)
+    if not root.is_dir():
+        raise FileNotFoundError(f"Game folder not found: {root}")
     dll_dir = dll_dir_for(root)
     dll_dir.mkdir(parents=True, exist_ok=True)
     target = dll_dir / name
     if target.is_file():
         try:
-            shutil.copy2(target, target.with_suffix(target.suffix + ".bkp"))
+            _atomic_copy(target, target.with_suffix(target.suffix + ".bkp"))
         except OSError as exc:
             log.debug("could not back up %s: %s", target, exc)
-    target.write_text(text, encoding="utf-8", newline="\r\n")
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8", newline="\r\n")
+        os.replace(temporary, target)
+    except OSError:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     ledger.record(root, conf_written=time.strftime("%Y-%m-%d %H:%M:%S"), conf_path=str(target))
     invalidate(root)
     return target
