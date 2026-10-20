@@ -12,8 +12,12 @@ Why this script exists instead of ``pyside6-lupdate``:
     forever, so the stale file silently rots.
 
 So the catalogue is generated here from first principles:
-  * QML contexts  -> scanned from ``dxvk_toolkit/ui/qml/*.qml`` (context = file stem)
+  * QML contexts  -> scanned from the QML files (context = file stem), in
+                      both ``dxvk_toolkit/ui/qml/`` and
+                      ``dxvk_toolkit/standalone/qml/``
   * ``Bridge``     -> scanned from ``dxvk_toolkit/ui/bridge/*.py`` (``tr("...")``)
+  * ``Standalone`` -> scanned from ``dxvk_toolkit/standalone/bridge.py``
+                      (``_tr("...")``)
   * ``GameListModel`` -> scanned from ``dxvk_toolkit/ui/models.py`` (``_tr("...")``)
                       plus the runtime-only sources (platform labels, config
                       purposes) that are imported from the pure-stdlib core.
@@ -22,6 +26,11 @@ Every source string must have an English translation in the tables below; a
 missing or stale entry is a hard error (exit code 1). That makes this script a
 gate, not a helper: it runs in CI (pure standard library) and refuses to let a
 renamed string stay Chinese.
+
+One catalogue serves both applications. They share the configuration
+components, and Qt derives a ``qsTr()`` context from the *file name* of the
+file the call is written in - so a shared component keeps its own context
+whichever tool loads it, and the catalogue needs only one entry for it.
 
 Usage:
     python tests/i18n_fill.py           # rewrite assets/i18n/app_en.ts
@@ -39,7 +48,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TS = ROOT / "assets" / "i18n" / "app_en.ts"
 QML_DIR = ROOT / "dxvk_toolkit" / "ui" / "qml"
+STANDALONE_QML_DIR = ROOT / "dxvk_toolkit" / "standalone" / "qml"
 BRIDGE_DIR = ROOT / "dxvk_toolkit" / "ui" / "bridge"
+STANDALONE_BRIDGE_PY = ROOT / "dxvk_toolkit" / "standalone" / "bridge.py"
 MODELS_PY = ROOT / "dxvk_toolkit" / "ui" / "models.py"
 CONF_MODEL_PY = ROOT / "dxvk_toolkit" / "ui" / "conf_model.py"
 
@@ -421,6 +432,48 @@ CONFIG_LIST_MODEL = {
     "其他": "Other",
 }
 
+# -- the standalone configurator -------------------------------------------
+# Its own QML files and its own bridge; the configuration components it
+# borrows keep their own contexts (ConfigToolbar, ConfigRail, ...).
+
+STANDALONE_MAIN = {
+    "DXVK 配置生成器": "DXVK Configurator",
+    "配置生成器": "Configurator",
+    "打开文件…": "Open file…",
+    "保存": "Save",
+    "就绪": "Ready",
+}
+
+CONFIGURATOR_PAGE = {
+    "还没有可用的配置选项。\n请确认安装目录下有 assets/dxvk.conf，或在「参考文件」里指定一个 dxvk.conf。":
+        "No config options available yet.\nMake sure assets/dxvk.conf ships with the installation, or point to a dxvk.conf manually.",
+    "把当前勾选的所有选项保存为自定义预设，之后可在任意配置文件上一键套用。":
+        "Saves every currently selected option as a custom preset that can be applied to any configuration file in one click.",
+    "「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。":
+        "\"Performance\", \"Compatibility\" and \"Clean\" are built-in presets and cannot be overwritten.",
+}
+
+STANDALONE = {
+    "共 {} 个选项（{}）": "{} options ({})",
+    "未找到参考文件": "reference file not found",
+    "读取失败：{}": "Failed to read: {}",
+    "已从 {} 导入 {} 个选项": "Imported {} options from {}",
+    "，另有 {} 个选项不在参考文件里（已忽略）":
+        "; another {} options are not in the reference file (ignored)",
+    "没有打开的文件": "No file is open",
+    "写入失败：{}": "Failed to write: {}",
+    "已写入 {}": "Written to {}",
+    "导出 dxvk.conf": "Export dxvk.conf",
+    "已导出到 {}": "Exported to {}",
+    "导入 dxvk.conf": "Import dxvk.conf",
+    "还没有载入参考文件": "No reference file loaded yet",
+    "已还原：{}": "Restored: {}",
+    "内置预设不能覆盖，请换一个名字":
+        "Built-in presets cannot be overwritten - please pick another name",
+    "已保存预设「{}」": "Saved preset \"{}\"",
+    "已复制到剪贴板": "Copied to the clipboard",
+}
+
 GAME_LIST_MODEL = {
     "目录缺失": "Folder missing",
     "已装 DXVK": "DXVK installed",
@@ -451,6 +504,7 @@ TABLES: dict[str, dict[str, str]] = {
     "ConfigDocCard": CONFIG_DOC_CARD,
     "ConfigGamePicker": CONFIG_GAME_PICKER,
     "ConfigListModel": CONFIG_LIST_MODEL,
+    "ConfiguratorPage": CONFIGURATOR_PAGE,
     "ConfigOptionList": CONFIG_OPTION_LIST,
     "ConfigPage": CONFIG_PAGE,
     "ConfigPresetDialog": CONFIG_PRESET_DIALOG,
@@ -462,6 +516,8 @@ TABLES: dict[str, dict[str, str]] = {
     "GameListModel": GAME_LIST_MODEL,
     "GamesPage": GAMES_PAGE,
     "SettingsPage": SETTINGS_PAGE,
+    "Standalone": STANDALONE,
+    "StandaloneMain": STANDALONE_MAIN,
     "VersionsPage": VERSIONS_PAGE,
     "main": MAIN,
 }
@@ -501,15 +557,16 @@ def _rel(path: Path) -> str:
 def _scan_qml() -> dict[str, dict[str, list[str]]]:
     """context (QML file stem) -> source -> ["<file>:<line>", ...]."""
     found: dict[str, dict[str, list[str]]] = {}
-    for path in sorted(QML_DIR.glob("*.qml")):
-        lines = path.read_text(encoding="utf-8").splitlines()
-        bucket: dict[str, list[str]] = {}
-        for lineno, line in enumerate(lines, start=1):
-            for raw in _QSTR_RE.findall(line):
-                bucket.setdefault(_unescape(raw), []).append(f"{_rel(path)}:{lineno}")
-        # A QML file without any qsTr() has no translation context at all.
-        if bucket:
-            found[path.stem] = bucket
+    for directory in (QML_DIR, STANDALONE_QML_DIR):
+        for path in sorted(directory.glob("*.qml")):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            bucket: dict[str, list[str]] = {}
+            for lineno, line in enumerate(lines, start=1):
+                for raw in _QSTR_RE.findall(line):
+                    bucket.setdefault(_unescape(raw), []).append(f"{_rel(path)}:{lineno}")
+            # A QML file without any qsTr() has no translation context at all.
+            if bucket:
+                found[path.stem] = bucket
     return found
 
 
@@ -523,6 +580,23 @@ def _scan_python_tr() -> dict[str, dict[str, list[str]]]:
             for raw in raws:
                 found["Bridge"].setdefault(_unescape(raw), []).append(
                     f"{_rel(path)}:{lineno}")
+    return found
+
+
+def _scan_standalone_tr() -> dict[str, dict[str, list[str]]]:
+    """context ``Standalone`` -> source -> locations.
+
+    The standalone bridge translates through its own ``_tr()`` helper, which
+    pins the context to ``Standalone`` (see
+    ``dxvk_toolkit/standalone/bridge.py``).
+    """
+    found: dict[str, dict[str, list[str]]] = {"Standalone": {}}
+    lines = STANDALONE_BRIDGE_PY.read_text(encoding="utf-8").splitlines()
+    for lineno, line in enumerate(lines, start=1):
+        raws = list(_MODEL_TR_RE.findall(line)) + list(_MODEL_TR_SQ_RE.findall(line))
+        for raw in raws:
+            found["Standalone"].setdefault(_unescape(raw), []).append(
+                f"{_rel(STANDALONE_BRIDGE_PY)}:{lineno}")
     return found
 
 
@@ -567,6 +641,8 @@ def collect_sources() -> dict[str, dict[str, list[str]]]:
     for context, bucket in _scan_python_tr().items():
         sources.setdefault(context, {}).update(bucket)
     for context, bucket in _scan_model_tr().items():
+        sources.setdefault(context, {}).update(bucket)
+    for context, bucket in _scan_standalone_tr().items():
         sources.setdefault(context, {}).update(bucket)
     for context, extra in _runtime_only_sources().items():
         for source in extra:

@@ -47,7 +47,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 QML_DIR = ROOT / "dxvk_toolkit" / "ui" / "qml"
+STANDALONE_QML_DIR = ROOT / "dxvk_toolkit" / "standalone" / "qml"
 BASELINE = Path(__file__).resolve().parent / "qml_baseline.json"
+STANDALONE_BASELINE = Path(__file__).resolve().parent / "qml_baseline_standalone.json"
 TS_CATALOGUE = ROOT / "assets" / "i18n" / "app_en.ts"
 
 # ``import "theme.js" as Th`` / ``import "../theme.js" as Th``
@@ -61,7 +63,16 @@ QSTR_ANY_RE = re.compile(r'qsTr\(\s*"((?:[^"\\]|\\.)*)"')
 
 
 def collect_qml_files() -> list[Path]:
+    """Both QML trees: the full application and the standalone configurator."""
+    return sorted(QML_DIR.rglob("*.qml")) + sorted(STANDALONE_QML_DIR.rglob("*.qml"))
+
+
+def collect_app_qml_files() -> list[Path]:
     return sorted(QML_DIR.rglob("*.qml"))
+
+
+def collect_standalone_qml_files() -> list[Path]:
+    return sorted(STANDALONE_QML_DIR.rglob("*.qml"))
 
 
 def _rel(path: Path) -> str:
@@ -188,18 +199,43 @@ def collect_inventory(files: list[Path]) -> dict[str, list[str]]:
     }
 
 
-def load_baseline() -> dict[str, list[str]]:
-    if not BASELINE.is_file():
+def load_baseline(path: Path) -> dict[str, list[str]]:
+    if not path.is_file():
         return {}
-    data = json.loads(BASELINE.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8"))
     return {k: list(v) for k, v in data.items()}
 
 
-def save_baseline(data: dict[str, list[str]]) -> None:
-    BASELINE.write_text(
+def save_baseline(path: Path, data: dict[str, list[str]]) -> None:
+    path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _compare_inventory(label: str, baseline: dict[str, list[str]],
+                        inventory: dict[str, list[str]]) -> list[str]:
+    """The strings and object names of one tree must not change silently."""
+    failures: list[str] = []
+    if not baseline:
+        failures.append(
+            f"no {label} baseline found - run "
+            f"`python tests/qml_check.py --update-baseline`"
+        )
+        return failures
+    for key in ("qstr", "object_names"):
+        before = set(baseline.get(key, []))
+        after = set(inventory[key])
+        for item in sorted(before - after):
+            failures.append(
+                f"{label} {key}: '{item}' disappeared "
+                f"(the English catalogue would break)"
+            )
+        for item in sorted(after - before):
+            failures.append(
+                f"{label} {key}: '{item}' is new (needs an English translation)"
+            )
+    return failures
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -211,32 +247,29 @@ def main(argv: list[str] | None = None) -> int:
     failures.extend(check_ids(files))
     failures.extend(check_translation_contexts(files))
 
+    # Each tree keeps its own baseline: they are separate programs, and a
+    # string added to one must not be silently accepted in the other.
+    app_inventory = collect_inventory(collect_app_qml_files())
+    standalone_inventory = collect_inventory(collect_standalone_qml_files())
     inventory = collect_inventory(files)
-    baseline = load_baseline()
+
     if "--update-baseline" in argv:
-        save_baseline(inventory)
+        save_baseline(BASELINE, app_inventory)
+        save_baseline(STANDALONE_BASELINE, standalone_inventory)
         print(
-            f"baseline updated: {len(inventory['qstr'])} strings, "
-            f"{len(inventory['object_names'])} object names"
+            f"baseline updated: app {len(app_inventory['qstr'])} strings, "
+            f"standalone {len(standalone_inventory['qstr'])} strings"
         )
         return 0
 
-    if not baseline:
-        failures.append(
-            "no baseline found - run `python tests/qml_check.py --update-baseline`"
+    failures.extend(
+        _compare_inventory("app", load_baseline(BASELINE), app_inventory)
+    )
+    failures.extend(
+        _compare_inventory(
+            "standalone", load_baseline(STANDALONE_BASELINE), standalone_inventory
         )
-    else:
-        for key in ("qstr", "object_names"):
-            before = set(baseline.get(key, []))
-            after = set(inventory[key])
-            for item in sorted(before - after):
-                failures.append(
-                    f"{key}: '{item}' disappeared (the English catalogue would break)"
-                )
-            for item in sorted(after - before):
-                failures.append(
-                    f"{key}: '{item}' is new (needs an English translation)"
-                )
+    )
 
     if failures:
         print(f"qml check: FAIL ({len(failures)} problems)")

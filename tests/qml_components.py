@@ -158,13 +158,42 @@ def main() -> int:
 
     bridge.shutdown()
 
+    # The standalone configurator has its own QML tree and its own bridge.
+    # It is loaded separately: the two bridges expose different slots, so
+    # reusing one would report missing methods as errors.
+    from dxvk_toolkit.standalone.app import QML_DIR as STANDALONE_QML_DIR
+    from dxvk_toolkit.standalone.bridge import ConfiguratorBridge
+
+    standalone_engine = QQmlApplicationEngine()
+    standalone_bridge = ConfiguratorBridge()
+    standalone_context = standalone_engine.rootContext()
+    standalone_context.setContextProperty("bridge", standalone_bridge)
+    standalone_context.setContextProperty("configModel", standalone_bridge.config)
+
+    standalone_files = sorted(STANDALONE_QML_DIR.rglob("*.qml"))
+    print(f"loading {len(standalone_files)} standalone QML components off screen:")
+    for path in standalone_files:
+        problems.clear()
+        standalone_engine.load(QUrl.fromLocalFile(str(path)))
+        for _ in range(3):
+            app.processEvents()
+        roots = standalone_engine.rootObjects()
+        ok = bool(roots) and not problems
+        detail = ""
+        if not ok:
+            detail = problems[0].split("] ")[-1][:170] if problems else "no root object"
+            FAILURES.append(f"standalone/{path.name}: {detail}")
+        print(f"  [{'OK  ' if ok else 'FAIL'}] {path.name}"
+              f"{(' - ' + detail) if detail else ''}")
+        standalone_engine.clearComponentCache()
+
     if FAILURES:
         print(f"\nresult: FAIL ({len(FAILURES)} problems)")
         for item in FAILURES:
             print(f"  - {item}")
         return 2
 
-    print(f"\nresult: PASS ({len(files)} components)")
+    print(f"\nresult: PASS ({len(files) + len(standalone_files)} components)")
     return 0
 
 

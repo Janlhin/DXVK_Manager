@@ -677,6 +677,26 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
         </message>
     </context>
     <context>
+        <name>ConfiguratorPage</name>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/ConfiguratorPage.qml" line="202" />
+            <source>「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。</source>
+            <translation>"Performance", "Compatibility" and "Clean" are built-in presets and cannot be overwritten.</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/ConfiguratorPage.qml" line="201" />
+            <source>把当前勾选的所有选项保存为自定义预设，之后可在任意配置文件上一键套用。</source>
+            <translation>Saves every currently selected option as a custom preset that can be applied to any configuration file in one click.</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/ConfiguratorPage.qml" line="145" />
+            <source>还没有可用的配置选项。
+请确认安装目录下有 assets/dxvk.conf，或在「参考文件」里指定一个 dxvk.conf。</source>
+            <translation>No config options available yet.
+Make sure assets/dxvk.conf ships with the installation, or point to a dxvk.conf manually.</translation>
+        </message>
+    </context>
+    <context>
         <name>FilterSheet</name>
         <message>
             <location filename="dxvk_toolkit/ui/qml/FilterSheet.qml" line="206" />
@@ -1346,6 +1366,118 @@ UI: PySide6 + QML (Qt Quick); the core logic is a pure Python standard-library i
             <location filename="dxvk_toolkit/ui/qml/SettingsPage.qml" line="540" />
             <source>鸣谢</source>
             <translation>Credits</translation>
+        </message>
+    </context>
+    <context>
+        <name>Standalone</name>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="95" />
+            <source>共 {} 个选项（{}）</source>
+            <translation>{} options ({})</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="270" />
+            <source>内置预设不能覆盖，请换一个名字</source>
+            <translation>Built-in presets cannot be overwritten - please pick another name</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="155" />
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="175" />
+            <source>写入失败：{}</source>
+            <translation>Failed to write: {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="188" />
+            <source>导入 dxvk.conf</source>
+            <translation>Import dxvk.conf</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="167" />
+            <source>导出 dxvk.conf</source>
+            <translation>Export dxvk.conf</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="131" />
+            <source>已从 {} 导入 {} 个选项</source>
+            <translation>Imported {} options from {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="273" />
+            <source>已保存预设「{}」</source>
+            <translation>Saved preset "{}"</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="157" />
+            <source>已写入 {}</source>
+            <translation>Written to {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="293" />
+            <source>已复制到剪贴板</source>
+            <translation>Copied to the clipboard</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="178" />
+            <source>已导出到 {}</source>
+            <translation>Exported to {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="231" />
+            <source>已还原：{}</source>
+            <translation>Restored: {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="99" />
+            <source>未找到参考文件</source>
+            <translation>reference file not found</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="150" />
+            <source>没有打开的文件</source>
+            <translation>No file is open</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="122" />
+            <source>读取失败：{}</source>
+            <translation>Failed to read: {}</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="211" />
+            <source>还没有载入参考文件</source>
+            <translation>No reference file loaded yet</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/bridge.py" line="133" />
+            <source>，另有 {} 个选项不在参考文件里（已忽略）</source>
+            <translation>; another {} options are not in the reference file (ignored)</translation>
+        </message>
+    </context>
+    <context>
+        <name>StandaloneMain</name>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/StandaloneMain.qml" line="26" />
+            <source>DXVK 配置生成器</source>
+            <translation>DXVK Configurator</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/StandaloneMain.qml" line="93" />
+            <source>保存</source>
+            <translation>Save</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/StandaloneMain.qml" line="29" />
+            <source>就绪</source>
+            <translation>Ready</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/StandaloneMain.qml" line="87" />
+            <source>打开文件…</source>
+            <translation>Open file…</translation>
+        </message>
+        <message>
+            <location filename="dxvk_toolkit/standalone/qml/StandaloneMain.qml" line="69" />
+            <source>配置生成器</source>
+            <translation>Configurator</translation>
         </message>
     </context>
     <context>
