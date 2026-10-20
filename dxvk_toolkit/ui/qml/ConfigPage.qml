@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "theme.js" as Th
+import "components/DarkSwitch.qml"
+import "components/MiniButton.qml"
 
 // Options on the left, the generated file on the right. The preview pane is
 // part of the page (it was removed once and immediately missed): it shows the
@@ -365,58 +367,8 @@ Item {
         }
     }
 
-    // Same pill switch as the settings page (§29: both switches read and
-    // write the same conf_comments key).
-    component DarkSwitch: Switch {
-        id: sw
-        // 同 SettingsPage：Basic 样式 implicitWidth 不含 indicator，控件会
-        // 塌缩到 padding*2，轨道向右溢出。钉死几何，Row 内占位才真实。
-        implicitWidth: 40
-        implicitHeight: 24
-        padding: 0
-
-        indicator: Rectangle {
-            implicitWidth: 40
-            implicitHeight: 22
-            x: 0
-            y: (sw.height - height) / 2
-            radius: 11
-            color: sw.checked ? Th.accentDark : Th.surfaceAlt
-            border.width: 1
-            border.color: sw.checked ? Th.accent : Th.border
-
-            Behavior on color { ColorAnimation { duration: 120 } }
-
-            Rectangle {
-                width: 16
-                height: 16
-                radius: 8
-                y: 2
-                x: sw.checked ? parent.width - width - 3 : 3
-                color: sw.checked ? "#ffffff" : Th.textMuted
-                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-            }
-        }
-        contentItem: Item {}
-    }
-
-    component MiniButton: Button {
-        id: mini
-        padding: 6
-        opacity: enabled ? 1.0 : 0.45
-        background: Rectangle {
-            radius: Th.radiusControl
-            color: mini.hovered ? Th.surfaceHover : Th.surfaceAlt
-            Behavior on color { ColorAnimation { duration: 120 } }
-        }
-        contentItem: Text {
-            text: mini.text
-            color: Th.text
-            font.pixelSize: Th.fontCaption
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
+    // The pill switch (components/DarkSwitch.qml) and the small flat button
+    // (components/MiniButton.qml) are shared with the settings page.
 
     // --- toolbar ---------------------------------------------------------
     Rectangle {
