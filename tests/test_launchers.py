@@ -4,12 +4,19 @@ and the scan_all_games dedupe pipeline."""
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from dxvk_toolkit import steam
+
+# GOG / Ubisoft / WeGame discovery reads the Windows registry and treats
+# backslash paths as native; on Linux both the API and Path semantics differ,
+# so those cases only make sense on Windows. The pure mappers (GOG entries,
+# WeGame registry records) stay cross-platform and keep running everywhere.
+windows_only = unittest.skipUnless(os.name == "nt", "Windows registry / path semantics")
 
 
 class EpicManifestTests(unittest.TestCase):
@@ -52,6 +59,7 @@ class EpicManifestTests(unittest.TestCase):
             self.assertEqual(games[0].appid, "gamelocal")
 
 
+@windows_only
 class GogMappingTests(unittest.TestCase):
     def test_paths_and_names(self) -> None:
         entries = [
@@ -65,6 +73,7 @@ class GogMappingTests(unittest.TestCase):
         self.assertEqual(games[1].appid, "1435828769")
 
 
+@windows_only
 class UbisoftMappingTests(unittest.TestCase):
     def test_dedupe_and_folder_name(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -190,6 +199,7 @@ class EpicInstallationsTests(unittest.TestCase):
         self.assertEqual(games[0].name, "RawFolderName")
 
 
+@windows_only
 class WegameRailAppsTests(unittest.TestCase):
     def _make_rail_apps(self, base: Path) -> Path:
         rail = base / "rail_apps"
