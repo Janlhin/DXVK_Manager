@@ -234,7 +234,7 @@
             <translation>Adoption failed</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/bridge/facade.py" line="444" />
+            <location filename="dxvk_toolkit/ui/bridge/facade.py" line="445" />
             <source>操作失败</source>
             <translation>Operation failed</translation>
         </message>
@@ -407,32 +407,32 @@
     <context>
         <name>ConfigContextBar</name>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="37" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="42" />
             <source>作用对象</source>
             <translation>Applies to</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="200" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="205" />
             <source>存为预设</source>
             <translation>Save as preset</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="206" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="211" />
             <source>清空</source>
             <translation>Clear all</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="136" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="141" />
             <source>选择预设…</source>
             <translation>Pick a preset…</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="213" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="218" />
             <source>重置为默认</source>
             <translation>Reset to defaults</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="125" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigContextBar.qml" line="130" />
             <source>预设</source>
             <translation>Preset</translation>
         </message>
@@ -474,14 +474,41 @@
         </message>
     </context>
     <context>
+        <name>ConfigListModel</name>
+        <message>
+            <source>其他</source>
+            <translation>Other</translation>
+        </message>
+        <message>
+            <source>兼容性</source>
+            <translation>Compatibility</translation>
+        </message>
+        <message>
+            <source>帧率与同步</source>
+            <translation>Framerate and sync</translation>
+        </message>
+        <message>
+            <source>性能优化</source>
+            <translation>Performance</translation>
+        </message>
+        <message>
+            <source>显示与诊断</source>
+            <translation>Rendering and diagnostics</translation>
+        </message>
+        <message>
+            <source>画面与输出</source>
+            <translation>Display and output</translation>
+        </message>
+    </context>
+    <context>
         <name>ConfigOptionList</name>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigOptionList.qml" line="240" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigOptionList.qml" line="245" />
             <source>GPLAsync 专有</source>
             <translation>GPLAsync only</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigOptionList.qml" line="52" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigOptionList.qml" line="31" />
             <source>还没有可用的配置选项。
 先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。</source>
             <translation>No config options available yet.
@@ -525,32 +552,32 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
     <context>
         <name>ConfigPresetDialog</name>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="79" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="16" />
             <source>「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。</source>
             <translation>"Performance", "Compatibility" and "Clean" are built-in presets and cannot be overwritten.</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="92" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="98" />
             <source>保存</source>
             <translation>Save</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="33" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="39" />
             <source>保存为预设</source>
             <translation>Save as preset</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="113" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="119" />
             <source>取消</source>
             <translation>Cancel</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="49" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="15" />
             <source>把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。</source>
             <translation>Saves every currently selected option as a custom preset that can be applied to any game in one click.</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="58" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigPresetDialog.qml" line="64" />
             <source>预设名称，例如：赛博朋克专用</source>
             <translation>Preset name, e.g. Cyberpunk 2077</translation>
         </message>
@@ -609,32 +636,32 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
     <context>
         <name>ConfigToolbar</name>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="108" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="112" />
             <source>共 %1 项，已选 %2</source>
             <translation>%1 options in total, %2 selected</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="56" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="59" />
             <source>完全</source>
             <translation>Full</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="84" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="87" />
             <source>导入 dxvk.conf…</source>
             <translation>Import dxvk.conf…</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="38" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="41" />
             <source>搜索选项…</source>
             <translation>Search options…</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="54" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="57" />
             <source>简单</source>
             <translation>Simple</translation>
         </message>
         <message>
-            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="55" />
+            <location filename="dxvk_toolkit/ui/qml/ConfigToolbar.qml" line="58" />
             <source>进阶</source>
             <translation>Advanced</translation>
         </message>
@@ -970,15 +997,7 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
             <translation>All</translation>
         </message>
         <message>
-            <source>其他</source>
-            <translation>Other</translation>
-        </message>
-        <message>
-            <source>兼容性</source>
-            <translation>Compatibility</translation>
-        </message>
-        <message>
-            <location filename="dxvk_toolkit/ui/models.py" line="838" />
+            <location filename="dxvk_toolkit/ui/models.py" line="542" />
             <source>可还原</source>
             <translation>Restorable</translation>
         </message>
@@ -989,31 +1008,19 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
         </message>
         <message>
             <location filename="dxvk_toolkit/ui/models.py" line="326" />
-            <location filename="dxvk_toolkit/ui/models.py" line="836" />
+            <location filename="dxvk_toolkit/ui/models.py" line="540" />
             <source>已装·未接管</source>
             <translation>Installed · unmanaged</translation>
-        </message>
-        <message>
-            <source>帧率与同步</source>
-            <translation>Framerate and sync</translation>
-        </message>
-        <message>
-            <source>性能优化</source>
-            <translation>Performance</translation>
         </message>
         <message>
             <source>手动添加</source>
             <translation>Manual</translation>
         </message>
         <message>
-            <source>显示与诊断</source>
-            <translation>Rendering and diagnostics</translation>
-        </message>
-        <message>
             <location filename="dxvk_toolkit/ui/models.py" line="327" />
             <location filename="dxvk_toolkit/ui/models.py" line="467" />
-            <location filename="dxvk_toolkit/ui/models.py" line="830" />
-            <location filename="dxvk_toolkit/ui/models.py" line="839" />
+            <location filename="dxvk_toolkit/ui/models.py" line="534" />
+            <location filename="dxvk_toolkit/ui/models.py" line="543" />
             <source>未安装</source>
             <translation>Not installed</translation>
         </message>
@@ -1024,11 +1031,7 @@ Download any DXVK version on the Versions page first (it bundles a reference fil
             <translation>Unknown</translation>
         </message>
         <message>
-            <source>画面与输出</source>
-            <translation>Display and output</translation>
-        </message>
-        <message>
-            <location filename="dxvk_toolkit/ui/models.py" line="828" />
+            <location filename="dxvk_toolkit/ui/models.py" line="532" />
             <source>目录缺失</source>
             <translation>Folder missing</translation>
         </message>

@@ -41,6 +41,7 @@ TS = ROOT / "assets" / "i18n" / "app_en.ts"
 QML_DIR = ROOT / "dxvk_toolkit" / "ui" / "qml"
 BRIDGE_DIR = ROOT / "dxvk_toolkit" / "ui" / "bridge"
 MODELS_PY = ROOT / "dxvk_toolkit" / "ui" / "models.py"
+CONF_MODEL_PY = ROOT / "dxvk_toolkit" / "ui" / "conf_model.py"
 
 # ---------------------------------------------------------------------------
 # Translation tables.  One table per translation context.
@@ -404,6 +405,17 @@ MAIN = {
     "处理中…": "Working…",
 }
 
+# The option catalogue's group headings. They are looked up by purpose key
+# at runtime, so the generator only knows them through PURPOSE_ORDER.
+CONFIG_LIST_MODEL = {
+    "帧率与同步": "Framerate and sync",
+    "画面与输出": "Display and output",
+    "性能优化": "Performance",
+    "兼容性": "Compatibility",
+    "显示与诊断": "Rendering and diagnostics",
+    "其他": "Other",
+}
+
 GAME_LIST_MODEL = {
     "目录缺失": "Folder missing",
     "已装 DXVK": "DXVK installed",
@@ -411,12 +423,6 @@ GAME_LIST_MODEL = {
     "可还原": "Restorable",
     "未安装": "Not installed",
     "未知": "Unknown",
-    "帧率与同步": "Framerate and sync",
-    "画面与输出": "Display and output",
-    "性能优化": "Performance",
-    "兼容性": "Compatibility",
-    "显示与诊断": "Rendering and diagnostics",
-    "其他": "Other",
     # Platform labels from steam.PLATFORM_LABELS, routed through _tr() when the
     # row data and the filter chips are built. Most are identical in English;
     # they are registered so a renamed label cannot silently stay Chinese.
@@ -439,6 +445,7 @@ TABLES: dict[str, dict[str, str]] = {
     "ConfigContextBar": CONFIG_CONTEXT_BAR,
     "ConfigDocCard": CONFIG_DOC_CARD,
     "ConfigGamePicker": CONFIG_GAME_PICKER,
+    "ConfigListModel": CONFIG_LIST_MODEL,
     "ConfigOptionList": CONFIG_OPTION_LIST,
     "ConfigPage": CONFIG_PAGE,
     "ConfigPresetDialog": CONFIG_PRESET_DIALOG,
@@ -521,18 +528,31 @@ def _runtime_only_sources() -> dict[str, set[str]]:
     from dxvk_toolkit.steam import PLATFORM_LABELS  # noqa: PLC0415
 
     return {
-        "GameListModel": set(PURPOSE_ORDER) | set(PLATFORM_LABELS.values()),
+        "GameListModel": set(PLATFORM_LABELS.values()),
+        # The option-group headings are looked up dynamically by purpose key.
+        "ConfigListModel": set(PURPOSE_ORDER),
     }
 
 
 def _scan_model_tr() -> dict[str, dict[str, list[str]]]:
-    lines = MODELS_PY.read_text(encoding="utf-8").splitlines()
-    bucket: dict[str, list[str]] = {}
-    for lineno, line in enumerate(lines, start=1):
-        raws = list(_MODEL_TR_RE.findall(line)) + list(_MODEL_TR_SQ_RE.findall(line))
-        for raw in raws:
-            bucket.setdefault(_unescape(raw), []).append(f"{_rel(MODELS_PY)}:{lineno}")
-    return {"GameListModel": bucket}
+    """The two model modules, each with its own translation context.
+
+    ``models.py`` holds the game list ("GameListModel"); ``conf_model.py``
+    holds the option catalogue ("ConfigListModel"). The catalogue used to
+    live in the first file under the second name, so splitting them moved
+    the option-group headings from one context to the other.
+    """
+    found: dict[str, dict[str, list[str]]] = {}
+    for context, path in (("GameListModel", MODELS_PY),
+                          ("ConfigListModel", CONF_MODEL_PY)):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        bucket: dict[str, list[str]] = {}
+        for lineno, line in enumerate(lines, start=1):
+            raws = list(_MODEL_TR_RE.findall(line)) + list(_MODEL_TR_SQ_RE.findall(line))
+            for raw in raws:
+                bucket.setdefault(_unescape(raw), []).append(f"{_rel(path)}:{lineno}")
+        found[context] = bucket
+    return found
 
 
 def collect_sources() -> dict[str, dict[str, list[str]]]:

@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QTranslator, QUrl
-from PySide6.QtGui import QColor, QPalette
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtWidgets import QApplication
@@ -15,36 +14,16 @@ from .. import APP_NAME, APP_VERSION
 from ..paths import asset_path, settings
 from ..util import log, setup_logging
 from .bridge import Bridge
+from .palette import dark_palette
 
 QML_DIR = Path(__file__).resolve().parent / "qml"
 
 
-def _dark_palette() -> QPalette:
-    """A dark application palette.
+# Kept under its old name so the existing callers (and the i18n probe) keep
+# working; the implementation moved to dxvk_toolkit.ui.palette so the
+# standalone configurator can use it without importing this module.
+_dark_palette = dark_palette
 
-    Controls that the QML side does not style itself - tool tips, combo box
-    popups, menus - take their colours from here. Without it the default light
-    palette produced glaring white tool tips in the middle of a dark window.
-    """
-    palette = QPalette()
-    pairs = {
-        QPalette.Window: "#141619",
-        QPalette.WindowText: "#e7e9ec",
-        QPalette.Base: "#1b1e23",
-        QPalette.AlternateBase: "#20242b",
-        QPalette.Text: "#e7e9ec",
-        QPalette.Button: "#20242b",
-        QPalette.ButtonText: "#e7e9ec",
-        QPalette.BrightText: "#e5686a",
-        QPalette.ToolTipBase: "#20242b",
-        QPalette.ToolTipText: "#e7e9ec",
-        QPalette.Highlight: "#33549f",
-        QPalette.HighlightedText: "#e6ecfb",
-        QPalette.PlaceholderText: "#6f7885",
-    }
-    for role, value in pairs.items():
-        palette.setColor(role, QColor(value))
-    return palette
 
 
 # The currently installed interface translator, kept so it can be swapped at

@@ -15,7 +15,8 @@ from PySide6.QtCore import QObject, Signal, Slot
 from ... import APP_VERSION
 from ...paths import data_root
 from ...util import log
-from ..models import ConfigListModel, GameListModel, status_for
+from ..conf_model import ConfigListModel
+from ..models import GameListModel, status_for
 from .config import ConfigService
 from .jobs import JobService
 from .library import LibraryService

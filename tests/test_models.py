@@ -110,7 +110,7 @@ class ConfigListModelDocTests(unittest.TestCase):
 
     def test_doc_role_carries_three_parts(self) -> None:
         from dxvk_toolkit import confspec
-        from dxvk_toolkit.ui.models import ConfigListModel
+        from dxvk_toolkit.ui.conf_model import ConfigListModel
 
         model = ConfigListModel()
         model.set_groups(confspec.load_model().groups)
@@ -131,7 +131,7 @@ class ConfigListModelDocTests(unittest.TestCase):
 
     def test_doc_role_reachable_through_data(self) -> None:
         from dxvk_toolkit import confspec
-        from dxvk_toolkit.ui.models import ConfigListModel
+        from dxvk_toolkit.ui.conf_model import ConfigListModel
 
         model = ConfigListModel()
         model.set_groups(confspec.load_model().groups)
