@@ -122,3 +122,32 @@
   多 QObject 方案要改 QML 的 context property 与全部 `bridge.*` 调用点，而当前没有 QML
   交互测试，无法验证回归；先把可单测的部分抽出来，桥接拆分留作 T37 剩余项。
 - 理由：以「可验证」为边界——有测试护栏的部分动手，无验证手段的部分如实记录，不假装完成。
+
+== 2026-10-20 QML 组件化与桥接拆分（T37 收尾）
+
+- 决策：**先织网，再重构**。T37 此前被推迟的理由是「缺少 QML 交互测试手段」。本次先补
+  `tests/qml_check.py`（纯标准库：相对 import 可解析、同文件 id 唯一、`qsTr` 词条与
+  `objectName` 对基线）与 `tests/qml_components.py`（离屏逐个加载组件），再动结构。
+  被否决方案：直接上 `qmllint` 当门禁——`bridge`/`configModel` 是运行时注入的 context
+  property，qmllint 无法静态解析，实测产出 195 条 `unqualified` + 49 条
+  `missing-property` 假阳性，噪音淹没真问题。
+- 决策：**QML 组件同目录拍平，靠隐式导入互引，不写 `import "path/X.qml"`**。
+  本环境无法可靠解析相对路径导入，写了会让页面直接加载失败（`Type ConfigPage
+  unavailable`）——这是提交 `8aa3159` 引入的真实回归，靠新增的错误特征
+  （`no such directory` / `unavailable`）才被门禁抓到，因未推送故未污染远端历史。
+- 决策：**CI 不装 PySide6**。组件级测试需要 200MB 下载与 Linux 系统库依赖，会让流水线
+  变脆；`qml_check.py` 进 CI，`qml_components.py` 只进本地 `verify.ps1`。
+- 决策：**QML 拆分保持 `objectName` 与全部 `qsTr` 源串不变**。两者进入基线文件，
+  拆分只是搬运，不翻译任何界面文字。
+- 决策：**桥接用 facade + 领域服务，QML 侧零改动**。`ui/bridge.py`（1306 行）拆为
+  `ui/bridge/` 包：`facade.py` 保留全部 `@Slot`/`Signal` 签名，`library`/`versions`/
+  `config`/`settings` 四个服务各自负责一个领域，`jobs.py` 承载线程池、忙碌引用计数与
+  在途任务去重。被否决方案：让 QML 直接调用四个子对象——那要改 context property 与
+  全部 `bridge.*` 调用点，收益远小于风险。
+- 决策：**翻译上下文显式固定为 `Bridge`**。`QObject.tr()` 以类名为 context；服务是普通
+  Python 类，若直接沿用会改用服务类名，英文词库静默失效而不报错。`base.py` 因此
+  用 `QCoreApplication.translate("Bridge", ...)` 而非 `self.tr()`。
+- 决策：**加一道桥接契约测试**。`tests/test_bridge_contract.py` 钉住 56 个槽与 15 个
+  信号的名称与参数个数——这是「QML 零改动」这个承诺唯一能被自动验证的形式。
+- 理由：这一轮的核心不是把代码变小，而是**让重构变得可验证**。截图逐像素对比、词条
+  基线、槽签名基线、组件级离屏加载，四张网都在，证明拆分确实只是搬运。
