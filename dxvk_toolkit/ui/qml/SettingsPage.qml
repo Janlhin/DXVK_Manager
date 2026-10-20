@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "theme.js" as Th
-import "components/DarkSwitch.qml"
 
 Item {
     id: page

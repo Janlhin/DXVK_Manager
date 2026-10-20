@@ -62,6 +62,11 @@ NON_ITEM_ROOTS = {"ApplicationWindow", "Window", "Dialog", "Popup", "Menu"}
 
 # QML error shapes worth failing on. Anything that says "this object has
 # no such property" or "this name does not exist" is a real wiring bug.
+#
+# "no such directory" and "unavailable" matter just as much: a QML file
+# that imports a sibling with a path the engine cannot resolve still
+# loads *something* - the page renders, minus the missing part - so the
+# failure is otherwise invisible.
 ERROR_MARKERS = (
     "referenceerror",
     "is not defined",
@@ -71,6 +76,11 @@ ERROR_MARKERS = (
     "is not a function",
     "unable to assign",
     "cannot load",
+    "no such directory",
+    "unavailable",
+    "is not a type",
+    "duplicate",
+    "invalid override",
 )
 
 PROBE_NAME = "__probe.qml"

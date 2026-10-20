@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "../theme.js" as Th
+import "theme.js" as Th
 
 // The pill switch used by the settings page and the configuration page.
 //

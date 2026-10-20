@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "../theme.js" as Th
+import "theme.js" as Th
 
 // A small, flat button for secondary actions (presets, clear, reset).
 // The pages used to define their own copies of this; one shared component
