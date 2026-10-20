@@ -155,7 +155,7 @@
 == 2026-10-20 配置生成器独立成软件（`dxvk_toolkit/standalone`）
 
 - 决策：**独立配置器复用现有代码，不复制组件**。新建 `dxvk_toolkit/standalone/`：
-  入口（`app.py`）、桥接（`bridge.py`，22 个槽）、独立设置（`store.py`）、
+  入口（`app.py`）、桥接（`bridge.py`）、独立设置（`store.py`）、
   独立资产定位（`assets.py`）与两个 QML 文件（`StandaloneMain.qml`、
   `ConfiguratorPage.qml`）。配置核心 `confkit`、选项模型 `ui/conf_model.py`
   与配置页的 QML 组件（`ConfigToolbar` / `ConfigContextBar` / `ConfigRail` /
@@ -184,3 +184,26 @@
 - 理由：用户只需要生成器时不该被迫安装整个版本管理器，但复制一份组件
   意味着两套界面从此各自漂移。复用 + 参数化让「独立发布」这件事不产生
   第二份真相。
+
+== 2026-10-21 独立配置器的语言开关
+
+- 决策：**独立配置器内置语言按钮，界面语言与选项说明一起切**。顶栏一个按钮
+  在「中文 ↔ English」之间切换，调用 `bridge.setLanguage()`：改写
+  `ui_lang` 与 `docs_language`、换掉 Qt 翻译器、重建选项列表与预览。
+- 决策：**不设设置页**。独立配置器只有一个任务、一个窗口 —— 塞进一个
+  「设置」页只为一个下拉框反而增加路径。语言按钮放在顶栏文件条里，
+  与「打开文件」同一层。
+- 决策：**两个语言一起切，而不是像主应用那样分开**。主应用把 `ui_lang` 与
+  `docs_language` 分开，是因为有人想要英文界面配中文说明；独立配置器面向
+  单一人群，「我选了 English」的自然含义就是全都用英文。
+- 决策：**切换后重建选项列表，且保留当前勾选**。选项名、说明与生成文件里的
+  注释都来自 `confkit` 的词库，而 `confkit` 按语言缓存 —— 不重建就会继续
+  显示旧语言的措辞。重建走 `ConfiguratorBridge._rebuild_model()`，
+  勾选状态从 `config.values` 取回。
+- 决策：**主应用同步补上 `ConfigListModel.retranslate()`**。配置列表的分组
+  标题是在过滤时通过 `_tr()` 翻译的，主应用切语言时只重译了游戏列表，
+  分组标题会留在旧语言。现在切换语言时一并重跑过滤。
+- 理由：此前只能手改 `settings.json` 才能看英文界面，真机测试极不方便；
+  而英文界面暴露了 `wrap_comment` 的一个真实缺陷 —— 词元正则不匹配空白，
+  词元被直接拼接，英文句子变成 `SetsenabledHUDelements`，中文说明里的
+  `relaxed fifo` 也变成 `relaxedfifo`。已单独修复并重建金标准。
