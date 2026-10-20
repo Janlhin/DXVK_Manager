@@ -9,6 +9,8 @@ echo "== pyright: 类型检查（basic 模式，门禁为 0 errors）=="
 python -m pyright
 echo "== pytest: 全量核心套件（无 PySide6 时模型测试自动跳过）=="
 python -m pytest tests -q
+echo "== qml: 静态结构与词条基线（纯标准库）=="
+python tests/qml_check.py
 echo "== golden: 配置层金标准（逐字节比对）=="
 python tests/test_conf_golden.py
-echo "verify: ruff + pyright + tests + golden OK"
+echo "verify: ruff + pyright + tests + qml + golden OK"

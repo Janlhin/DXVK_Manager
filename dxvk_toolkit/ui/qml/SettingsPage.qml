@@ -599,7 +599,7 @@ Item {
                                 Layout.fillWidth: true
                                 implicitHeight: 56
                                 radius: Th.radiusSmall
-                                color: mouse.containsMouse ? Th.surfaceHover : Th.surfaceAlt
+                                color: creditMouse.containsMouse ? Th.surfaceHover : Th.surfaceAlt
                                 Behavior on color { ColorAnimation { duration: 120 } }
 
                                 Item {
@@ -646,7 +646,7 @@ Item {
                                 }
 
                                 MouseArea {
-                                    id: mouse
+                                    id: creditMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -714,16 +714,16 @@ Item {
                 anchors.rightMargin: Th.space4
                 anchors.verticalCenter: parent.verticalCenter
                 text: "✕"
-                color: mouse.containsMouse ? Th.text : Th.textMuted
-                font.pixelSize: Th.fontSubtitle
+                        color: noticesCloseMouse.containsMouse ? Th.text : Th.textMuted
+                        font.pixelSize: Th.fontSubtitle
 
-                MouseArea {
-                    id: mouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: noticesDialog.close()
-                }
+                        MouseArea {
+                            id: noticesCloseMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: noticesDialog.close()
+                        }
             }
         }
 

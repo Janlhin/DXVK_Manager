@@ -46,9 +46,22 @@ Write-Host '== pytest: 全量核心套件（无 PySide6 时模型测试自动跳
 & $PyExe @PyArgs -m pytest tests -q
 Assert-Step 'pytest'
 
+Write-Host '== qml: 静态结构与词条基线（纯标准库）=='
+& $PyExe @PyArgs tests/qml_check.py
+Assert-Step 'qml-check'
+
+Write-Host '== qml: 组件级离屏加载（需 PySide6，缺失时跳过）=='
+& $PyExe @PyArgs -c 'import PySide6' 2>$null
+if ($LASTEXITCODE -eq 0) {
+    & $PyExe @PyArgs tests/qml_components.py
+    Assert-Step 'qml-components'
+} else {
+    Write-Host '[skip] PySide6 未安装，跳过组件级 QML 加载'
+}
+
 Write-Host '== golden: 配置层金标准（逐字节比对）=='
 & $PyExe @PyArgs tests/test_conf_golden.py
 Assert-Step 'golden'
 
-Write-Host 'verify: ruff + pyright + tests + golden OK'
+Write-Host 'verify: ruff + pyright + tests + qml + golden OK'
 exit 0
