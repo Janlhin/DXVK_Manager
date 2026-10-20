@@ -1,19 +1,50 @@
-"""Fill the English translations into assets/i18n/app_en.ts.
+"""Generate assets/i18n/app_en.ts from the source tree.
 
-Runs after pyside6-lupdate. Every (source -> English) mapping is asserted, so
-a renamed string in the UI shows up as a missing key instead of silently
-staying Chinese. The GameListModel context is added manually because its
-strings flow through _tr()/QCoreApplication.translate with a variable source,
-which lupdate cannot see.
+Why this script exists instead of ``pyside6-lupdate``:
+  * Qt derives the translation context of a QML ``qsTr()`` from the *file
+    name* of the QML file. Splitting ``ConfigPage.qml`` into nine components
+    therefore renamed the context and silently invalidated every translation.
+  * ``lupdate`` cannot see the Python side: it builds contexts from the class
+    name (``ConfigService``, ``LibraryService`` ...) while the runtime pins
+    every Python string to the context ``Bridge`` (see
+    ``dxvk_toolkit/ui/bridge/base.py``).
+  * ``lupdate`` merges into an existing catalogue and keeps vanished entries
+    forever, so the stale file silently rots.
+
+So the catalogue is generated here from first principles:
+  * QML contexts  -> scanned from ``dxvk_toolkit/ui/qml/*.qml`` (context = file stem)
+  * ``Bridge``     -> scanned from ``dxvk_toolkit/ui/bridge/*.py`` (``tr("...")``)
+  * ``GameListModel`` -> scanned from ``dxvk_toolkit/ui/models.py`` (``_tr("...")``)
+                      plus the runtime-only sources (platform labels, config
+                      purposes) that are imported from the pure-stdlib core.
+
+Every source string must have an English translation in the tables below; a
+missing or stale entry is a hard error (exit code 1). That makes this script a
+gate, not a helper: it runs in CI (pure standard library) and refuses to let a
+renamed string stay Chinese.
+
+Usage:
+    python tests/i18n_fill.py           # rewrite assets/i18n/app_en.ts
+    python tests/i18n_fill.py --check   # fail if the committed file is stale
 """
 
 from __future__ import annotations
 
+import argparse
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-TS = Path(__file__).resolve().parent.parent / "assets" / "i18n" / "app_en.ts"
+ROOT = Path(__file__).resolve().parent.parent
+TS = ROOT / "assets" / "i18n" / "app_en.ts"
+QML_DIR = ROOT / "dxvk_toolkit" / "ui" / "qml"
+BRIDGE_DIR = ROOT / "dxvk_toolkit" / "ui" / "bridge"
+MODELS_PY = ROOT / "dxvk_toolkit" / "ui" / "models.py"
+
+# ---------------------------------------------------------------------------
+# Translation tables.  One table per translation context.
+# ---------------------------------------------------------------------------
 
 BRIDGE = {
     "指纹识别失败": "Fingerprinting failed",
@@ -66,6 +97,9 @@ BRIDGE = {
     "导出 dxvk.conf": "Export dxvk.conf",
     "已导出到 {}": "Exported to {}",
     "已保存预设「{}」": "Saved preset \"{}\"",
+    "内置预设不能覆盖，请换一个名字":
+        "Built-in presets cannot be overwritten - please pick another name",
+    "操作失败": "Operation failed",
     "找到本地代理 {}，已切换为自定义代理":
         "Found a local proxy at {}; switched to the custom proxy",
     "没有在常见端口上发现本地代理": "No local proxy found on the usual ports",
@@ -103,6 +137,9 @@ BRIDGE = {
     "已识别 {} 款游戏的 Direct3D 版本": "Detected the Direct3D version of {} games",
 }
 
+# -- Config page, split per QML component -------------------------------
+# Qt uses the QML file name as the context, so each component owns its table.
+
 CONFIG_PAGE = {
     "默认配置": "Default configuration",
     "默认配置（所有游戏共用）": "Default configuration (shared by all games)",
@@ -110,26 +147,38 @@ CONFIG_PAGE = {
     "与磁盘文件不同": "Differs from the file on disk",
     "未写入": "Not written",
     "状态未知": "State unknown",
+}
+
+CONFIG_TOOLBAR = {
     "搜索选项…": "Search options…",
     "简单": "Simple",
     "进阶": "Advanced",
     "完全": "Full",
     "导入 dxvk.conf…": "Import dxvk.conf…",
     "共 %1 项，已选 %2": "%1 options in total, %2 selected",
+}
+
+CONFIG_RAIL = {
+    "分类": "Categories",
+    "全部": "All",
+}
+
+CONFIG_CONTEXT_BAR = {
     "作用对象": "Applies to",
     "预设": "Preset",
     "选择预设…": "Pick a preset…",
     "存为预设": "Save as preset",
     "清空": "Clear all",
     "重置为默认": "Reset to defaults",
-    "分类": "Categories",
-    "全部": "All",
+}
+
+CONFIG_OPTION_LIST = {
     "还没有可用的配置选项。\n先到「版本库」下载任意一个 DXVK 版本（自带参考文件），或到「设置」手动指定一个 dxvk.conf。":
         "No config options available yet.\nDownload any DXVK version on the Versions page first (it bundles a reference file), or point to a dxvk.conf manually in Settings.",
     "GPLAsync 专有": "GPLAsync only",
-    "说明": "Summary",
-    "示例": "Example",
-    "DXVK 原文": "Upstream text",
+}
+
+CONFIG_PREVIEW_PANE = {
     "dxvk.conf 预览": "dxvk.conf preview",
     "带注释": "Comments",
     "复制": "Copy",
@@ -138,9 +187,21 @@ CONFIG_PAGE = {
     "保存为文件…": "Save as file…",
     "和游戏 exe 放在同一目录即可生效；这里可以独立导出，不需要扫描游戏。":
         "Placed next to the game exe it takes effect; export it here on its own, no library scan needed.",
+}
+
+CONFIG_DOC_CARD = {
+    "说明": "Summary",
+    "示例": "Example",
+    "DXVK 原文": "Upstream text",
+}
+
+CONFIG_GAME_PICKER = {
     "把 dxvk.conf 写入哪个游戏？": "Which game should this dxvk.conf be written to?",
     "写入前会把已有的 dxvk.conf 备份为 .bkp": "Any existing dxvk.conf is backed up as .bkp before writing",
     "关闭": "Close",
+}
+
+CONFIG_PRESET_DIALOG = {
     "保存为预设": "Save as preset",
     "把当前勾选的所有选项保存为自定义预设，之后可在任意游戏上一键套用。":
         "Saves every currently selected option as a custom preset that can be applied to any game in one click.",
@@ -265,8 +326,8 @@ SETTINGS_PAGE = {
         "When on, each option gets a comment above it (like the original tool); when off, only the options are written. Preview and export share the same content.",
     "界面语言": "Interface language",
     "简体中文": "简体中文",
-    "切换界面文字，重启应用后生效；选项说明的语言独立设置，互不影响。":
-        "Switches the UI text; takes effect after a restart. The option-description language is set separately and is unaffected.",
+    "切换界面文字立即生效，无需重启；选项说明的语言独立设置，互不影响。":
+        "Switches the UI text immediately; no restart needed. The option-description language is set separately and is unaffected.",
     "数据目录": "Data folder",
     "已下载的版本放在这里；游戏目录只会出现 DXVK 的 DLL 和安装时生成的 .bkp 备份。":
         "Downloaded versions live here; a game folder only ever shows the DXVK DLLs and the .bkp backups created on install.",
@@ -317,6 +378,7 @@ VERSIONS_PAGE = {
     "重新下载": "Re-download",
     "下载": "Download",
     "复制链接": "Copy link",
+    "Release 页": "Release page",
     "删除本地": "Delete local copy",
     "直接应用到游戏": "Apply directly to a game",
     "选择游戏…": "Pick a game…",
@@ -372,69 +434,192 @@ GAME_LIST_MODEL = {
     "全部": "All",
 }
 
-TABLES = {
+TABLES: dict[str, dict[str, str]] = {
     "Bridge": BRIDGE,
+    "ConfigContextBar": CONFIG_CONTEXT_BAR,
+    "ConfigDocCard": CONFIG_DOC_CARD,
+    "ConfigGamePicker": CONFIG_GAME_PICKER,
+    "ConfigOptionList": CONFIG_OPTION_LIST,
     "ConfigPage": CONFIG_PAGE,
+    "ConfigPresetDialog": CONFIG_PRESET_DIALOG,
+    "ConfigPreviewPane": CONFIG_PREVIEW_PANE,
+    "ConfigRail": CONFIG_RAIL,
+    "ConfigToolbar": CONFIG_TOOLBAR,
     "FilterSheet": FILTER_SHEET,
     "GameDetailDialog": GAME_DETAIL,
+    "GameListModel": GAME_LIST_MODEL,
     "GamesPage": GAMES_PAGE,
     "SettingsPage": SETTINGS_PAGE,
     "VersionsPage": VERSIONS_PAGE,
     "main": MAIN,
-    "GameListModel": GAME_LIST_MODEL,
 }
+
+# ---------------------------------------------------------------------------
+# Source extraction
+# ---------------------------------------------------------------------------
+
+_QSTR_RE = re.compile(r'qsTr\(\s*"((?:[^"\\]|\\.)*)"')
+_TR_RE = re.compile(r'(?<![A-Za-z_])tr\(\s*"((?:[^"\\]|\\.)*)"')
+_TR_SQ_RE = re.compile(r"(?<![A-Za-z_])tr\(\s*'((?:[^'\\]|\\.)*)'")
+_MODEL_TR_RE = re.compile(r'_tr\(\s*"((?:[^"\\]|\\.)*)"')
+_MODEL_TR_SQ_RE = re.compile(r"_tr\(\s*'((?:[^'\\]|\\.)*)'")
+
+_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\", "'": "'"}
+
+
+def _unescape(raw: str) -> str:
+    out: list[str] = []
+    i = 0
+    while i < len(raw):
+        ch = raw[i]
+        if ch == "\\" and i + 1 < len(raw):
+            nxt = raw[i + 1]
+            out.append(_ESCAPES.get(nxt, nxt))
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _rel(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
+def _scan_qml() -> dict[str, dict[str, list[str]]]:
+    """context (QML file stem) -> source -> ["<file>:<line>", ...]."""
+    found: dict[str, dict[str, list[str]]] = {}
+    for path in sorted(QML_DIR.glob("*.qml")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        bucket: dict[str, list[str]] = {}
+        for lineno, line in enumerate(lines, start=1):
+            for raw in _QSTR_RE.findall(line):
+                bucket.setdefault(_unescape(raw), []).append(f"{_rel(path)}:{lineno}")
+        # A QML file without any qsTr() has no translation context at all.
+        if bucket:
+            found[path.stem] = bucket
+    return found
+
+
+def _scan_python_tr() -> dict[str, dict[str, list[str]]]:
+    """context ``Bridge`` -> source -> locations."""
+    found: dict[str, dict[str, list[str]]] = {"Bridge": {}}
+    for path in sorted(BRIDGE_DIR.glob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            raws = list(_TR_RE.findall(line)) + list(_TR_SQ_RE.findall(line))
+            for raw in raws:
+                found["Bridge"].setdefault(_unescape(raw), []).append(
+                    f"{_rel(path)}:{lineno}")
+    return found
+
+
+def _runtime_only_sources() -> dict[str, set[str]]:
+    """Sources that exist only at runtime (dynamic lookup keys)."""
+    sys.path.insert(0, str(ROOT))
+    from dxvk_toolkit.confkit.curate import PURPOSE_ORDER  # noqa: PLC0415
+    from dxvk_toolkit.steam import PLATFORM_LABELS  # noqa: PLC0415
+
+    return {
+        "GameListModel": set(PURPOSE_ORDER) | set(PLATFORM_LABELS.values()),
+    }
+
+
+def _scan_model_tr() -> dict[str, dict[str, list[str]]]:
+    lines = MODELS_PY.read_text(encoding="utf-8").splitlines()
+    bucket: dict[str, list[str]] = {}
+    for lineno, line in enumerate(lines, start=1):
+        raws = list(_MODEL_TR_RE.findall(line)) + list(_MODEL_TR_SQ_RE.findall(line))
+        for raw in raws:
+            bucket.setdefault(_unescape(raw), []).append(f"{_rel(MODELS_PY)}:{lineno}")
+    return {"GameListModel": bucket}
+
+
+def collect_sources() -> dict[str, dict[str, list[str]]]:
+    sources: dict[str, dict[str, list[str]]] = {}
+    for context, bucket in _scan_qml().items():
+        sources.setdefault(context, {}).update(bucket)
+    for context, bucket in _scan_python_tr().items():
+        sources.setdefault(context, {}).update(bucket)
+    for context, bucket in _scan_model_tr().items():
+        sources.setdefault(context, {}).update(bucket)
+    for context, extra in _runtime_only_sources().items():
+        for source in extra:
+            sources.setdefault(context, {}).setdefault(source, [])
+    return sources
+
+
+# ---------------------------------------------------------------------------
+# Catalogue generation
+# ---------------------------------------------------------------------------
+
+
+def _message(parent: ET.Element, source: str, english: str,
+             locations: list[str]) -> None:
+    msg = ET.SubElement(parent, "message")
+    for loc in locations:
+        filename, _, line = loc.rpartition(":")
+        ET.SubElement(msg, "location", {"filename": filename, "line": line})
+    ET.SubElement(msg, "source").text = source
+    ET.SubElement(msg, "translation").text = english
+
+
+def build_catalogue(sources: dict[str, dict[str, list[str]]]) -> tuple[str, list[str]]:
+    """Return (xml text, problems)."""
+    problems: list[str] = []
+    root = ET.Element("TS", {"version": "2.1", "language": "en_US"})
+    for context in sorted(sources):
+        table = TABLES.get(context)
+        if table is None:
+            problems.append(f"[{context}] no translation table defined")
+            continue
+        bucket = sources[context]
+        for source in sorted(bucket):
+            if source not in table:
+                problems.append(f"[{context}] {source!r} has no English translation")
+        for source in sorted(table):
+            if source not in bucket:
+                problems.append(f"[{context}] {source!r} is stale (not used any more)")
+        ctx = ET.SubElement(root, "context")
+        ET.SubElement(ctx, "name").text = context
+        for source in sorted(bucket):
+            english = table.get(source)
+            if english is None:
+                continue
+            _message(ctx, source, english, bucket[source])
+    ET.indent(root, space="    ")
+    xml = ET.tostring(root, encoding="unicode")
+    return f"<?xml version='1.0' encoding='utf-8'?>\n{xml}\n", problems
 
 
 def main() -> int:
-    tree = ET.parse(TS)
-    root = tree.getroot()
-    if root.get("language") is None:
-        root.set("language", "en_US")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true",
+                        help="fail instead of writing when the catalogue is stale")
+    args = parser.parse_args()
 
-    contexts: dict[str, ET.Element] = {}
-    for ctx in root.iter("context"):
-        name_el = ctx.find("name")
-        assert name_el is not None and name_el.text is not None
-        contexts[name_el.text] = ctx
+    sources = collect_sources()
+    xml, problems = build_catalogue(sources)
+    if problems:
+        print(f"i18n catalogue has {len(problems)} problem(s):", file=sys.stderr)
+        for line in problems:
+            print("  ", line, file=sys.stderr)
+        return 1
 
-    # Add contexts that lupdate cannot see (variable translate() sources).
-    for name in TABLES:
-        if name not in contexts:
-            ctx = ET.SubElement(root, "context")
-            ET.SubElement(ctx, "name").text = name
-            contexts[name] = ctx
+    total = sum(len(v) for v in sources.values())
+    if args.check:
+        current = TS.read_text(encoding="utf-8") if TS.is_file() else ""
+        if current != xml:
+            print(f"{TS} is out of date - rerun 'python tests/i18n_fill.py'",
+                  file=sys.stderr)
+            return 1
+        print(f"i18n catalogue up to date ({total} messages, {len(sources)} contexts)")
+        return 0
 
-    missing: list[str] = []
-    filled = 0
-    for name, table in TABLES.items():
-        ctx = contexts[name]
-        seen: set[str] = set()
-        for msg in ctx.findall("message"):
-            src_el = msg.find("source")
-            assert src_el is not None
-            source = src_el.text or ""
-            seen.add(source)
-            if source not in table:
-                missing.append(f"[{name}] {source!r}")
-                continue
-            tr = msg.find("translation")
-            if tr is None:
-                tr = ET.SubElement(msg, "translation")
-            tr.text = table[source]
-            tr.attrib.pop("type", None)
-            filled += 1
-        for source, english in table.items():
-            if source not in seen:
-                msg = ET.SubElement(ctx, "message")
-                ET.SubElement(msg, "source").text = source
-                ET.SubElement(msg, "translation").text = english
-                filled += 1
-
-    tree.write(TS, encoding="utf-8", xml_declaration=True)
-    print(f"filled {filled} translations; missing {len(missing)}")
-    for line in missing:
-        print("  MISS", line)
-    return 1 if missing else 0
+    TS.parent.mkdir(parents=True, exist_ok=True)
+    TS.write_text(xml, encoding="utf-8")
+    print(f"wrote {TS} ({total} messages, {len(sources)} contexts)")
+    return 0
 
 
 if __name__ == "__main__":
