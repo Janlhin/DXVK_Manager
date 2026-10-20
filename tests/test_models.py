@@ -296,5 +296,49 @@ class BridgeRefreshTests(unittest.TestCase):
                 bridge.shutdown()
 
 
+@requires_qt
+class BridgeSchedulingTests(unittest.TestCase):
+    """Concurrency bookkeeping the UI depends on."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._app = QGuiApplication.instance() or QGuiApplication(["tests"])
+
+    def test_busy_indicator_stays_until_the_last_task(self) -> None:
+        from dxvk_toolkit.ui.bridge import Bridge
+
+        bridge = Bridge()
+        try:
+            seen: list[bool] = []
+            bridge.busyChanged.connect(seen.append)
+            bridge._set_busy(True)
+            bridge._set_busy(True)
+            bridge._set_busy(False)
+            self.assertTrue(bridge._busy, "a second task was still running")
+            bridge._set_busy(False)
+            self.assertFalse(bridge._busy)
+            self.assertEqual(seen, [True, False], "one transition per state change")
+        finally:
+            bridge.shutdown()
+
+    def test_detect_game_is_deduplicated_while_in_flight(self) -> None:
+        from dxvk_toolkit.ui.bridge import Bridge
+
+        with tempfile.TemporaryDirectory() as tmp:
+            game = steam.game_from_folder(Path(tmp) / "g", "G")
+            Path(game.install_dir).mkdir()
+            bridge = Bridge()
+            try:
+                bridge._games = {game.key: game}
+                submitted: list[tuple] = []
+                bridge._submit = lambda *args, **kwargs: submitted.append(args)  # type: ignore[method-assign]
+                bridge.detectGame(game.key)
+                bridge.detectGame(game.key)
+                self.assertEqual(len(submitted), 1, "the second request must be collapsed")
+                self.assertIn(game.key, bridge._detect_pending)
+            finally:
+                bridge.shutdown()
+
+
 if __name__ == "__main__":
     unittest.main()

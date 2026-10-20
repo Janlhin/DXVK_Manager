@@ -18,6 +18,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 from .. import APP_VERSION, confbuild, confspec, covers, fingerprint, installer, net, sources, steam
 from ..paths import data_root, ledger, settings
 from ..util import log
+from . import config_store
 from .models import ConfigListModel, GameListModel, status_for
 
 
@@ -69,6 +70,7 @@ class Bridge(QObject):
         self._games: dict[str, steam.Game] = {}
         self._urls: dict[str, list[str]] = {}
         self._cover_pending: set[str] = set()
+        self._detect_pending: set[str] = set()
         # The config editor edits one target at a time: "" is the shared default
         # that every game inherits, otherwise a game key (normcase install dir).
         self._config_target: str = ""
@@ -76,6 +78,9 @@ class Bridge(QObject):
         self._patched: set[str] = set()
         self._lock = threading.Lock()
         self._busy = False
+        # Concurrent operations: the spinner must stay on until the last one
+        # ends (a fast detect used to switch it off during a long download).
+        self._busy_count = 0
 
         # Signals are emitted from worker threads; these connections deliver
         # them on the interface thread because the bridge lives there.
@@ -167,17 +172,31 @@ class Bridge(QObject):
 
     @Slot(str)
     def detectGame(self, key: str) -> None:
-        """Read the PE headers of a game to learn Direct3D and architecture."""
+        """Read the PE headers of a game to learn Direct3D and architecture.
+
+        Scrolling re-requests the visible range on every frame, so the same
+        game would otherwise be queued again and again while the first task is
+        still running; the pending set collapses those duplicates.
+        """
         game = self._games.get(key)
         if game is None or not game.exists:
             return
+        with self._lock:
+            if key in self._detect_pending:
+                return
+            self._detect_pending.add(key)
 
         def work() -> dict[str, str]:
             info = steam.describe_game(game.install_dir, persist=False)
             steam.flush_detect_cache()
             return info
 
+        def finish(_result: Any = None) -> None:
+            with self._lock:
+                self._detect_pending.discard(key)
+
         def done(info: dict[str, str]) -> None:
+            finish()
             # Detection is finished, so an empty result becomes a sentinel:
             # "" means "not looked at yet" and the interface shows 识别中…,
             # which used to be shown forever for games without runtime DLLs.
@@ -186,7 +205,13 @@ class Bridge(QObject):
             self.model.update(key, direct3d=direct3d, arch=arch)
             self.detected.emit(key, direct3d, arch)
 
-        self._submit(work, done, self.tr("识别 Direct3D 版本失败"), pool=self._detect_pool)
+        self._submit(
+            work,
+            done,
+            self.tr("识别 Direct3D 版本失败"),
+            pool=self._detect_pool,
+            on_error=finish,
+        )
 
     @Slot(str)
     def setSort(self, key: str) -> None:  # noqa: N802 - QML naming
@@ -238,25 +263,12 @@ class Bridge(QObject):
             if not row.get("direct3d"):
                 self.detectGame(key)
 
-            cover_key = covers.cover_key(game)
-            try:
-                original = covers.original_path(cover_key)
-                if original.is_file():
-                    # Slice rounded variants now so the cached original needs
-                    # no re-download; fall back to the original if Pillow is
-                    # missing. (§22 scheme B)
-                    card = covers.ensure_card(cover_key) or original
-                    round_ = covers.ensure_round(cover_key) or original
-                    updates = {}
-                    if not row.get("coverCardUrl"):
-                        updates["coverCardUrl"] = card.as_uri()
-                    if not row.get("coverRoundUrl"):
-                        updates["coverRoundUrl"] = round_.as_uri()
-                    if updates:
-                        self.model.update(key, **updates)
-                    continue
-            except OSError:
-                pass
+            # Slicing is Pillow work (decode + resize); doing it here blocked
+            # the interface thread once per visible card on every scroll. The
+            # cover worker downloads, slices and reports back, and its pending
+            # set makes repeated requests free.
+            if row.get("coverCardUrl") and row.get("coverRoundUrl"):
+                continue
             self.requestCover(key)
 
     @Slot(str)
@@ -296,11 +308,11 @@ class Bridge(QObject):
             if card_uri or round_uri:
                 self.coverReady.emit(key, card_uri, round_uri)
 
-        self._submit(work, done, None, quiet=True)
+        def failed(_result: Any = None) -> None:
+            with self._lock:
+                self._cover_pending.discard(cover_key)
 
-    @Slot(result=str)
-    def coverUrlFor(self, key: str = "") -> str:  # pragma: no cover - helper for QML
-        return ""
+        self._submit(work, done, None, quiet=True, on_error=failed)
 
     # -- versions --------------------------------------------------------
     # Refreshed in the background once the cached list is older than this.
@@ -645,7 +657,7 @@ class Bridge(QObject):
 
         def done(model: Any) -> None:
             self._config_model_data = model
-            self.config.values = self._load_target_values(self._config_target)
+            self.config.values = config_store.load_target_values(self._config_target)
             self.config.set_groups(model.groups)
             stored = str(settings.get("config_mode") or "simple")
             self.config.apply_filter("", stored if stored in confspec.MODES else "simple")
@@ -662,7 +674,7 @@ class Bridge(QObject):
         self.config.set_option(key, enabled, value)
         # Every edit is persisted to the active target so closing the page (or
         # the app) never loses work; only "applied to disk" is a separate step.
-        self._persist_target_values(self._config_target, self.config.values)
+        config_store.persist_target_values(self._config_target, self.config.values)
 
     @Slot(str, str, str)
     def filterConfig(self, search: str, mode: str, section: str = "") -> None:  # noqa: N802
@@ -696,7 +708,7 @@ class Bridge(QObject):
         self.config.resetOption(key)
         # Every other edit is persisted immediately; a reset must be too, or
         # the old value comes back as soon as the target is reloaded.
-        self._persist_target_values(self._config_target, self.config.values)
+        config_store.persist_target_values(self._config_target, self.config.values)
         self.statusMessage.emit(self.tr("已还原：{}").format(key), "info")
 
     @Slot(result=str)
@@ -780,22 +792,11 @@ class Bridge(QObject):
         return target
 
     # -- per-game config targets ------------------------------------------
-    def _store_key(self, target: str) -> str:
-        """Settings key holding one target's selections ("" = shared default)."""
-        return "config_default" if not target else f"config_game:{target}"
-
-    def _load_target_values(self, target: str) -> dict[str, Any]:
-        data = settings.get(self._store_key(target))
-        return dict(data) if isinstance(data, dict) else {}
-
-    def _persist_target_values(self, target: str, values: dict[str, Any]) -> None:
-        settings.set(self._store_key(target), dict(values))
-
     def _reload_target(self) -> None:
         """Re-populate the model from the active target's stored selections."""
         model = self._config_model_data
         if model is not None:
-            self.config.values = self._load_target_values(self._config_target)
+            self.config.values = config_store.load_target_values(self._config_target)
             self.config.set_groups(model.groups)
 
     @Slot(str, str)
@@ -805,12 +806,12 @@ class Bridge(QObject):
         self._config_target_name = name or (self.tr("默认配置") if not gameKey else gameKey)
         model = self._config_model_data
         if model is not None and gameKey:
-            stored = settings.get(self._store_key(gameKey))
+            stored = settings.get(config_store.store_key(gameKey))
             if stored is None:
                 # First edit of this game: start from a copy of the default so
                 # the game inherits today's default instead of a blank page.
-                values = self._load_target_values("")
-                self._persist_target_values(gameKey, values)
+                values = config_store.load_target_values("")
+                config_store.persist_target_values(gameKey, values)
         self._reload_target()
         self.configTargetChanged.emit(self._config_target, self._config_target_name)
 
@@ -846,9 +847,9 @@ class Bridge(QObject):
         if gameKey == self._config_target:
             expected = self.previewConfig()
         else:
-            values = self._load_target_values(gameKey)
+            values = config_store.load_target_values(gameKey)
             if not values:
-                values = self._load_target_values("")
+                values = config_store.load_target_values("")
             expected = confbuild.build_conf(
                 model.groups,
                 values,
@@ -858,42 +859,13 @@ class Bridge(QObject):
         return "written" if lines(disk) == lines(expected) else "mismatch"
 
     # -- presets -----------------------------------------------------------
-    # Option key -> True/False (booleans) or a value string. Keys are the bare
-    # option names from the catalogue (no dxvk./dxgi. prefix); keys that the
-    # loaded reference does not know are skipped on apply.
-    BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
-        "性能优先": {
-            "tearFree": False,
-            "syncInterval": "0",
-            "relaxedGraphicsBarriers": True,
-            "relaxedBarriers": True,
-            "enableGraphicsPipelineLibrary": True,
-        },
-        "兼容优先": {
-            "useRawSsbo": True,
-            "seamlessCubes": True,
-            "lenientClear": True,
-            "clampNegativeLodBias": True,
-            "deferSurfaceCreation": True,
-            "enableUe4Workarounds": True,
-        },
-    }
-
-    def _preset_values(self, name: str) -> dict[str, Any]:
-        if name in self.BUILTIN_PRESETS:
-            return dict(self.BUILTIN_PRESETS[name])
-        custom = settings.get("config_presets", {})
-        if isinstance(custom, dict) and isinstance(custom.get(name), dict):
-            return dict(custom[name])
-        return {}
-
     @Slot(str, result=int)
     def applyPreset(self, name: str) -> int:  # noqa: N802
         """Apply a preset to the current target; returns how many options were set."""
-        if name == "纯净":
+        if name == config_store.PURE_PRESET:
             self.clearConfig()
             return 0
-        preset = self._preset_values(name)
+        preset = config_store.preset_values(name)
         if not preset or self._config_model_data is None:
             return 0
         available = {row["key"] for row in self.config._all}
@@ -906,47 +878,36 @@ class Bridge(QObject):
             else:
                 self.config.set_option(key, True, str(value))
             applied += 1
-        self._persist_target_values(self._config_target, self.config.values)
+        config_store.persist_target_values(self._config_target, self.config.values)
         self._reload_target()
         self.configTargetChanged.emit(self._config_target, self._config_target_name)
         return applied
 
     @Slot(result="QVariant")
     def listPresets(self) -> Any:  # noqa: N802 - QML naming
-        custom = settings.get("config_presets", {})
-        names = [*self.BUILTIN_PRESETS, "纯净"]
-        if isinstance(custom, dict):
-            names.extend(key for key in custom if key not in names)
-        return names
+        return config_store.preset_names()
 
     @Slot(str)
     def savePreset(self, name: str) -> None:  # noqa: N802
         name = name.strip()
         if not name or self._config_model_data is None:
             return
-        if name in self.BUILTIN_PRESETS or name == "纯净":
+        if config_store.is_builtin(name):
             self.statusMessage.emit(self.tr("内置预设不能覆盖，请换一个名字"), "warn")
             return
-        custom = settings.get("config_presets", {})
-        custom = dict(custom) if isinstance(custom, dict) else {}
-        custom[name] = dict(self.config.values)
-        settings.set("config_presets", custom)
-        self.statusMessage.emit(self.tr("已保存预设「{}」").format(name), "ok")
+        if config_store.save_preset(name, self.config.values):
+            self.statusMessage.emit(self.tr("已保存预设「{}」").format(name), "ok")
 
     @Slot(str)
     def deletePreset(self, name: str) -> None:  # noqa: N802
-        custom = settings.get("config_presets", {})
-        if isinstance(custom, dict) and name in custom:
-            custom = dict(custom)
-            del custom[name]
-            settings.set("config_presets", custom)
+        config_store.delete_preset(name)
 
     # -- bulk actions ------------------------------------------------------
     @Slot()
     def clearConfig(self) -> None:  # noqa: N802
         """Drop every selection of the current target."""
         self.config.values = {}
-        self._persist_target_values(self._config_target, {})
+        config_store.persist_target_values(self._config_target, {})
         self._reload_target()
         self.configTargetChanged.emit(self._config_target, self._config_target_name)
 
@@ -955,9 +916,9 @@ class Bridge(QObject):
         """Copy the shared default over the current game's own config."""
         if not self._config_target:
             return
-        values = self._load_target_values("")
+        values = config_store.load_target_values("")
         self.config.values = dict(values)
-        self._persist_target_values(self._config_target, values)
+        config_store.persist_target_values(self._config_target, values)
         self._reload_target()
         self.configTargetChanged.emit(self._config_target, self._config_target_name)
 
@@ -1307,12 +1268,19 @@ class Bridge(QObject):
             self.model.update(key, **updates)
 
     def _set_busy(self, value: bool) -> None:
-        if value != self._busy:
-            self._busy = value
-            self.busyChanged.emit(value)
+        """Track concurrent work; hide the indicator when the last task ends.
+
+        A plain boolean let a fast task switch the spinner off while a long
+        download was still running.
+        """
+        self._busy_count = max(0, self._busy_count + (1 if value else -1))
+        busy = self._busy_count > 0
+        if busy != self._busy:
+            self._busy = busy
+            self.busyChanged.emit(busy)
 
     def _submit(self, work: Any, done: Any, error_label: str | None, quiet: bool = False,
-                *, pool: Any = None) -> None:
+                *, pool: Any = None, on_error: Any = None) -> None:
         def runner() -> None:
             try:
                 result = work()
@@ -1322,6 +1290,10 @@ class Bridge(QObject):
                 if not quiet:
                     self.statusMessage.emit(f"{error_label or self.tr('操作失败')}：{exc}", "error")
                     self._set_busy(False)
+                if on_error is not None:
+                    # Pending-set bookkeeping must run even when the task
+                    # failed, otherwise a game stays "in flight" forever.
+                    self.taskFinished.emit(None, on_error)
                 return
             # Emitting is thread safe and delivers on the interface thread.
             self.taskFinished.emit(result, done)
