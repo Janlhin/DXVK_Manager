@@ -59,6 +59,14 @@ SPOT_CHECKS = (
     ("GameListModel", "米哈游", "miHoYo"),
     ("GameListModel", "手动添加", "Manual"),
     ("GameListModel", "全部", "All"),
+    # The standalone configurator shares the same catalogue but lives in its
+    # own QML files, so its strings get their own contexts.
+    ("StandaloneMain", "DXVK 配置生成器", "DXVK Configurator"),
+    ("StandaloneMain", "打开文件…", "Open file…"),
+    ("Standalone", "已复制到剪贴板", "Copied to the clipboard"),
+    ("Standalone", "没有打开的文件", "No file is open"),
+    ("ConfiguratorPage", "「性能优先」「兼容优先」「纯净」为内置预设，不可覆盖。",
+     '"Performance", "Compatibility" and "Clean" are built-in presets and cannot be overwritten.'),
 )
 
 
