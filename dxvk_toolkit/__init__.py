@@ -23,6 +23,6 @@ The package is split so that every piece can be used without a GUI:
 
 APP_NAME = "DXVK Version Manager"
 APP_EDITION = "Python edition"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.1.0"
 
 __all__ = ["APP_NAME", "APP_EDITION", "APP_VERSION"]
