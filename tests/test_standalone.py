@@ -15,9 +15,24 @@ installs requirements-dev.txt only).
 
 from __future__ import annotations
 
+import atexit
+import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
+
+# Keep the standalone tool's settings in a throwaway directory. This stops the
+# suite from reading or writing the developer's real configuration, and - more
+# importantly - stops the language tests from depending on whatever language
+# the settings file happens to hold (a manually edited "en" file made them
+# fail). The home must contain the tool's slug so the path assertions in
+# StandaloneIsolationTests keep passing.
+_STANDALONE_TEST_PARENT = tempfile.mkdtemp(prefix="dxvk-standalone-test-")
+os.environ["DXVK_CONFIGURATOR_HOME"] = str(
+    Path(_STANDALONE_TEST_PARENT) / "DXVK-Configurator-Py"
+)
+atexit.register(shutil.rmtree, _STANDALONE_TEST_PARENT, ignore_errors=True)
 
 try:
     from PySide6.QtCore import QMetaMethod  # noqa: E402
@@ -243,17 +258,24 @@ class StandaloneLanguageTests(unittest.TestCase):
         cls._app = _App.instance() or _App(["tests"])
 
     def setUp(self) -> None:
-        from dxvk_toolkit.standalone.bridge import ConfiguratorBridge
+        from dxvk_toolkit.standalone import app as standalone_app
+        from dxvk_toolkit.standalone.bridge import (
+            ConfiguratorBridge,
+            configure_catalogue,
+        )
         from dxvk_toolkit.standalone.store import settings
 
+        # Force a known Chinese baseline. The tool defaults to Chinese, which
+        # is also what a fresh install shows; pinning it here keeps the test
+        # independent of the persisted settings file (which may have been left
+        # on "en" by manual testing) and of the global confkit cache.
+        settings.set("ui_lang", "zh")
+        settings.set("docs_language", "zh")
+        standalone_app.set_language("zh")
+        configure_catalogue()
         self.bridge = ConfiguratorBridge()
         self.bridge.loadConfig()
-        # The switch writes to the settings file, so the test puts the
-        # user's own preference back when it is done.
-        self._original = (
-            str(settings.get("ui_lang") or "zh"),
-            str(settings.get("docs_language") or "zh"),
-        )
+        self._original = ("zh", "zh")
         self.addCleanup(self._restore)
 
     def _restore(self) -> None:
