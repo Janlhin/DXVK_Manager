@@ -16,7 +16,7 @@
 
 ## 🚀 快速开始
 
-🐍 需要 Python 3.10+（于 Python 3.13 验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
+🐍 需要 Python 3.11+（于 Python 3.13 验证）。核心层与命令行**零第三方依赖**；图形界面需 `pip install PySide6 Pillow`（见 `MANIFEST.md`）。
 
     :: 一键启动：自动挑选可用解释器，必要时创建 .venv 并安装依赖
     .\启动.ps1
