@@ -54,4 +54,5 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-node@v7
         with: { node-version: 22 }
-      - run: npx --yes @commitlint/cli@19 --extends @commitlint/config-conventional@19 --from "${{ github.event.pull_request.base.sha }}" --to HEAD
+      - run: npm ci
+      - run: npx --no -- commitlint --from "${{ github.event.pull_request.base.sha }}" --to HEAD
